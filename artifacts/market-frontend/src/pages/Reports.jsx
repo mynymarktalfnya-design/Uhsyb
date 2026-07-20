@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { FileText, AlertTriangle, Truck, Calendar, Crown, FileDown } from 'lucide-react';
+import { FileText, AlertTriangle, Truck, Calendar, Crown, FileDown, RefreshCw, TrendingUp } from 'lucide-react';
 import api from '../lib/api';
 import { exportDailyReportPDF } from '../lib/pdfExport';
 
@@ -27,7 +27,9 @@ const Reports = () => {
     api.get('/reports/purchases-monthly', { params: { months: 12 } }).then((r) => setPurchasesMonthly(r.data)).catch(() => {});
   }, []);
 
-  const totalRevenue = byDay.reduce((s, x) => s + x.total, 0);
+  const totalRevenue  = byDay.reduce((s, x) => s + x.total, 0);
+  const totalReturns  = byDay.reduce((s, x) => s + (x.returns || 0), 0);
+  const totalNetSales = byDay.reduce((s, x) => s + (x.net_sales ?? x.total), 0);
   const totalInvoices = byDay.reduce((s, x) => s + x.count, 0);
 
   const tabs = [
@@ -45,29 +47,45 @@ const Reports = () => {
       </div>
 
       {/* Top KPI Cards (sales summary always visible) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <Card data-testid="kpi-revenue-30d">
-          <CardContent className="p-5">
-            <h3 className="text-xs text-slate-500 mb-1">إيرادات (30 يوم)</h3>
-            <p className="text-2xl font-bold text-emerald-600">{money(totalRevenue)}</p>
+          <CardContent className="p-4">
+            <h3 className="text-xs text-slate-500 mb-1">إجمالي المبيعات (30 يوم)</h3>
+            <p className="text-xl font-bold text-emerald-600">{money(totalRevenue)}</p>
+          </CardContent>
+        </Card>
+        <Card data-testid="kpi-returns-30d" className="border-rose-200">
+          <CardContent className="p-4">
+            <h3 className="text-xs text-slate-500 mb-1 flex items-center gap-1">
+              <RefreshCw className="w-3 h-3 text-rose-500" /> إجمالي المرتجعات (30 يوم)
+            </h3>
+            <p className="text-xl font-bold text-rose-600">- {money(totalReturns)}</p>
+          </CardContent>
+        </Card>
+        <Card data-testid="kpi-net-sales-30d" className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <h3 className="text-xs text-slate-500 mb-1 flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-green-600" /> صافي المبيعات (30 يوم)
+            </h3>
+            <p className="text-xl font-bold text-green-700">{money(totalNetSales)}</p>
           </CardContent>
         </Card>
         <Card data-testid="kpi-invoices-30d">
-          <CardContent className="p-5">
+          <CardContent className="p-4">
             <h3 className="text-xs text-slate-500 mb-1">فواتير البيع (30 يوم)</h3>
-            <p className="text-2xl font-bold text-amber-600">{fmt(totalInvoices)}</p>
+            <p className="text-xl font-bold text-amber-600">{fmt(totalInvoices)}</p>
           </CardContent>
         </Card>
         <Card data-testid="kpi-purchases-30d-total">
-          <CardContent className="p-5">
+          <CardContent className="p-4">
             <h3 className="text-xs text-slate-500 mb-1">مشتريات (30 يوم)</h3>
-            <p className="text-2xl font-bold text-indigo-600">{money(purchasesDaily?.grand_total)}</p>
+            <p className="text-xl font-bold text-indigo-600">{money(purchasesDaily?.grand_total)}</p>
           </CardContent>
         </Card>
         <Card data-testid="kpi-purchases-30d-count">
-          <CardContent className="p-5">
+          <CardContent className="p-4">
             <h3 className="text-xs text-slate-500 mb-1">فواتير الشراء (30 يوم)</h3>
-            <p className="text-2xl font-bold text-purple-600">{fmt(purchasesDaily?.grand_invoices_count)}</p>
+            <p className="text-xl font-bold text-purple-600">{fmt(purchasesDaily?.grand_invoices_count)}</p>
           </CardContent>
         </Card>
       </div>
@@ -107,20 +125,37 @@ const Reports = () => {
                 <thead className="bg-slate-50 text-slate-700">
                   <tr>
                     <th className="px-4 py-2 text-right">التاريخ</th>
-                    <th className="px-4 py-2 text-right">عدد الفواتير</th>
-                    <th className="px-4 py-2 text-right">الإجمالي</th>
+                    <th className="px-4 py-2 text-right">فواتير</th>
+                    <th className="px-4 py-2 text-right">إجمالي المبيعات</th>
+                    <th className="px-4 py-2 text-right text-rose-600">المرتجعات</th>
+                    <th className="px-4 py-2 text-right text-green-700">صافي المبيعات</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {byDay.length === 0 && <tr><td colSpan="3" className="text-center py-6 text-slate-400">لا بيانات</td></tr>}
+                  {byDay.length === 0 && <tr><td colSpan="5" className="text-center py-6 text-slate-400">لا بيانات</td></tr>}
                   {byDay.map((d) => (
-                    <tr key={d.date} className="border-t" data-testid={`sales-row-${d.date}`}>
+                    <tr key={d.date} className="border-t hover:bg-slate-50" data-testid={`sales-row-${d.date}`}>
                       <td className="px-4 py-2">{d.date}</td>
                       <td className="px-4 py-2">{d.count}</td>
                       <td className="px-4 py-2 font-bold text-emerald-600">{money(d.total)}</td>
+                      <td className="px-4 py-2 text-rose-600">
+                        {(d.returns || 0) > 0 ? `- ${money(d.returns)}` : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-2 font-bold text-green-700">{money(d.net_sales ?? d.total)}</td>
                     </tr>
                   ))}
                 </tbody>
+                {byDay.length > 0 && (
+                  <tfoot className="bg-slate-100 font-bold text-slate-800 border-t-2">
+                    <tr>
+                      <td className="px-4 py-2">الإجمالي (30 يوم)</td>
+                      <td className="px-4 py-2">{fmt(totalInvoices)}</td>
+                      <td className="px-4 py-2 text-emerald-700">{money(totalRevenue)}</td>
+                      <td className="px-4 py-2 text-rose-600">{totalReturns > 0 ? `- ${money(totalReturns)}` : '—'}</td>
+                      <td className="px-4 py-2 text-green-800">{money(totalNetSales)}</td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </CardContent>

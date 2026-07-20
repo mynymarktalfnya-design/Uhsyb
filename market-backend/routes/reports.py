@@ -18,21 +18,57 @@ def _date_range(date_from: Optional[str], date_to: Optional[str]):
     return rng
 
 
+def _returns_for_range(db, start, end):
+    """Sum approved returns in [start, end] grouped by return_type."""
+    pipeline = [
+        {"$match": {"created_at": {"$gte": start, "$lte": end},
+                    "status": "approved", "deleted_at": None}},
+        {"$group": {"_id": "$return_type", "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
+    ]
+    by_type = {r["_id"]: {"total": float(r["total"]), "count": int(r["count"])}
+               for r in db[C.sale_returns].aggregate(pipeline)}
+    total_returns = sum(v["total"] for v in by_type.values())
+    count_returns = sum(v["count"] for v in by_type.values())
+    return total_returns, count_returns, by_type
+
+
 @router.get("/daily")
 def daily_sales(date: Optional[str] = None, db = Depends(get_db), _u = Depends(require_manager)):
     target = _date.fromisoformat(date) if date else _date.today()
     start = datetime.combine(target, datetime.min.time())
     end = datetime.combine(target, datetime.max.time())
+
     pipeline = [
         {"$match": {"created_at": {"$gte": start, "$lte": end}, "status": "completed", "deleted_at": None}},
         {"$group": {"_id": "$payment_method", "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
     ]
-    by_method = {x["_id"]: {"total": x["total"], "count": x["count"]} for x in db[C.sales].aggregate(pipeline)}
+    by_method = {x["_id"]: {"total": float(x["total"]), "count": int(x["count"])}
+                 for x in db[C.sales].aggregate(pipeline)}
     grand_total = sum(v["total"] for v in by_method.values())
     grand_count = sum(v["count"] for v in by_method.values())
+
+    total_returns, count_returns, returns_by_type = _returns_for_range(db, start, end)
+
+    # Net by payment method
+    by_method_net = {}
+    for method, vals in by_method.items():
+        ret = returns_by_type.get(method, {}).get("total", 0.0)
+        by_method_net[method] = {
+            "total": round(vals["total"], 2),
+            "count": vals["count"],
+            "returns_total": round(ret, 2),
+            "net_total": round(max(0.0, vals["total"] - ret), 2),
+        }
+
     return {
-        "date": target.isoformat(), "total_sales": grand_total,
-        "transactions_count": grand_count, "by_payment_method": by_method,
+        "date": target.isoformat(),
+        "total_sales": round(grand_total, 2),
+        "total_returns": round(total_returns, 2),
+        "net_sales": round(grand_total - total_returns, 2),
+        "transactions_count": grand_count,
+        "returns_count": count_returns,
+        "by_payment_method": by_method,
+        "by_payment_method_net": by_method_net,
     }
 
 
@@ -43,27 +79,39 @@ def monthly_sales(year: Optional[int] = None, month: Optional[int] = None,
     y, m = year or today.year, month or today.month
     start = datetime(y, m, 1, tzinfo=timezone.utc)
     end = datetime(y + (m // 12), (m % 12) + 1, 1, tzinfo=timezone.utc)
+
     pipeline = [
         {"$match": {"created_at": {"$gte": start, "$lt": end}, "status": "completed", "deleted_at": None}},
         {"$group": {"_id": None, "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
     ]
     agg = list(db[C.sales].aggregate(pipeline))
-    return {"year": y, "month": m,
-            "total_sales": agg[0]["total"] if agg else 0,
-            "transactions_count": agg[0]["count"] if agg else 0}
+    total_sales = float(agg[0]["total"]) if agg else 0.0
+    tx_count    = int(agg[0]["count"])   if agg else 0
+
+    total_returns, count_returns, _ = _returns_for_range(db, start, end)
+
+    return {
+        "year": y, "month": m,
+        "total_sales": round(total_sales, 2),
+        "total_returns": round(total_returns, 2),
+        "net_sales": round(total_sales - total_returns, 2),
+        "transactions_count": tx_count,
+        "returns_count": count_returns,
+    }
 
 
 @router.get("/profits")
 def profits(date_from: Optional[str] = None, date_to: Optional[str] = None,
             db = Depends(get_db), _u = Depends(require_admin)):
-    """Admin-only profit report (revenue - cost)."""
+    """Admin-only profit report (revenue - cost - returns)."""
     rng = _date_range(date_from, date_to)
     sales_filter = {"status": "completed", "deleted_at": None}
     if rng:
         sales_filter["created_at"] = rng
     sale_ids = [s["_id"] for s in db[C.sales].find(sales_filter, {"_id": 1})]
     if not sale_ids:
-        return {"revenue": 0, "cost": 0, "profit": 0, "items_count": 0}
+        return {"revenue": 0, "cost": 0, "total_returns": 0, "net_revenue": 0, "profit": 0, "items_count": 0}
+
     items = list(db[C.sale_items].find({"sale_id": {"$in": sale_ids}}))
     product_ids = list({it["product_id"] for it in items})
     prod_map = {p["_id"]: p for p in
@@ -71,8 +119,23 @@ def profits(date_from: Optional[str] = None, date_to: Optional[str] = None,
     revenue = sum(float(it.get("total", 0)) for it in items)
     cost = sum(float(prod_map.get(it["product_id"], {}).get("cost_price", 0) or 0)
                * float(it.get("quantity", 0)) for it in items)
-    return {"revenue": revenue, "cost": cost, "profit": revenue - cost,
-            "items_count": len(items)}
+
+    # Approved returns in the same period
+    ret_filter = {"status": "approved", "deleted_at": None}
+    if rng:
+        ret_filter["created_at"] = rng
+    total_returns = sum(float(r.get("total", 0))
+                        for r in db[C.sale_returns].find(ret_filter, {"total": 1}))
+    net_revenue = revenue - total_returns
+
+    return {
+        "revenue": round(revenue, 2),
+        "cost": round(cost, 2),
+        "total_returns": round(total_returns, 2),
+        "net_revenue": round(net_revenue, 2),
+        "profit": round(net_revenue - cost, 2),
+        "items_count": len(items),
+    }
 
 
 @router.get("/payment-methods")
@@ -81,11 +144,12 @@ def payment_methods_report(
     date_to: Optional[str] = None,
     db = Depends(get_db), _u = Depends(require_manager),
 ):
-    """تقرير طرق الدفع مع تجميع وإحصائيات مفصّلة."""
+    """تقرير طرق الدفع مع تجميع وإحصائيات مفصّلة (صافي المرتجعات)."""
     rng = _date_range(date_from, date_to)
     match_f = {"status": "completed", "deleted_at": None}
     if rng:
         match_f["created_at"] = rng
+
     pipeline = [
         {"$match": match_f},
         {"$group": {
@@ -97,18 +161,43 @@ def payment_methods_report(
     ]
     rows = list(db[C.sales].aggregate(pipeline))
     grand_total = sum(float(r["total"]) for r in rows)
+
+    # Returns by type
+    start_dt = rng.get("$gte") if rng else datetime(2000, 1, 1)
+    end_dt   = rng.get("$lte") if rng else datetime.now(timezone.utc)
+    if isinstance(start_dt, _date) and not isinstance(start_dt, datetime):
+        start_dt = datetime.combine(start_dt, datetime.min.time())
+    if isinstance(end_dt, _date) and not isinstance(end_dt, datetime):
+        end_dt = datetime.combine(end_dt, datetime.max.time())
+    if start_dt is None:
+        start_dt = datetime(2000, 1, 1)
+    if end_dt is None:
+        end_dt = datetime.now(timezone.utc)
+    _, _, returns_by_type = _returns_for_range(db, start_dt, end_dt)
+    grand_returns = sum(v["total"] for v in returns_by_type.values())
+
     items = []
     for r in rows:
-        t = float(r["total"])
-        c = int(r["count"])
+        t   = float(r["total"])
+        c   = int(r["count"])
+        ret = returns_by_type.get(r["_id"], {}).get("total", 0.0)
+        net = max(0.0, t - ret)
         items.append({
-            "method": r["_id"],
-            "total": round(t, 2),
-            "count": c,
-            "avg": round(t / c, 2) if c else 0,
-            "pct": round(t / grand_total * 100, 1) if grand_total > 0 else 0,
+            "method":        r["_id"],
+            "total":         round(t, 2),
+            "returns_total": round(ret, 2),
+            "net_total":     round(net, 2),
+            "count":         c,
+            "avg":           round(t / c, 2) if c else 0,
+            "net_avg":       round(net / c, 2) if c else 0,
+            "pct":           round(t / grand_total * 100, 1) if grand_total > 0 else 0,
         })
-    return {"grand_total": round(grand_total, 2), "items": items}
+    return {
+        "grand_total":   round(grand_total, 2),
+        "grand_returns": round(grand_returns, 2),
+        "grand_net":     round(grand_total - grand_returns, 2),
+        "items": items,
+    }
 
 
 @router.get("/purchases-daily")
@@ -155,16 +244,41 @@ def low_stock(db = Depends(get_db), _u = Depends(require_manager)):
 
 @router.get("/sales-by-day")
 def sales_by_day(days: int = 30, db = Depends(get_db), _u = Depends(require_manager)):
-    """Return last N days of total sales for charts."""
-    from datetime import timedelta
+    """Return last N days of total sales + returns + net sales for charts."""
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=days)
-    pipeline = [
+
+    sales_pipeline = [
         {"$match": {"created_at": {"$gte": start, "$lte": end},
                     "status": "completed", "deleted_at": None}},
         {"$group": {"_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
                      "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
         {"$sort": {"_id": 1}},
     ]
-    return [{"date": r["_id"], "total": r["total"], "count": r["count"]}
-            for r in db[C.sales].aggregate(pipeline)]
+    ret_pipeline = [
+        {"$match": {"created_at": {"$gte": start, "$lte": end},
+                    "status": "approved", "deleted_at": None}},
+        {"$group": {"_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
+                     "returns": {"$sum": "$total"}, "returns_count": {"$sum": 1}}},
+    ]
+    sales_by_d   = {r["_id"]: {"total": float(r["total"]), "count": int(r["count"])}
+                    for r in db[C.sales].aggregate(sales_pipeline)}
+    returns_by_d = {r["_id"]: {"returns": float(r["returns"]), "count": int(r["returns_count"])}
+                    for r in db[C.sale_returns].aggregate(ret_pipeline)}
+
+    all_days = sorted(set(list(sales_by_d.keys()) + list(returns_by_d.keys())))
+    result = []
+    for d in all_days:
+        s = sales_by_d.get(d, {}).get("total", 0.0)
+        r = returns_by_d.get(d, {}).get("returns", 0.0)
+        sc = sales_by_d.get(d, {}).get("count", 0)
+        rc = returns_by_d.get(d, {}).get("count", 0)
+        result.append({
+            "date": d,
+            "total": round(s, 2),
+            "count": sc,
+            "returns": round(r, 2),
+            "returns_count": rc,
+            "net_sales": round(s - r, 2),
+        })
+    return result

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ShoppingCart, AlertTriangle, Users, DollarSign,
   TrendingUp, Receipt, Truck, Wallet, CalendarX,
-  Banknote, Clock,
+  Banknote, Clock, RefreshCw, TrendingDown,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import api from '../lib/api';
@@ -31,21 +31,31 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  // بطاقات الإحصاء الرئيسية - بدون أي ذكر للمخزون
+  // بطاقات الإحصاء الرئيسية
   const stats = [
     {
-      label: 'مبيعات اليوم (الإجمالي)',
+      label: 'إجمالي مبيعات اليوم',
       value: formatMoney(summary?.sales_today),
       icon: DollarSign,
       gradient: 'from-emerald-500 to-teal-600',
       testId: 'stat-sales-today',
+      sub: null,
+    },
+    {
+      label: 'صافي مبيعات اليوم',
+      value: formatMoney(summary?.net_sales_today),
+      icon: TrendingUp,
+      gradient: 'from-green-600 to-emerald-700',
+      testId: 'stat-net-sales-today',
+      sub: summary?.returns_today > 0 ? `بعد خصم مرتجعات ${formatMoney(summary?.returns_today)}` : null,
     },
     {
       label: 'مبيعات اليوم النقدية',
       value: formatMoney(summary?.sales_today_cash),
       icon: Banknote,
-      gradient: 'from-green-500 to-emerald-600',
+      gradient: 'from-blue-500 to-indigo-600',
       testId: 'stat-sales-today-cash',
+      sub: null,
     },
     {
       label: 'مبيعات اليوم الآجلة',
@@ -53,31 +63,30 @@ const Dashboard = () => {
       icon: Clock,
       gradient: 'from-rose-500 to-rose-600',
       testId: 'stat-sales-today-credit',
+      sub: null,
     },
     {
-      label: 'مبيعات الشهر',
-      value: formatMoney(summary?.sales_month),
+      label: 'صافي مبيعات الشهر',
+      value: formatMoney(summary?.net_sales_month),
       icon: TrendingUp,
       gradient: 'from-amber-500 to-orange-600',
-      testId: 'stat-sales-month',
+      testId: 'stat-net-sales-month',
+      sub: summary?.returns_month > 0 ? `مرتجعات الشهر: ${formatMoney(summary?.returns_month)}` : null,
     },
     {
       label: 'فواتير اليوم',
       value: formatNum(summary?.invoices_today),
       icon: Receipt,
-      gradient: 'from-blue-500 to-indigo-600',
-      testId: 'stat-invoices-today',
-    },
-    {
-      label: 'عدد العملاء',
-      value: formatNum(summary?.customers_count),
-      icon: Users,
       gradient: 'from-purple-500 to-purple-600',
-      testId: 'stat-customers',
+      testId: 'stat-invoices-today',
+      sub: null,
     },
   ];
 
-  // بطاقات الوحدات — بدون بطاقة المنتجات (لا يعرض المشرف إجمالي المنتجات)
+  // بطاقات المرتجعات — تظهر فقط إذا كان هناك مرتجعات
+  const hasReturnsToday = (summary?.returns_today ?? 0) > 0;
+
+  // بطاقات الوحدات
   const cards = [
     { title: 'نقطة البيع (POS)', desc: 'بدء فاتورة جديدة بسرعة فائقة', icon: ShoppingCart, link: '/dashboard/pos', color: 'amber' },
     { title: 'مخزون منخفض', desc: `${formatNum(summary?.low_stock_count)} منتج يحتاج تجديد`, icon: AlertTriangle, link: '/dashboard/products?lowStock=1', color: 'red' },
@@ -85,7 +94,6 @@ const Dashboard = () => {
     { title: 'المصروفات', desc: `${formatMoney(summary?.expenses_month)} هذا الشهر`, icon: Wallet, link: '/dashboard/expenses', color: 'pink' },
   ];
 
-  // الموردون والمشتريات متاحون فقط للمدير وليس للكاشير
   if (canViewPurchases) {
     cards.push({ title: 'الموردون', desc: `${formatNum(summary?.suppliers_count)} مورد مسجّل`, icon: Truck, link: '/dashboard/purchases', color: 'purple' });
   }
@@ -105,8 +113,8 @@ const Dashboard = () => {
         <p className="text-slate-500">نظرة شاملة على أداء المبيعات اليوم</p>
       </div>
 
-      {/* بطاقات الإحصاء — بدون أي ذكر للمخزون */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      {/* بطاقات الإحصاء الرئيسية */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {stats.map((s) => {
           const Icon = s.icon;
           return (
@@ -118,6 +126,7 @@ const Dashboard = () => {
                   </div>
                   <p className="text-white/80 text-sm mb-1">{s.label}</p>
                   <p className="text-2xl font-bold" data-testid={s.testId}>{loading ? '...' : s.value}</p>
+                  {s.sub && <p className="text-white/70 text-xs mt-1">{s.sub}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -125,7 +134,29 @@ const Dashboard = () => {
         })}
       </div>
 
-      {/* تنبيهات تواريخ الصلاحية — للمدير فقط */}
+      {/* شريط ملخص المرتجعات — يظهر فقط إذا كان هناك مرتجعات اليوم */}
+      {!loading && hasReturnsToday && (
+        <div className="mb-6">
+          <Link to="/dashboard/returns">
+            <div className="bg-gradient-to-l from-orange-50 to-rose-50 border-2 border-orange-300 rounded-xl p-4 shadow-md flex items-center gap-4 hover:shadow-lg transition-all">
+              <div className="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0">
+                <RefreshCw className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-orange-900">مرتجعات اليوم</h3>
+                <div className="flex flex-wrap gap-4 mt-1 text-sm text-orange-700">
+                  <span>إجمالي المبيعات: <strong>{formatMoney(summary?.sales_today)}</strong></span>
+                  <span>المرتجعات: <strong className="text-rose-600">- {formatMoney(summary?.returns_today)}</strong></span>
+                  <span>صافي المبيعات: <strong className="text-green-700">{formatMoney(summary?.net_sales_today)}</strong></span>
+                </div>
+              </div>
+              <span className="text-orange-600 text-sm underline">عرض ←</span>
+            </div>
+          </Link>
+        </div>
+      )}
+
+      {/* تنبيهات تواريخ الصلاحية */}
       {canViewPurchases && expiry && (expiry.expired_count > 0 || (expiry.soon || []).some((p) => p.severity === 'critical' || p.severity === 'warning')) && (
         <div className="mb-6" data-testid="expiry-alert-card">
           <div className="bg-gradient-to-br from-rose-50 to-amber-50 border-2 border-rose-300 rounded-xl p-4 shadow-md">
@@ -175,7 +206,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* تنبيه المخزون المنخفض فقط — بدون عرض إجمالي المنتجات */}
+      {/* تنبيه المخزون المنخفض */}
       {summary?.low_stock_count > 0 && (
         <div className="mb-6">
           <Link to="/dashboard/products?lowStock=1">

@@ -34,6 +34,28 @@ def _sum_sales(db, start, end):
     return (a[0]["total"], a[0]["count"]) if a else (0, 0)
 
 
+def _sum_returns(db, start, end):
+    """Sum approved returns in a date range. Returns (total, count)."""
+    pipeline = [
+        {"$match": {"created_at": {"$gte": start, "$lte": end},
+                    "status": "approved", "deleted_at": None}},
+        {"$group": {"_id": None, "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
+    ]
+    a = list(db[C.sale_returns].aggregate(pipeline))
+    return (float(a[0]["total"]), int(a[0]["count"])) if a else (0.0, 0)
+
+
+def _sum_returns_by_type(db, start, end):
+    """Sum approved returns grouped by return_type (cash / credit / etc.)."""
+    pipeline = [
+        {"$match": {"created_at": {"$gte": start, "$lte": end},
+                    "status": "approved", "deleted_at": None}},
+        {"$group": {"_id": "$return_type", "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
+    ]
+    return {r["_id"]: {"total": float(r["total"]), "count": int(r["count"])}
+            for r in db[C.sale_returns].aggregate(pipeline)}
+
+
 def _sum_purchases(db, start, end):
     pipeline = [
         {"$match": {"created_at": {"$gte": start, "$lt": end}, "deleted_at": None}},
@@ -63,15 +85,25 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
     purchases_month, _ = _sum_purchases(db, month_start, month_end)
     expenses_month = _sum_expenses(db, month_start, month_end)
 
-    # Sales breakdown: cash (all non-credit methods) vs credit (آجل)
+    # Returns (approved only)
+    returns_today, returns_today_count = _sum_returns(db, today_start, today_end)
+    returns_month, returns_month_count = _sum_returns(db, month_start, month_end)
+    returns_by_type_today = _sum_returns_by_type(db, today_start, today_end)
+    cash_returns_today = returns_by_type_today.get("cash", {}).get("total", 0.0)
+    credit_returns_today = returns_by_type_today.get("credit", {}).get("total", 0.0)
+
+    # Sales breakdown: cash (all non-credit methods) vs credit (آجل) — net of returns
     by_method_today = list(db[C.sales].aggregate([
         {"$match": {"created_at": {"$gte": today_start, "$lte": today_end},
                     "status": "completed", "deleted_at": None}},
         {"$group": {"_id": "$payment_method",
                     "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
     ]))
-    sales_today_cash   = sum(float(x["total"]) for x in by_method_today if x["_id"] != "credit")
-    sales_today_credit = sum(float(x["total"]) for x in by_method_today if x["_id"] == "credit")
+    gross_today_cash   = sum(float(x["total"]) for x in by_method_today if x["_id"] != "credit")
+    gross_today_credit = sum(float(x["total"]) for x in by_method_today if x["_id"] == "credit")
+    # Net = gross − returns by type
+    sales_today_cash   = max(0.0, gross_today_cash - cash_returns_today)
+    sales_today_credit = max(0.0, gross_today_credit - credit_returns_today)
 
     products_count = db[C.products].count_documents({"deleted_at": None, "is_active": True})
     customers_count = db[C.customers].count_documents({"deleted_at": None})
@@ -90,10 +122,20 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
     })
 
     return {
+        # Gross sales
         "sales_today": sales_today, "invoices_today": invoices_today,
         "sales_today_cash": round(sales_today_cash, 2),
         "sales_today_credit": round(sales_today_credit, 2),
         "sales_month": sales_month, "invoices_month": invoices_month,
+        # Returns (approved)
+        "returns_today": round(returns_today, 2),
+        "returns_today_count": returns_today_count,
+        "returns_month": round(returns_month, 2),
+        "returns_month_count": returns_month_count,
+        # Net sales = gross − returns
+        "net_sales_today": round(sales_today - returns_today, 2),
+        "net_sales_month": round(sales_month - returns_month, 2),
+        # Purchases / expenses
         "purchases_today": purchases_today, "purchases_month": purchases_month,
         "expenses_month": expenses_month,
         "products_count": products_count,
@@ -130,8 +172,10 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
     def sum_expenses(start, end):
         return _sum_expenses(db, start, end)
 
+    def sum_ret(start, end):
+        return _sum_returns(db, start, end)[0]
+
     # Sales today: cash (all non-credit methods) vs credit (آجل)
-    today_invoices_count, _ = _sum_sales(db, today_start, today_end)[0], 0
     today_invoices_count = _sum_sales(db, today_start, today_end)[1]
     by_method_today = list(db[C.sales].aggregate([
         {"$match": {"created_at": {"$gte": today_start, "$lte": today_end},
@@ -142,18 +186,44 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
     today_cash_total   = round(sum(float(x["total"]) for x in by_method_today if x["_id"] != "credit"), 2)
     today_credit_total = round(sum(float(x["total"]) for x in by_method_today if x["_id"] == "credit"), 2)
 
-    # Sales by period
+    # Returns by period
+    ret_today = sum_ret(today_start, today_end)
+    ret_week  = sum_ret(week_start, today_end)
+    ret_month = sum_ret(month_start, month_end)
+    ret_year  = sum_ret(year_start, year_end)
+    ret_by_type_today = _sum_returns_by_type(db, today_start, today_end)
+    cash_ret_today   = ret_by_type_today.get("cash", {}).get("total", 0.0)
+    credit_ret_today = ret_by_type_today.get("credit", {}).get("total", 0.0)
+
+    gross_today = sum_sales(today_start, today_end)
+    gross_week  = sum_sales(week_start, today_end)
+    gross_month = sum_sales(month_start, month_end)
+    gross_year  = sum_sales(year_start, year_end)
+
+    # Sales by period (gross + net)
     sales = {
-        "today": sum_sales(today_start, today_end),
-        "week": sum_sales(week_start, today_end),
-        "month": sum_sales(month_start, month_end),
-        "year": sum_sales(year_start, year_end),
-        "today_cash": today_cash_total,
-        "today_credit": today_credit_total,
+        "today": gross_today,
+        "week":  gross_week,
+        "month": gross_month,
+        "year":  gross_year,
+        "today_cash":   round(today_cash_total, 2),
+        "today_credit": round(today_credit_total, 2),
         "invoices_today": today_invoices_count,
+        # Returns
+        "returns_today": round(ret_today, 2),
+        "returns_week":  round(ret_week, 2),
+        "returns_month": round(ret_month, 2),
+        "returns_year":  round(ret_year, 2),
+        # Net = gross − returns
+        "net_today": round(gross_today - ret_today, 2),
+        "net_week":  round(gross_week  - ret_week,  2),
+        "net_month": round(gross_month - ret_month, 2),
+        "net_year":  round(gross_year  - ret_year,  2),
+        "net_today_cash":   round(max(0.0, today_cash_total   - cash_ret_today),   2),
+        "net_today_credit": round(max(0.0, today_credit_total - credit_ret_today), 2),
     }
 
-    # Profits = revenue - cost (approximate, per item)
+    # Profits = revenue - cost (approximate, per item) - returns
     def profit_for(start, end):
         sale_ids = [s["_id"] for s in db[C.sales].find({
             "created_at": {"$gte": start, "$lte": end},
@@ -170,7 +240,9 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
         rev = sum(float(it.get("total", 0)) for it in items)
         cost = sum(float(prod_map.get(it["product_id"], {}).get("cost_price", 0) or 0)
                    * float(it.get("quantity", 0)) for it in items)
-        return rev - cost
+        # Subtract approved returns from profit
+        ret_total = _sum_returns(db, start, end)[0]
+        return (rev - ret_total) - cost
 
     profits = {
         "today": profit_for(today_start, today_end),
@@ -217,14 +289,17 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
     supplier_paid_today = sum(float(p.get("amount", 0)) for p in db[C.supplier_payments].find({
         "created_at": {"$gte": today_start, "$lte": today_end},
     }, {"amount": 1}))
+    # Cash returns — approved returns refunded in cash
+    cash_returns_today = _sum_returns_by_type(db, today_start, today_end).get("cash", {}).get("total", 0.0)
     cash_box = {
-        "current_balance": cash_sales_today + customer_receipts - expenses_paid_today - supplier_paid_today,
+        "current_balance": cash_sales_today + customer_receipts - expenses_paid_today - supplier_paid_today - cash_returns_today,
         "total_received_today": cash_sales_today + customer_receipts,
         "sales_cash": cash_sales_today,
         "customer_receipts": customer_receipts,
-        "total_paid_today": expenses_paid_today + supplier_paid_today,
+        "total_paid_today": expenses_paid_today + supplier_paid_today + cash_returns_today,
         "expenses_paid": expenses_paid_today,
         "supplier_paid": supplier_paid_today,
+        "cash_returns": round(cash_returns_today, 2),
     }
 
     # Alerts
@@ -412,24 +487,47 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
             "expenses": {"$sum": "$amount"},
         }},
     ]
-    sales_by_day = {r["_id"]: r["sales"] for r in db[C.sales].aggregate(chart_pipeline)}
-    exp_by_day   = {r["_id"]: r["expenses"] for r in db[C.expenses].aggregate(exp_chart_pipeline)}
+    # Returns chart — last 30 days (approved only)
+    ret_chart_pipeline = [
+        {"$match": {"created_at": {"$gte": now - timedelta(days=30), "$lte": now},
+                    "status": "approved", "deleted_at": None}},
+        {"$group": {
+            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
+            "returns": {"$sum": "$total"},
+        }},
+    ]
+    sales_by_day   = {r["_id"]: float(r["sales"])   for r in db[C.sales].aggregate(chart_pipeline)}
+    exp_by_day     = {r["_id"]: float(r["expenses"]) for r in db[C.expenses].aggregate(exp_chart_pipeline)}
+    ret_by_day     = {r["_id"]: float(r["returns"])  for r in db[C.sale_returns].aggregate(ret_chart_pipeline)}
     # Build a complete 30-day series
-    all_days = sorted(set(list(sales_by_day.keys()) + list(exp_by_day.keys())))
+    all_days = sorted(set(list(sales_by_day.keys()) + list(exp_by_day.keys()) + list(ret_by_day.keys())))
     chart_30d = []
     for d in all_days:
         s = float(sales_by_day.get(d, 0))
         e = float(exp_by_day.get(d, 0))
-        chart_30d.append({"date": d, "sales": s, "expenses": e, "profit": s - e})
+        r = float(ret_by_day.get(d, 0))
+        net = s - r
+        chart_30d.append({"date": d, "sales": s, "expenses": e, "returns": r,
+                           "net_sales": net, "profit": net - e})
 
-    # Payment methods breakdown — current month
+    # Payment methods breakdown — current month (net of returns)
     pm_pipeline = [
         {"$match": {"created_at": {"$gte": month_start, "$lt": month_end},
                     "status": "completed", "deleted_at": None}},
         {"$group": {"_id": "$payment_method", "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
     ]
-    payment_methods = [{"method": r["_id"], "total": r["total"], "count": r["count"]}
-                       for r in db[C.sales].aggregate(pm_pipeline)]
+    pm_returns_by_type = _sum_returns_by_type(db, month_start, month_end)
+    payment_methods = []
+    for r in db[C.sales].aggregate(pm_pipeline):
+        gross = float(r["total"])
+        ret   = pm_returns_by_type.get(r["_id"], {}).get("total", 0.0)
+        payment_methods.append({
+            "method":        r["_id"],
+            "total":         round(gross, 2),
+            "returns_total": round(ret, 2),
+            "net_total":     round(max(0.0, gross - ret), 2),
+            "count":         int(r["count"]),
+        })
 
     return {
         "as_of": now.isoformat(),

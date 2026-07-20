@@ -328,9 +328,10 @@ export default function ManagerDashboard() {
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v) => formatMoney(v)} labelFormatter={(d) => new Date(d).toLocaleDateString('ar-EG')} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Area type="monotone" dataKey="sales" name="المبيعات" stroke="#10b981" fill="url(#gSales)" />
-              <Area type="monotone" dataKey="expenses" name="المصروفات" stroke="#ef4444" fill="url(#gExp)" />
-              <Area type="monotone" dataKey="profit" name="الربح" stroke="#f59e0b" fill="url(#gProfit)" />
+                      <Area type="monotone" dataKey="sales" name="إجمالي المبيعات" stroke="#10b981" fill="url(#gSales)" />
+              <Area type="monotone" dataKey="returns" name="المرتجعات" stroke="#ef4444" fill="none" strokeDasharray="5 3" />
+              <Area type="monotone" dataKey="net_sales" name="صافي المبيعات" stroke="#22c55e" fill="url(#gProfit)" strokeWidth={2} />
+              <Area type="monotone" dataKey="expenses" name="المصروفات" stroke="#f43f5e" fill="url(#gExp)" />
             </AreaChart>
           </ResponsiveContainer>
         </CardContent>
@@ -347,16 +348,36 @@ export default function ManagerDashboard() {
           { key: 'bank_transfer', label: 'تحويل بنكي',  color: '#6366f1' },
           { key: 'credit',        label: 'آجل',         color: '#f43f5e' },
         ];
-        const grandTotal = data.payment_methods.reduce((s, p) => s + Number(p.total || 0), 0);
+        const grandTotal    = data.payment_methods.reduce((s, p) => s + Number(p.net_total ?? p.total ?? 0), 0);
+        const grandGross    = data.payment_methods.reduce((s, p) => s + Number(p.total ?? 0), 0);
+        const grandReturns  = data.payment_methods.reduce((s, p) => s + Number(p.returns_total ?? 0), 0);
         return (
           <section>
             <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-purple-600" /> طرق الدفع تفصيلياً — هذا الشهر
+              <Wallet className="w-5 h-5 text-purple-600" /> طرق الدفع تفصيلياً — هذا الشهر (صافي المرتجعات)
             </h2>
+            {/* ملخص الإجمالي / المرتجعات / الصافي */}
+            <div className="grid grid-cols-3 gap-3 mb-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="text-center">
+                <p className="text-xs text-slate-500 mb-1">إجمالي المبيعات</p>
+                <p className="font-bold text-emerald-700">{formatMoney(grandGross)}</p>
+              </div>
+              <div className="text-center border-x border-slate-200">
+                <p className="text-xs text-slate-500 mb-1">إجمالي المرتجعات</p>
+                <p className="font-bold text-rose-600">- {formatMoney(grandReturns)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-slate-500 mb-1">صافي المبيعات</p>
+                <p className="font-bold text-green-700">{formatMoney(grandTotal)}</p>
+              </div>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 mb-2">
               {PM_META.map(({ key, label, color }) => {
                 const found = data.payment_methods.find((p) => p.method === key);
-                const pct = grandTotal > 0 && found ? Math.round(Number(found.total) / grandTotal * 100) : 0;
+                const netTot  = Number(found?.net_total ?? found?.total ?? 0);
+                const retTot  = Number(found?.returns_total ?? 0);
+                const grossTot = Number(found?.total ?? 0);
+                const pct = grandTotal > 0 && found ? Math.round(netTot / grandTotal * 100) : 0;
                 return (
                   <Link key={key} to="/dashboard/wallets"
                     className="bg-white rounded-xl border-2 border-slate-100 hover:border-slate-300 p-4 hover:shadow-md transition-all group">
@@ -373,8 +394,11 @@ export default function ManagerDashboard() {
                     </div>
                     <p className="text-xs text-slate-500 font-semibold mb-1">{label}</p>
                     <p className="text-xl font-extrabold text-slate-900">
-                      {formatMoney(found?.total || 0)}
+                      {formatMoney(netTot)}
                     </p>
+                    {retTot > 0 && (
+                      <p className="text-[10px] text-rose-500 mt-0.5">مرتجعات: - {formatMoney(retTot)}</p>
+                    )}
                     <p className="text-xs text-slate-400 mt-0.5">{found?.count || 0} عملية</p>
                   </Link>
                 );
