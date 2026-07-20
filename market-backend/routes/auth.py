@@ -60,9 +60,14 @@ def login(payload: LoginRequest, request: Request, response: Response, db = Depe
 
     u["last_login_at"] = now
     token = create_access_token(u["_id"], u["username"], u["role"])
+    # Use secure=True on HTTPS (production), False on plain HTTP (dev)
+    is_https = (
+        request.url.scheme == "https"
+        or request.headers.get("x-forwarded-proto", "") == "https"
+    )
     response.set_cookie(
         key="access_token", value=token, httponly=True, samesite="lax",
-        max_age=60 * 60 * 24, path="/",
+        max_age=60 * 60 * 24, path="/", secure=is_https,
     )
     return TokenResponse(access_token=token, user=UserOut.model_validate(_user_dict(u)))
 

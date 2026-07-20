@@ -5,7 +5,14 @@ import jwt
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
+JWT_SECRET_KEY = (
+    os.environ.get("JWT_SECRET_KEY")
+    or os.environ.get("SESSION_SECRET")
+)
+if not JWT_SECRET_KEY:
+    raise RuntimeError(
+        "يجب تعيين متغير البيئة JWT_SECRET_KEY أو SESSION_SECRET"
+    )
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 

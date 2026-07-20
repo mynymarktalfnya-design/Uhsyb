@@ -21,9 +21,21 @@ export const AuthProvider = ({ children }) => {
     }
     api.get('/auth/me')
       .then((r) => setUser(r.data))
-      .catch(() => {
-        localStorage.removeItem('mm_token');
-        localStorage.removeItem('mm_user');
+      .catch((err) => {
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          // Server explicitly rejected the token — clear auth state
+          localStorage.removeItem('mm_token');
+          localStorage.removeItem('mm_user');
+        } else {
+          // Network / server error (5xx, timeout, no response) — keep the
+          // stored token and restore the user object from localStorage so the
+          // session survives transient backend unavailability.
+          const stored = localStorage.getItem('mm_user');
+          if (stored) {
+            try { setUser(JSON.parse(stored)); } catch (_) { /* ignore */ }
+          }
+        }
       })
       .finally(() => setLoading(false));
   }, []);
