@@ -21,14 +21,17 @@ const StockAlerts = () => {
         api.get('/pos/products', { params: { limit: 2000 } }),
       ]);
 
-      // منتجات الصلاحية
-      setExpiryProducts(
-        (expRes.data || []).sort((a, b) => {
-          const dA = new Date(a.expiry_date) - new Date();
-          const dB = new Date(b.expiry_date) - new Date();
-          return dA - dB; // الأقرب انتهاءً أولاً
-        })
-      );
+      // منتجات الصلاحية — الاستجابة كائن يحتوي على soon[] و expired[]
+      const expiryData = expRes.data || {};
+      const allExpiry = [
+        ...(expiryData.expired || []),
+        ...(expiryData.soon || []),
+      ].sort((a, b) => {
+        const dA = new Date(a.expiry_date) - new Date();
+        const dB = new Date(b.expiry_date) - new Date();
+        return dA - dB; // الأقرب انتهاءً أولاً
+      });
+      setExpiryProducts(allExpiry);
 
       // منتجات نفد مخزونها أو مخزونها منخفض
       const all = prodRes.data || [];

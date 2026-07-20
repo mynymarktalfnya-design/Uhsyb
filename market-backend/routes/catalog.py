@@ -355,6 +355,71 @@ def list_change_requests(status_filter: Optional[str] = Query(None, alias="statu
     return out
 
 
+@router.post("/product-change-requests/{request_id}/approve")
+def approve_change_request(request_id: str, request: Request,
+                           db = Depends(get_db), current = Depends(require_admin)):
+    """Approve a pending product change request and apply the changes."""
+    cr = db[C.product_change_requests].find_one({"_id": request_id})
+    if not cr:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    if cr.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="لا يمكن الموافقة على طلب غير معلق")
+
+    now = datetime.now(timezone.utc)
+    product_id = cr.get("product_id")
+
+    if cr.get("request_type") == "delete":
+        # Apply deletion
+        db[C.products].update_one({"_id": product_id}, {"$set": {
+            "deleted_at": now, "is_active": False, "updated_at": now,
+        }})
+    else:
+        # Apply data changes (strip internal _reason key)
+        after_data = dict(cr.get("after_data") or {})
+        after_data.pop("_reason", None)
+        update = {}
+        for k, v in after_data.items():
+            if k in NUMERIC_FIELDS and v is not None:
+                update[k] = float(v)
+            else:
+                update[k] = v
+        if update:
+            update["updated_at"] = now
+            db[C.products].update_one({"_id": product_id}, {"$set": update})
+
+    db[C.product_change_requests].update_one({"_id": request_id}, {"$set": {
+        "status": "approved",
+        "reviewed_by": current["_id"],
+        "reviewed_at": now,
+    }})
+    log_action(db, current["_id"], "change_request_approved", "product_change_requests",
+               request_id, after={"product_id": product_id}, request=request)
+    return {"detail": "تمت الموافقة وتطبيق التعديلات", "request_id": request_id}
+
+
+@router.post("/product-change-requests/{request_id}/reject")
+def reject_change_request(request_id: str, reason: Optional[str] = None,
+                          request: Request = None,
+                          db = Depends(get_db), current = Depends(require_admin)):
+    """Reject a pending product change request."""
+    cr = db[C.product_change_requests].find_one({"_id": request_id})
+    if not cr:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    if cr.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="لا يمكن رفض طلب غير معلق")
+
+    now = datetime.now(timezone.utc)
+    db[C.product_change_requests].update_one({"_id": request_id}, {"$set": {
+        "status": "rejected",
+        "reviewed_by": current["_id"],
+        "reviewed_at": now,
+        "rejection_reason": reason or "",
+    }})
+    log_action(db, current["_id"], "change_request_rejected", "product_change_requests",
+               request_id, after={"reason": reason or ""}, request=request)
+    return {"detail": "تم رفض الطلب", "request_id": request_id}
+
+
 @router.post("/products/{product_id}/request-price-change", status_code=403, deprecated=True)
 def request_price_change(product_id: str, request: Request,
                          db = Depends(get_db), current = Depends(get_current_user)):
