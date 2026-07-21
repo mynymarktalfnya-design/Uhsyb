@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   Banknote, Smartphone, Wallet, CreditCard, Building2, ArrowLeftRight,
   Clock, PieChart as PieIcon, TrendingUp, RefreshCw, Calendar, Filter,
-  ChevronDown, Receipt, X,
+  ChevronDown, Receipt, X, TrendingDown, CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -119,6 +119,30 @@ export default function Wallets() {
             </div>
             <p className="text-2xl font-extrabold text-slate-900">{fmt(stats?.grand_total)} ر.ي</p>
             <p className="text-xs text-slate-400 mt-1">{sales.length} فاتورة</p>
+          </CardContent>
+        </Card>
+
+        {/* المرتجعات */}
+        <Card className="border-2 border-rose-200 bg-rose-50/40">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingDown className="w-4 h-4 text-rose-500" />
+              <span className="text-xs text-rose-600 font-semibold">إجمالي المرتجعات</span>
+            </div>
+            <p className="text-2xl font-extrabold text-rose-600">−{fmt(stats?.grand_returns)} ر.ي</p>
+            <p className="text-xs text-rose-400 mt-1">مرتجعات معتمدة</p>
+          </CardContent>
+        </Card>
+
+        {/* صافي المبيعات بعد المرتجعات */}
+        <Card className="border-2 border-emerald-400 bg-emerald-50/60 shadow-md">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span className="text-xs text-emerald-700 font-semibold">صافي المبيعات الكلي</span>
+            </div>
+            <p className="text-2xl font-extrabold text-emerald-700">{fmt(stats?.grand_net)} ر.ي</p>
+            <p className="text-xs text-emerald-500 mt-1">بعد خصم المرتجعات</p>
           </CardContent>
         </Card>
 
