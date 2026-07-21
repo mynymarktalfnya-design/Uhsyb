@@ -5,6 +5,7 @@ import { Label } from '../components/ui/label';
 import {
   Receipt, Calendar, DollarSign, Banknote, Clock,
   TrendingUp, ChevronDown, ChevronUp, Filter, Users, RefreshCw,
+  Smartphone, Building2, BarChart3,
 } from 'lucide-react';
 import api from '../lib/api';
 import { Badge } from '../components/ui/badge';
@@ -15,6 +16,9 @@ const PAYMENT_LABELS = {
   cash: 'نقداً', jaib: 'جيب', fluusak: 'فلوسك', hasib: 'حاسب',
   banki: 'بنكي', bank_transfer: 'تحويل بنكي', credit: 'آجل',
 };
+
+const WALLET_METHODS  = new Set(['jaib', 'fluusak', 'hasib']);
+const BANK_METHODS    = new Set(['banki', 'bank_transfer']);
 
 const STATUS_LABEL = {
   completed: { label: 'مكتملة',  cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
@@ -47,7 +51,6 @@ const Sales = () => {
       ]);
       setSales(salesRes.data || []);
       const retData = Array.isArray(retRes.data) ? retRes.data : (retRes.data?.items || []);
-      // Filter approved returns within the date range
       setReturns(retData.filter((r) => r.status === 'approved'));
     } catch (_) {}
     setLoading(false);
@@ -58,13 +61,15 @@ const Sales = () => {
   const setPreset = (from, to) => { setDateFrom(from); setDateTo(to); load(from, to); };
 
   // ─── KPI calculations ─────────────────────────────────────────────
-  const completed   = useMemo(() => sales.filter((s) => s.status === 'completed'), [sales]);
-  const totalAmt    = useMemo(() => completed.reduce((s, x) => s + Number(x.total), 0), [completed]);
-  const cashAmt     = useMemo(() => completed.filter((s) => s.payment_method !== 'credit').reduce((s, x) => s + Number(x.total), 0), [completed]);
-  const creditAmt   = useMemo(() => completed.filter((s) => s.payment_method === 'credit').reduce((s, x) => s + Number(x.total), 0), [completed]);
-  const returnsAmt  = useMemo(() => returns.reduce((s, x) => s + Number(x.total || 0), 0), [returns]);
-  const netAmt      = useMemo(() => totalAmt - returnsAmt, [totalAmt, returnsAmt]);
-  const customers   = useMemo(() => new Set(completed.filter((s) => s.customer_id).map((s) => s.customer_id)).size, [completed]);
+  const completed    = useMemo(() => sales.filter((s) => s.status === 'completed'), [sales]);
+  const totalAmt     = useMemo(() => completed.reduce((s, x) => s + Number(x.total), 0), [completed]);
+  const cashAmt      = useMemo(() => completed.filter((s) => s.payment_method === 'cash').reduce((s, x) => s + Number(x.total), 0), [completed]);
+  const creditAmt    = useMemo(() => completed.filter((s) => s.payment_method === 'credit').reduce((s, x) => s + Number(x.total), 0), [completed]);
+  const walletsAmt   = useMemo(() => completed.filter((s) => WALLET_METHODS.has(s.payment_method)).reduce((s, x) => s + Number(x.total), 0), [completed]);
+  const banksAmt     = useMemo(() => completed.filter((s) => BANK_METHODS.has(s.payment_method)).reduce((s, x) => s + Number(x.total), 0), [completed]);
+  const returnsAmt   = useMemo(() => returns.reduce((s, x) => s + Number(x.total || 0), 0), [returns]);
+  const netAmt       = useMemo(() => totalAmt - returnsAmt, [totalAmt, returnsAmt]);
+  const avgAmt       = useMemo(() => completed.length > 0 ? totalAmt / completed.length : 0, [totalAmt, completed]);
 
   // ─── Group by day ─────────────────────────────────────────────────
   const byDay = useMemo(() => {
@@ -72,16 +77,17 @@ const Sales = () => {
     for (const s of sales) {
       const day = (s.created_at || '').split('T')[0];
       if (!day) continue;
-      if (!map[day]) map[day] = { date: day, total: 0, cash: 0, credit: 0, count: 0, rows: [] };
-      // Only completed invoices count toward totals
+      if (!map[day]) map[day] = { date: day, total: 0, cash: 0, credit: 0, wallets: 0, banks: 0, count: 0, rows: [] };
       if (s.status === 'completed') {
         const t = Number(s.total);
         map[day].total += t;
         map[day].count += 1;
         if (s.payment_method === 'credit') map[day].credit += t;
-        else map[day].cash += t;
+        else if (s.payment_method === 'cash') map[day].cash += t;
+        else if (WALLET_METHODS.has(s.payment_method)) map[day].wallets += t;
+        else if (BANK_METHODS.has(s.payment_method)) map[day].banks += t;
       }
-      map[day].rows.push(s); // keep all rows in the detail view
+      map[day].rows.push(s);
     }
     return Object.values(map).sort((a, b) => b.date.localeCompare(a.date));
   }, [sales]);
@@ -95,18 +101,34 @@ const Sales = () => {
           <Receipt className="text-emerald-500" /> المبيعات
         </h1>
         <p className="text-slate-500 text-sm mt-1">
-          {sales.length} فاتورة — إجمالي: <span className="font-bold text-emerald-600">{fmt(totalAmt)} ر.ي</span>
+          {completed.length} فاتورة — إجمالي: <span className="font-bold text-emerald-600">{fmt(totalAmt)} ر.ي</span>
+          {returnsAmt > 0 && (
+            <> | صافي: <span className="font-bold text-green-700">{fmt(netAmt)} ر.ي</span></>
+          )}
         </p>
       </div>
 
-      {/* ─── KPI Cards ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <Card className="overflow-hidden border-0 shadow-md col-span-2 lg:col-span-1">
+      {/* ─── المعادلة المحاسبية ─── */}
+      {(totalAmt > 0 || returnsAmt > 0) && (
+        <div className="bg-gradient-to-l from-slate-800 to-slate-900 text-white rounded-xl px-5 py-3 shadow-lg flex flex-wrap items-center gap-3 text-sm font-medium">
+          <span className="text-slate-400 text-xs ml-1">المعادلة:</span>
+          <span className="text-emerald-400">{fmt(totalAmt)} ر.ي إجمالي المبيعات</span>
+          <span className="text-slate-400">−</span>
+          <span className="text-rose-400">{fmt(returnsAmt)} ر.ي مرتجعات</span>
+          <span className="text-slate-400">=</span>
+          <span className="text-green-400 font-bold text-base">{fmt(netAmt)} ر.ي صافي المبيعات</span>
+        </div>
+      )}
+
+      {/* ─── KPI Cards Row 1: الإجمالي / المرتجعات / الصافي ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card className="overflow-hidden border-0 shadow-md">
           <CardContent className="p-0">
             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-4 text-white">
               <DollarSign className="w-6 h-6 mb-2 opacity-80" />
               <p className="text-white/80 text-xs mb-0.5">إجمالي المبيعات</p>
-              <p className="text-xl font-bold" data-testid="sales-total">{fmt(totalAmt)} <span className="text-sm">ر.ي</span></p>
+              <p className="text-2xl font-bold" data-testid="sales-total">{fmt(totalAmt)} <span className="text-sm">ر.ي</span></p>
+              <p className="text-white/60 text-[10px]">{completed.length} فاتورة</p>
             </div>
           </CardContent>
         </Card>
@@ -115,7 +137,7 @@ const Sales = () => {
             <div className="bg-gradient-to-br from-rose-500 to-pink-600 p-4 text-white">
               <RefreshCw className="w-6 h-6 mb-2 opacity-80" />
               <p className="text-white/80 text-xs mb-0.5">إجمالي المرتجعات</p>
-              <p className="text-xl font-bold" data-testid="sales-returns">{fmt(returnsAmt)} <span className="text-sm">ر.ي</span></p>
+              <p className="text-2xl font-bold" data-testid="sales-returns">{fmt(returnsAmt)} <span className="text-sm">ر.ي</span></p>
               <p className="text-white/60 text-[10px]">{returns.length} مرتجع</p>
             </div>
           </CardContent>
@@ -125,34 +147,60 @@ const Sales = () => {
             <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-4 text-white">
               <TrendingUp className="w-6 h-6 mb-2 opacity-80" />
               <p className="text-white/80 text-xs mb-0.5">صافي المبيعات</p>
-              <p className="text-xl font-bold" data-testid="sales-net">{fmt(netAmt)} <span className="text-sm">ر.ي</span></p>
+              <p className="text-2xl font-bold" data-testid="sales-net">{fmt(netAmt)} <span className="text-sm">ر.ي</span></p>
+              <p className="text-white/60 text-[10px]">= الإجمالي − المرتجعات</p>
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* ─── KPI Cards Row 2: تفصيل طرق الدفع ─── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <Card className="overflow-hidden border-0 shadow-md">
           <CardContent className="p-0">
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 text-white">
-              <Banknote className="w-6 h-6 mb-2 opacity-80" />
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 text-white">
+              <Banknote className="w-5 h-5 mb-1.5 opacity-80" />
               <p className="text-white/80 text-xs mb-0.5">نقدي</p>
-              <p className="text-xl font-bold" data-testid="sales-cash">{fmt(cashAmt)} <span className="text-sm">ر.ي</span></p>
+              <p className="text-lg font-bold" data-testid="sales-cash">{fmt(cashAmt)} <span className="text-xs">ر.ي</span></p>
             </div>
           </CardContent>
         </Card>
         <Card className="overflow-hidden border-0 shadow-md">
           <CardContent className="p-0">
             <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-4 text-white">
-              <Clock className="w-6 h-6 mb-2 opacity-80" />
+              <Clock className="w-5 h-5 mb-1.5 opacity-80" />
               <p className="text-white/80 text-xs mb-0.5">آجل (دين)</p>
-              <p className="text-xl font-bold" data-testid="sales-credit">{fmt(creditAmt)} <span className="text-sm">ر.ي</span></p>
+              <p className="text-lg font-bold" data-testid="sales-credit">{fmt(creditAmt)} <span className="text-xs">ر.ي</span></p>
             </div>
           </CardContent>
         </Card>
         <Card className="overflow-hidden border-0 shadow-md">
           <CardContent className="p-0">
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 text-white">
-              <Users className="w-6 h-6 mb-2 opacity-80" />
-              <p className="text-white/80 text-xs mb-0.5">عدد الفواتير</p>
-              <p className="text-xl font-bold" data-testid="sales-count">{completed.length}</p>
+            <div className="bg-gradient-to-br from-violet-500 to-purple-600 p-4 text-white">
+              <Smartphone className="w-5 h-5 mb-1.5 opacity-80" />
+              <p className="text-white/80 text-xs mb-0.5">محافظ إلكترونية</p>
+              <p className="text-lg font-bold" data-testid="sales-wallets">{fmt(walletsAmt)} <span className="text-xs">ر.ي</span></p>
+              <p className="text-white/60 text-[10px]">جيب • فلوسك • حاسب</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden border-0 shadow-md">
+          <CardContent className="p-0">
+            <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 p-4 text-white">
+              <Building2 className="w-5 h-5 mb-1.5 opacity-80" />
+              <p className="text-white/80 text-xs mb-0.5">تحويل بنكي</p>
+              <p className="text-lg font-bold" data-testid="sales-banks">{fmt(banksAmt)} <span className="text-xs">ر.ي</span></p>
+              <p className="text-white/60 text-[10px]">بنكي • تحويل</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden border-0 shadow-md">
+          <CardContent className="p-0">
+            <div className="bg-gradient-to-br from-slate-600 to-slate-700 p-4 text-white">
+              <BarChart3 className="w-5 h-5 mb-1.5 opacity-80" />
+              <p className="text-white/80 text-xs mb-0.5">متوسط الفاتورة</p>
+              <p className="text-lg font-bold" data-testid="sales-avg">{fmt(avgAmt)} <span className="text-xs">ر.ي</span></p>
+              <p className="text-white/60 text-[10px]">{completed.length} فاتورة</p>
             </div>
           </CardContent>
         </Card>
@@ -231,16 +279,32 @@ const Sales = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-6">
-                        {/* cash / credit breakdown */}
-                        <div className="hidden md:flex gap-4 text-sm">
-                          <div className="text-right">
-                            <p className="text-[10px] text-slate-400">نقدي</p>
-                            <p className="font-bold text-emerald-600">{fmt(day.cash)} ر.ي</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[10px] text-slate-400">آجل</p>
-                            <p className="font-bold text-rose-500">{fmt(day.credit)} ر.ي</p>
-                          </div>
+                        {/* payment method breakdown */}
+                        <div className="hidden md:flex gap-3 text-xs">
+                          {day.cash > 0 && (
+                            <div className="text-right">
+                              <p className="text-[10px] text-slate-400">نقدي</p>
+                              <p className="font-bold text-blue-600">{fmt(day.cash)} ر.ي</p>
+                            </div>
+                          )}
+                          {day.credit > 0 && (
+                            <div className="text-right">
+                              <p className="text-[10px] text-slate-400">آجل</p>
+                              <p className="font-bold text-amber-600">{fmt(day.credit)} ر.ي</p>
+                            </div>
+                          )}
+                          {day.wallets > 0 && (
+                            <div className="text-right">
+                              <p className="text-[10px] text-slate-400">محافظ</p>
+                              <p className="font-bold text-violet-600">{fmt(day.wallets)} ر.ي</p>
+                            </div>
+                          )}
+                          {day.banks > 0 && (
+                            <div className="text-right">
+                              <p className="text-[10px] text-slate-400">بنكي</p>
+                              <p className="font-bold text-indigo-600">{fmt(day.banks)} ر.ي</p>
+                            </div>
+                          )}
                         </div>
                         <div className="text-left flex-shrink-0">
                           <p className="text-[10px] text-slate-400">إجمالي اليوم</p>
@@ -295,6 +359,8 @@ const Sales = () => {
                           <tr className="border-t-2 bg-emerald-50">
                             <td colSpan={3} className="px-4 py-2.5 text-xs text-slate-500">
                               نقدي: {fmt(day.cash)} | آجل: {fmt(day.credit)}
+                              {day.wallets > 0 && ` | محافظ: ${fmt(day.wallets)}`}
+                              {day.banks > 0 && ` | بنكي: ${fmt(day.banks)}`}
                             </td>
                             <td colSpan={2} className="px-4 py-2.5 font-bold text-slate-800">
                               إجمالي {day.date}
@@ -313,18 +379,35 @@ const Sales = () => {
 
             {/* Grand total */}
             {byDay.length > 1 && (
-              <div className="bg-gradient-to-l from-emerald-600 to-teal-700 text-white rounded-xl px-5 py-4 shadow-lg">
-                <div className="flex justify-between items-center">
+              <div className="bg-gradient-to-l from-slate-800 to-slate-900 text-white rounded-xl px-5 py-4 shadow-lg">
+                <div className="flex flex-wrap justify-between items-center gap-4">
                   <div>
                     <p className="font-bold text-lg">الإجمالي الكلي للفترة</p>
-                    <p className="text-emerald-200 text-sm">{byDay.length} يوم — {sales.length} فاتورة</p>
+                    <p className="text-slate-400 text-sm">{byDay.length} يوم — {completed.length} فاتورة</p>
                   </div>
-                  <div className="text-left space-y-0.5">
-                    <p className="text-2xl font-extrabold">{fmt(totalAmt)} ر.ي</p>
-                    <p className="text-xs text-emerald-200">
-                      نقدي: {fmt(cashAmt)} | آجل: {fmt(creditAmt)}
-                    </p>
+                  <div className="flex flex-wrap gap-6 text-left">
+                    <div>
+                      <p className="text-[10px] text-slate-400">إجمالي المبيعات</p>
+                      <p className="text-xl font-extrabold text-emerald-400">{fmt(totalAmt)} ر.ي</p>
+                    </div>
+                    {returnsAmt > 0 && (
+                      <div>
+                        <p className="text-[10px] text-slate-400">إجمالي المرتجعات</p>
+                        <p className="text-xl font-extrabold text-rose-400">- {fmt(returnsAmt)} ر.ي</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[10px] text-slate-400">صافي المبيعات</p>
+                      <p className="text-2xl font-extrabold text-green-400">{fmt(netAmt)} ر.ي</p>
+                    </div>
                   </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-slate-700 flex flex-wrap gap-4 text-xs text-slate-400">
+                  <span>نقدي: <span className="text-blue-400 font-bold">{fmt(cashAmt)}</span></span>
+                  <span>آجل: <span className="text-amber-400 font-bold">{fmt(creditAmt)}</span></span>
+                  {walletsAmt > 0 && <span>محافظ: <span className="text-violet-400 font-bold">{fmt(walletsAmt)}</span></span>}
+                  {banksAmt > 0 && <span>بنكي: <span className="text-indigo-400 font-bold">{fmt(banksAmt)}</span></span>}
+                  <span>متوسط الفاتورة: <span className="text-slate-300 font-bold">{fmt(avgAmt)} ر.ي</span></span>
                 </div>
               </div>
             )}

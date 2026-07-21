@@ -105,6 +105,17 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
     sales_today_cash   = max(0.0, gross_today_cash - cash_returns_today)
     sales_today_credit = max(0.0, gross_today_credit - credit_returns_today)
 
+    # Payment-method constants
+    WALLET_METHODS = {"jaib", "fluusak", "hasib"}
+    BANK_METHODS   = {"banki", "bank_transfer"}
+
+    gross_today_wallets = sum(float(x["total"]) for x in by_method_today if x["_id"] in WALLET_METHODS)
+    gross_today_banks   = sum(float(x["total"]) for x in by_method_today if x["_id"] in BANK_METHODS)
+    wallet_returns_today = sum(returns_by_type_today.get(m, {}).get("total", 0.0) for m in WALLET_METHODS)
+    bank_returns_today   = sum(returns_by_type_today.get(m, {}).get("total", 0.0) for m in BANK_METHODS)
+    sales_today_wallets  = max(0.0, gross_today_wallets - wallet_returns_today)
+    sales_today_banks    = max(0.0, gross_today_banks - bank_returns_today)
+
     products_count = db[C.products].count_documents({"deleted_at": None, "is_active": True})
     customers_count = db[C.customers].count_documents({"deleted_at": None})
     suppliers_count = db[C.suppliers].count_documents({"deleted_at": None})
@@ -126,6 +137,8 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
         "sales_today": sales_today, "invoices_today": invoices_today,
         "sales_today_cash": round(sales_today_cash, 2),
         "sales_today_credit": round(sales_today_credit, 2),
+        "sales_today_wallets": round(sales_today_wallets, 2),
+        "sales_today_banks": round(sales_today_banks, 2),
         "sales_month": sales_month, "invoices_month": invoices_month,
         # Returns (approved)
         "returns_today": round(returns_today, 2),

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ShoppingCart, AlertTriangle, Users, DollarSign,
   TrendingUp, Receipt, Truck, Wallet, CalendarX,
-  Banknote, Clock, RefreshCw, TrendingDown,
+  Banknote, Clock, RefreshCw, Smartphone, Building2,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import api from '../lib/api';
@@ -31,15 +31,24 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  // بطاقات الإحصاء الرئيسية
-  const stats = [
+  // ─── بطاقات الإحصاء الرئيسية ────────────────────────────────────────
+  // صف 1: إجمالي المبيعات | المرتجعات | صافي المبيعات
+  const salesCards = [
     {
       label: 'إجمالي مبيعات اليوم',
       value: formatMoney(summary?.sales_today),
       icon: DollarSign,
       gradient: 'from-emerald-500 to-teal-600',
       testId: 'stat-sales-today',
-      sub: null,
+      sub: `${formatNum(summary?.invoices_today)} فاتورة`,
+    },
+    {
+      label: 'إجمالي المرتجعات',
+      value: formatMoney(summary?.returns_today),
+      icon: RefreshCw,
+      gradient: 'from-rose-500 to-pink-600',
+      testId: 'stat-returns-today',
+      sub: summary?.returns_today > 0 ? `${formatNum(summary?.returns_today_count)} مرتجع معتمد` : 'لا مرتجعات اليوم',
     },
     {
       label: 'صافي مبيعات اليوم',
@@ -47,10 +56,14 @@ const Dashboard = () => {
       icon: TrendingUp,
       gradient: 'from-green-600 to-emerald-700',
       testId: 'stat-net-sales-today',
-      sub: summary?.returns_today > 0 ? `بعد خصم مرتجعات ${formatMoney(summary?.returns_today)}` : null,
+      sub: 'الإجمالي − المرتجعات',
     },
+  ];
+
+  // صف 2: تفصيل طرق الدفع
+  const methodCards = [
     {
-      label: 'مبيعات اليوم النقدية',
+      label: 'نقدي اليوم',
       value: formatMoney(summary?.sales_today_cash),
       icon: Banknote,
       gradient: 'from-blue-500 to-indigo-600',
@@ -58,18 +71,34 @@ const Dashboard = () => {
       sub: null,
     },
     {
-      label: 'مبيعات اليوم الآجلة',
+      label: 'آجل اليوم',
       value: formatMoney(summary?.sales_today_credit),
       icon: Clock,
-      gradient: 'from-rose-500 to-rose-600',
+      gradient: 'from-amber-500 to-orange-600',
       testId: 'stat-sales-today-credit',
       sub: null,
+    },
+    {
+      label: 'محافظ إلكترونية',
+      value: formatMoney(summary?.sales_today_wallets),
+      icon: Smartphone,
+      gradient: 'from-violet-500 to-purple-600',
+      testId: 'stat-sales-today-wallets',
+      sub: 'جيب • فلوسك • حاسب',
+    },
+    {
+      label: 'تحويل بنكي',
+      value: formatMoney(summary?.sales_today_banks),
+      icon: Building2,
+      gradient: 'from-indigo-500 to-indigo-700',
+      testId: 'stat-sales-today-banks',
+      sub: 'بنكي • تحويل',
     },
     {
       label: 'صافي مبيعات الشهر',
       value: formatMoney(summary?.net_sales_month),
       icon: TrendingUp,
-      gradient: 'from-amber-500 to-orange-600',
+      gradient: 'from-teal-500 to-teal-700',
       testId: 'stat-net-sales-month',
       sub: summary?.returns_month > 0 ? `مرتجعات الشهر: ${formatMoney(summary?.returns_month)}` : null,
     },
@@ -83,9 +112,6 @@ const Dashboard = () => {
     },
   ];
 
-  // بطاقات المرتجعات — تظهر فقط إذا كان هناك مرتجعات
-  const hasReturnsToday = (summary?.returns_today ?? 0) > 0;
-
   // بطاقات الوحدات
   const cards = [
     { title: 'نقطة البيع (POS)', desc: 'بدء فاتورة جديدة بسرعة فائقة', icon: ShoppingCart, link: '/dashboard/pos', color: 'amber' },
@@ -93,29 +119,40 @@ const Dashboard = () => {
     { title: 'العملاء', desc: `${formatNum(summary?.customers_count)} عميل مسجّل`, icon: Users, link: '/dashboard/customers', color: 'emerald' },
     { title: 'المصروفات', desc: `${formatMoney(summary?.expenses_month)} هذا الشهر`, icon: Wallet, link: '/dashboard/expenses', color: 'pink' },
   ];
-
   if (canViewPurchases) {
     cards.push({ title: 'الموردون', desc: `${formatNum(summary?.suppliers_count)} مورد مسجّل`, icon: Truck, link: '/dashboard/purchases', color: 'purple' });
   }
 
   const colorMap = {
-    amber: 'from-amber-50 to-amber-100 border-amber-200 text-amber-700',
-    red: 'from-red-50 to-red-100 border-red-200 text-red-700',
+    amber:   'from-amber-50 to-amber-100 border-amber-200 text-amber-700',
+    red:     'from-red-50 to-red-100 border-red-200 text-red-700',
     emerald: 'from-emerald-50 to-emerald-100 border-emerald-200 text-emerald-700',
-    purple: 'from-purple-50 to-purple-100 border-purple-200 text-purple-700',
-    pink: 'from-pink-50 to-pink-100 border-pink-200 text-pink-700',
+    purple:  'from-purple-50 to-purple-100 border-purple-200 text-purple-700',
+    pink:    'from-pink-50 to-pink-100 border-pink-200 text-pink-700',
   };
 
   return (
     <div className="p-6 lg:p-8" dir="rtl" data-testid="dashboard-page">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold text-slate-900 mb-1">لوحة التحكم</h1>
         <p className="text-slate-500">نظرة شاملة على أداء المبيعات اليوم</p>
       </div>
 
-      {/* بطاقات الإحصاء الرئيسية */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {stats.map((s) => {
+      {/* ─── المعادلة المحاسبية — تظهر دائماً ─── */}
+      {!loading && (
+        <div className="mb-5 bg-gradient-to-l from-slate-800 to-slate-900 text-white rounded-xl px-5 py-3 shadow-lg flex flex-wrap items-center gap-3 text-sm font-medium">
+          <span className="text-slate-400 text-xs ml-1">صافي اليوم:</span>
+          <span className="text-emerald-400">{formatMoney(summary?.sales_today)} إجمالي</span>
+          <span className="text-slate-500">−</span>
+          <span className="text-rose-400">{formatMoney(summary?.returns_today)} مرتجعات</span>
+          <span className="text-slate-500">=</span>
+          <span className="text-green-400 font-bold text-base">{formatMoney(summary?.net_sales_today)} صافي</span>
+        </div>
+      )}
+
+      {/* ─── صف 1: الإجمالي / المرتجعات / الصافي ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        {salesCards.map((s) => {
           const Icon = s.icon;
           return (
             <Card key={s.label} className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all">
@@ -134,8 +171,27 @@ const Dashboard = () => {
         })}
       </div>
 
-      {/* شريط ملخص المرتجعات — يظهر فقط إذا كان هناك مرتجعات اليوم */}
-      {!loading && hasReturnsToday && (
+      {/* ─── صف 2: تفصيل طرق الدفع ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
+        {methodCards.map((s) => {
+          const Icon = s.icon;
+          return (
+            <Card key={s.label} className="overflow-hidden border-0 shadow-md hover:shadow-xl transition-all">
+              <CardContent className="p-0">
+                <div className={`bg-gradient-to-br ${s.gradient} p-4 text-white`}>
+                  <Icon className="h-5 w-5 opacity-90 mb-2" />
+                  <p className="text-white/80 text-xs mb-1">{s.label}</p>
+                  <p className="text-lg font-bold" data-testid={s.testId}>{loading ? '...' : s.value}</p>
+                  {s.sub && <p className="text-white/60 text-[10px] mt-0.5">{s.sub}</p>}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* ─── شريط ملخص المرتجعات ─── */}
+      {!loading && (summary?.returns_today ?? 0) > 0 && (
         <div className="mb-6">
           <Link to="/dashboard/returns">
             <div className="bg-gradient-to-l from-orange-50 to-rose-50 border-2 border-orange-300 rounded-xl p-4 shadow-md flex items-center gap-4 hover:shadow-lg transition-all">
@@ -143,10 +199,10 @@ const Dashboard = () => {
                 <RefreshCw className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="text-base font-bold text-orange-900">مرتجعات اليوم</h3>
+                <h3 className="text-base font-bold text-orange-900">مرتجعات اليوم المعتمدة</h3>
                 <div className="flex flex-wrap gap-4 mt-1 text-sm text-orange-700">
                   <span>إجمالي المبيعات: <strong>{formatMoney(summary?.sales_today)}</strong></span>
-                  <span>المرتجعات: <strong className="text-rose-600">- {formatMoney(summary?.returns_today)}</strong></span>
+                  <span>المرتجعات: <strong className="text-rose-600">− {formatMoney(summary?.returns_today)}</strong></span>
                   <span>صافي المبيعات: <strong className="text-green-700">{formatMoney(summary?.net_sales_today)}</strong></span>
                 </div>
               </div>
@@ -156,7 +212,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* تنبيهات تواريخ الصلاحية */}
+      {/* ─── تنبيهات تواريخ الصلاحية ─── */}
       {canViewPurchases && expiry && (expiry.expired_count > 0 || (expiry.soon || []).some((p) => p.severity === 'critical' || p.severity === 'warning')) && (
         <div className="mb-6" data-testid="expiry-alert-card">
           <div className="bg-gradient-to-br from-rose-50 to-amber-50 border-2 border-rose-300 rounded-xl p-4 shadow-md">
@@ -206,7 +262,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* تنبيه المخزون المنخفض */}
+      {/* ─── تنبيه المخزون المنخفض ─── */}
       {summary?.low_stock_count > 0 && (
         <div className="mb-6">
           <Link to="/dashboard/products?lowStock=1">
@@ -226,7 +282,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* الوحدات الرئيسية */}
+      {/* ─── الوحدات الرئيسية ─── */}
       <h2 className="text-lg font-bold text-slate-900 mb-4">الوحدات الرئيسية</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {cards.map((c) => {
@@ -247,7 +303,7 @@ const Dashboard = () => {
         })}
       </div>
 
-      {/* أفضل 5 منتجات + مخطط المبيعات */}
+      {/* ─── أفضل 5 منتجات + مخطط المبيعات ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-md">
           <CardContent className="p-6">
