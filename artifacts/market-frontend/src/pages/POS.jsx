@@ -545,7 +545,8 @@ export default function POS() {
         {/* ── Payment methods ────────────────────────────────────────── */}
         <div className="px-3 pt-2 pb-1">
           <p className="text-[10px] font-bold text-slate-500 mb-2 tracking-widest text-center">طرق الدفع</p>
-          <div className="grid grid-cols-4 gap-1.5 mb-1.5">
+          {/* Row 1: 4 methods */}
+          <div className="grid grid-cols-4 gap-2 mb-2">
             {PAYMENT_METHODS.slice(0, 4).map((pm) => {
               const Icon = pm.icon;
               const active = payMethod === pm.v;
@@ -554,19 +555,23 @@ export default function POS() {
                   key={pm.v}
                   onClick={() => onPaySelect(pm.v)}
                   data-testid={`pos-payment-${pm.v}`}
-                  className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all active:scale-95 border ${
+                  className={`relative flex flex-col items-center gap-2 py-3 rounded-2xl transition-all active:scale-95 border ${
                     active
-                      ? `bg-gradient-to-br ${pm.grad} border-transparent shadow-lg`
-                      : 'bg-slate-800/70 border-slate-700/50 hover:border-slate-600'
+                      ? `bg-gradient-to-br ${pm.grad} border-transparent shadow-xl`
+                      : 'bg-slate-800/80 border-slate-700/50 hover:border-slate-500 hover:bg-slate-800'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-400'}`} />
-                  <span className={`text-[10px] font-extrabold leading-none ${active ? 'text-white' : 'text-slate-400'}`}>{pm.l}</span>
+                  {active && <span className="absolute inset-0 rounded-2xl ring-2 ring-white/20 pointer-events-none" />}
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${active ? 'bg-white/20' : 'bg-slate-700/60'}`}>
+                    <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-300'}`} />
+                  </div>
+                  <span className={`text-xs font-extrabold leading-none ${active ? 'text-white' : 'text-slate-400'}`}>{pm.l}</span>
                 </button>
               );
             })}
           </div>
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* Row 2: 3 methods */}
+          <div className="grid grid-cols-3 gap-2">
             {PAYMENT_METHODS.slice(4).map((pm) => {
               const Icon = pm.icon;
               const active = payMethod === pm.v;
@@ -575,14 +580,17 @@ export default function POS() {
                   key={pm.v}
                   onClick={() => onPaySelect(pm.v)}
                   data-testid={`pos-payment-${pm.v}`}
-                  className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all active:scale-95 border ${
+                  className={`relative flex flex-col items-center gap-2 py-3 rounded-2xl transition-all active:scale-95 border ${
                     active
-                      ? `bg-gradient-to-br ${pm.grad} border-transparent shadow-lg`
-                      : 'bg-slate-800/70 border-slate-700/50 hover:border-slate-600'
+                      ? `bg-gradient-to-br ${pm.grad} border-transparent shadow-xl`
+                      : 'bg-slate-800/80 border-slate-700/50 hover:border-slate-500 hover:bg-slate-800'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-400'}`} />
-                  <span className={`text-[10px] font-extrabold leading-none ${active ? 'text-white' : 'text-slate-400'}`}>{pm.l}</span>
+                  {active && <span className="absolute inset-0 rounded-2xl ring-2 ring-white/20 pointer-events-none" />}
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${active ? 'bg-white/20' : 'bg-slate-700/60'}`}>
+                    <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-300'}`} />
+                  </div>
+                  <span className={`text-xs font-extrabold leading-none ${active ? 'text-white' : 'text-slate-400'}`}>{pm.l}</span>
                 </button>
               );
             })}
@@ -620,28 +628,45 @@ export default function POS() {
         )}
 
         {/* ── Action buttons ─────────────────────────────────────────── */}
-        <div className="grid grid-cols-4 gap-1.5 px-3 pt-1 pb-1.5">
-          {[
-            { icon: UserPlus,    label: 'عميل جديد',    action: () => setCustDialog(true),    color: 'text-sky-400' },
-            { icon: PauseCircle, label: 'تعليق فاتورة', action: holdInvoice,                  color: 'text-yellow-400', badge: heldInvoices.length },
-            { icon: RotateCcw,   label: 'استرجاع',      action: () => setReturnsOpen(true),   color: 'text-rose-400', testid: 'pos-open-returns-btn' },
-            { icon: BadgePercent,label: 'خصم',          action: () => { setDiscountInput(String(discountAmt || '')); setDiscountDialog(true); }, color: 'text-emerald-400' },
-          ].map(({ icon: Icon, label, action, color, badge, testid }) => (
-            <button
-              key={label}
-              onClick={action}
-              data-testid={testid}
-              className="relative flex flex-col items-center gap-1 py-2 rounded-xl bg-slate-800/80 border border-slate-700/50 hover:border-slate-600 transition-all active:scale-95"
-            >
-              <Icon className={`w-5 h-5 ${color}`} />
-              <span className="text-[9px] font-bold text-slate-400 leading-none">{label}</span>
-              {badge > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-yellow-400 text-slate-900 rounded-full text-[9px] font-extrabold flex items-center justify-center">
-                  {badge}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-2 px-3 pt-2 pb-2">
+          {/* استرجاع */}
+          <button
+            onClick={() => setReturnsOpen(true)}
+            data-testid="pos-open-returns-btn"
+            className="relative flex flex-col items-center gap-2 py-3 rounded-2xl bg-slate-800/80 border border-rose-800/60 hover:border-rose-500/70 hover:bg-rose-950/40 transition-all active:scale-95"
+          >
+            <div className="w-9 h-9 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center">
+              <RotateCcw className="w-5 h-5 text-rose-400" />
+            </div>
+            <span className="text-xs font-extrabold text-rose-300 leading-none">استرجاع</span>
+          </button>
+
+          {/* تعليق فاتورة */}
+          <button
+            onClick={holdInvoice}
+            className="relative flex flex-col items-center gap-2 py-3 rounded-2xl bg-slate-800/80 border border-amber-800/60 hover:border-amber-500/70 hover:bg-amber-950/40 transition-all active:scale-95"
+          >
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+              <PauseCircle className="w-5 h-5 text-amber-400" />
+            </div>
+            <span className="text-xs font-extrabold text-amber-300 leading-none">تعليق فاتورة</span>
+          </button>
+
+          {/* اكمال فاتورة معلقة */}
+          <button
+            onClick={() => setHeldDialog(true)}
+            className="relative flex flex-col items-center gap-2 py-3 rounded-2xl bg-slate-800/80 border border-emerald-800/60 hover:border-emerald-500/70 hover:bg-emerald-950/40 transition-all active:scale-95"
+          >
+            {heldInvoices.length > 0 && (
+              <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1.5 bg-emerald-400 text-slate-900 rounded-full text-[10px] font-extrabold flex items-center justify-center shadow-lg">
+                {heldInvoices.length}
+              </span>
+            )}
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+              <PlayCircle className="w-5 h-5 text-emerald-400" />
+            </div>
+            <span className="text-xs font-extrabold text-emerald-300 leading-none">اكمال معلقة</span>
+          </button>
         </div>
 
         {/* ── Checkout bar ───────────────────────────────────────────── */}
