@@ -79,8 +79,8 @@ def customer_statement(
             "voided": False,
         })
 
-    # Customer sale returns (مرتجعات)
-    ret_filt = {"customer_id": customer_id, "deleted_at": None}
+    # Customer sale returns (مرتجعات معتمدة فقط — approved only)
+    ret_filt = {"customer_id": customer_id, "status": "approved", "deleted_at": None}
     if dt_from:
         ret_filt["created_at"] = {"$gte": dt_from}
     if dt_to:
@@ -90,7 +90,7 @@ def customer_statement(
             "type": "return",
             "date": r.get("created_at"),
             "op_no": r.get("return_no") or r["_id"],
-            "description": "مرتجع مبيعات",
+            "description": "مرتجع معتمد",
             "debit": 0.0,
             "credit": float(r.get("total", 0)),
             "ref_id": r["_id"],

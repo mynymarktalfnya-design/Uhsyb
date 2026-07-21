@@ -4,7 +4,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import {
   Receipt, Calendar, DollarSign, Banknote, Clock,
-  TrendingUp, ChevronDown, ChevronUp, Filter, Users,
+  TrendingUp, ChevronDown, ChevronUp, Filter, Users, RefreshCw,
 } from 'lucide-react';
 import api from '../lib/api';
 import { Badge } from '../components/ui/badge';
@@ -28,6 +28,7 @@ const Sales = () => {
     .toISOString().split('T')[0];
 
   const [sales, setSales]         = useState([]);
+  const [returns, setReturns]     = useState([]);
   const [dateFrom, setDateFrom]   = useState(today);
   const [dateTo, setDateTo]       = useState(today);
   const [loading, setLoading]     = useState(false);
@@ -39,8 +40,15 @@ const Sales = () => {
       const params = {};
       if (from) params.date_from = from;
       if (to)   params.date_to   = to + 'T23:59:59';
-      const r = await api.get('/sales', { params });
-      setSales(r.data || []);
+      const [salesRes, retRes] = await Promise.all([
+        api.get('/sales', { params }),
+        api.get('/sales-returns', { params: { status: 'approved', date_from: from, date_to: to } })
+          .catch(() => ({ data: [] })),
+      ]);
+      setSales(salesRes.data || []);
+      const retData = Array.isArray(retRes.data) ? retRes.data : (retRes.data?.items || []);
+      // Filter approved returns within the date range
+      setReturns(retData.filter((r) => r.status === 'approved'));
     } catch (_) {}
     setLoading(false);
   };
@@ -50,11 +58,13 @@ const Sales = () => {
   const setPreset = (from, to) => { setDateFrom(from); setDateTo(to); load(from, to); };
 
   // ─── KPI calculations ─────────────────────────────────────────────
-  const completed = useMemo(() => sales.filter((s) => s.status === 'completed'), [sales]);
-  const totalAmt  = useMemo(() => completed.reduce((s, x) => s + Number(x.total), 0), [completed]);
-  const cashAmt   = useMemo(() => completed.filter((s) => s.payment_method !== 'credit').reduce((s, x) => s + Number(x.total), 0), [completed]);
-  const creditAmt = useMemo(() => completed.filter((s) => s.payment_method === 'credit').reduce((s, x) => s + Number(x.total), 0), [completed]);
-  const customers = useMemo(() => new Set(completed.filter((s) => s.customer_id).map((s) => s.customer_id)).size, [completed]);
+  const completed   = useMemo(() => sales.filter((s) => s.status === 'completed'), [sales]);
+  const totalAmt    = useMemo(() => completed.reduce((s, x) => s + Number(x.total), 0), [completed]);
+  const cashAmt     = useMemo(() => completed.filter((s) => s.payment_method !== 'credit').reduce((s, x) => s + Number(x.total), 0), [completed]);
+  const creditAmt   = useMemo(() => completed.filter((s) => s.payment_method === 'credit').reduce((s, x) => s + Number(x.total), 0), [completed]);
+  const returnsAmt  = useMemo(() => returns.reduce((s, x) => s + Number(x.total || 0), 0), [returns]);
+  const netAmt      = useMemo(() => totalAmt - returnsAmt, [totalAmt, returnsAmt]);
+  const customers   = useMemo(() => new Set(completed.filter((s) => s.customer_id).map((s) => s.customer_id)).size, [completed]);
 
   // ─── Group by day ─────────────────────────────────────────────────
   const byDay = useMemo(() => {
@@ -90,13 +100,32 @@ const Sales = () => {
       </div>
 
       {/* ─── KPI Cards ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="overflow-hidden border-0 shadow-md">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <Card className="overflow-hidden border-0 shadow-md col-span-2 lg:col-span-1">
           <CardContent className="p-0">
             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-4 text-white">
               <DollarSign className="w-6 h-6 mb-2 opacity-80" />
               <p className="text-white/80 text-xs mb-0.5">إجمالي المبيعات</p>
               <p className="text-xl font-bold" data-testid="sales-total">{fmt(totalAmt)} <span className="text-sm">ر.ي</span></p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden border-0 shadow-md">
+          <CardContent className="p-0">
+            <div className="bg-gradient-to-br from-rose-500 to-pink-600 p-4 text-white">
+              <RefreshCw className="w-6 h-6 mb-2 opacity-80" />
+              <p className="text-white/80 text-xs mb-0.5">إجمالي المرتجعات</p>
+              <p className="text-xl font-bold" data-testid="sales-returns">{fmt(returnsAmt)} <span className="text-sm">ر.ي</span></p>
+              <p className="text-white/60 text-[10px]">{returns.length} مرتجع</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden border-0 shadow-md">
+          <CardContent className="p-0">
+            <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-4 text-white">
+              <TrendingUp className="w-6 h-6 mb-2 opacity-80" />
+              <p className="text-white/80 text-xs mb-0.5">صافي المبيعات</p>
+              <p className="text-xl font-bold" data-testid="sales-net">{fmt(netAmt)} <span className="text-sm">ر.ي</span></p>
             </div>
           </CardContent>
         </Card>
@@ -111,7 +140,7 @@ const Sales = () => {
         </Card>
         <Card className="overflow-hidden border-0 shadow-md">
           <CardContent className="p-0">
-            <div className="bg-gradient-to-br from-rose-500 to-rose-600 p-4 text-white">
+            <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-4 text-white">
               <Clock className="w-6 h-6 mb-2 opacity-80" />
               <p className="text-white/80 text-xs mb-0.5">آجل (دين)</p>
               <p className="text-xl font-bold" data-testid="sales-credit">{fmt(creditAmt)} <span className="text-sm">ر.ي</span></p>

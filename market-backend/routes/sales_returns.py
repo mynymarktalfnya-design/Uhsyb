@@ -291,6 +291,14 @@ def instant_return(
     # Restore stock immediately
     _apply_return_stock(db, rid, current["_id"])
 
+    # Reduce customer balance if the original sale was آجل (credit)
+    # This applies regardless of how the refund is given back (cash or credit note)
+    if sale.get("payment_method") == "credit" and sale.get("customer_id"):
+        db[C.customers].update_one(
+            {"_id": sale["customer_id"]},
+            {"$inc": {"balance": -subtotal}, "$set": {"updated_at": now}},
+        )
+
     log_action(db, current["_id"], "sale_return_instant", "sale_returns", rid,
                after={"return_no": return_no, "total": str(subtotal)})
 
@@ -373,8 +381,11 @@ def approve_return(
     # Restore stock and create inventory movements
     _apply_return_stock(db, return_id, current["_id"])
 
-    # If credit return → reduce customer balance
-    if ret.get("return_type") == "credit" and ret.get("customer_id"):
+    # Reduce customer balance if the ORIGINAL SALE was آجل (credit),
+    # regardless of how the refund is returned to the customer (cash or credit note).
+    # The debt must always be cleared when goods are returned.
+    orig_sale = db[C.sales].find_one({"_id": ret.get("sale_id")}, {"payment_method": 1, "customer_id": 1})
+    if orig_sale and orig_sale.get("payment_method") == "credit" and ret.get("customer_id"):
         db[C.customers].update_one(
             {"_id": ret["customer_id"]},
             {"$inc": {"balance": -float(ret.get("total", 0))},

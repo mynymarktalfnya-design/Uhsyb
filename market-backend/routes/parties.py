@@ -76,9 +76,13 @@ def get_customer(customer_id: str, db = Depends(get_db), _u = Depends(get_curren
     if not c:
         raise HTTPException(status_code=404, detail="Customer not found")
     credit_sales = list(db[C.sales].find({"customer_id": customer_id, "payment_method": "credit", "status": {"$ne": "voided"}}))
-    total_credit_purchases = sum(s.get("total", 0) for s in credit_sales)
+    total_credit_purchases = sum(float(s.get("total", 0)) for s in credit_sales)
     invoice_count = len(credit_sales)
-    total_paid = sum(p.get("amount", 0) for p in db[C.customer_payments].find({"customer_id": customer_id}))
+    total_paid = sum(float(p.get("amount", 0)) for p in db[C.customer_payments].find({"customer_id": customer_id}))
+    # Approved returns for this customer (reduces their effective debt)
+    total_returns = sum(float(r.get("total", 0)) for r in db[C.sale_returns].find({
+        "customer_id": customer_id, "status": "approved", "deleted_at": None,
+    }))
     # Last activity: max of last sale or payment date
     last_sale = db[C.sales].find_one({"customer_id": customer_id}, sort=[("created_at", -1)])
     last_pay = db[C.customer_payments].find_one({"customer_id": customer_id}, sort=[("created_at", -1)])
@@ -90,9 +94,10 @@ def get_customer(customer_id: str, db = Depends(get_db), _u = Depends(get_curren
         "balance": c.get("balance", 0),
         "credit_limit": c.get("credit_limit", 0),
         "loyalty_points": c.get("loyalty_points", 0),
-        "total_credit_purchases": total_credit_purchases,
-        "total_paid": total_paid,
-        "total_returns": 0,
+        "total_credit_purchases": round(total_credit_purchases, 2),
+        "total_paid": round(total_paid, 2),
+        "total_returns": round(total_returns, 2),
+        "net_credit_balance": round(total_credit_purchases - total_paid - total_returns, 2),
         "invoice_count": invoice_count,
         "last_activity_at": last_activity,
         "created_at": c.get("created_at"),
