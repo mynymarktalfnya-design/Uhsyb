@@ -77,8 +77,9 @@ def create_expense(
     current=Depends(require_cashier),
 ):
     now = datetime.now(timezone.utc)
-    # Use provided expense_date or today
-    expense_date_str = str(payload.expense_date) if payload.expense_date else now.strftime("%Y-%m-%d")
+    # Expense date is always assigned by the server at creation time.
+    # The client cannot backdate an expense.
+    expense_date_str = now.strftime("%Y-%m-%d")
     eid = new_id()
     db[C.expenses].insert_one({
         "_id": eid,

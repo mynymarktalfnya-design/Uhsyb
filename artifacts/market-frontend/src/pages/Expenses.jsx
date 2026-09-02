@@ -30,7 +30,7 @@ const Expenses = () => {
 
   const empty = {
     category_id: '', amount: '', description: '',
-    paid_to: '', payment_method: 'cash', expense_date: today,
+    paid_to: '', payment_method: 'cash',
   };
   const [form, setForm] = useState(empty);
 
@@ -322,12 +322,10 @@ const Expenses = () => {
                   data-testid="expense-amount-input"
                 />
               </div>
-              <div>
-                <Label>تاريخ المصروف</Label>
-                <Input
-                  type="date" value={form.expense_date}
-                  onChange={(e) => setForm({ ...form, expense_date: e.target.value })}
-                />
+              <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 flex items-center">
+                <p className="text-xs text-slate-500">
+                  التاريخ والوقت يُسجّلان تلقائياً عند إضافة المصروف
+                </p>
               </div>
             </div>
             <div>

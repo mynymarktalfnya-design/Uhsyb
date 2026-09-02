@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, EmailStr
 
 from database import get_db, C
 from models import new_id
-from utils.deps import require_admin
+from utils.deps import get_current_user, require_admin, require_manager
 from utils.security import hash_password, verify_password
 from utils.audit import log_action
 
@@ -22,6 +22,7 @@ BACKUP_SCRIPT = Path(os.environ.get("BACKUP_SCRIPT",
 SYSTEM_MODE_KEY = "system_mode"
 DEFAULT_MODE = "test"
 VALID_MODES = {"test", "production"}
+DEFAULT_CARTON_DISCOUNT_PERCENT = 0.0
 
 # Mongo collections that hold business / transactional data wiped on reset.
 BUSINESS_COLLECTIONS = [
@@ -103,6 +104,38 @@ def get_mode(db = Depends(get_db), _u = Depends(require_admin)):
 
 class ModeUpdate(BaseModel):
     mode: str = Field(..., description="test | production")
+
+
+class CartonSalesSettings(BaseModel):
+    discount_percent: float = Field(default=0, ge=0, le=100)
+
+
+@router.get("/pos/settings")
+def get_pos_settings(db=Depends(get_db), _u=Depends(get_current_user)):
+    row = db[C.settings].find_one({"key": "carton_sales"})
+    value = row.get("value", {}) if row else {}
+    return {
+        "carton_discount_percent": float(value.get("discount_percent", DEFAULT_CARTON_DISCOUNT_PERCENT))
+        if isinstance(value, dict) else DEFAULT_CARTON_DISCOUNT_PERCENT,
+    }
+
+
+@router.patch("/admin/pos-settings")
+def update_pos_settings(payload: CartonSalesSettings, request: Request,
+                        db=Depends(get_db), current=Depends(require_manager)):
+    now = datetime.now(timezone.utc)
+    db[C.settings].update_one(
+        {"key": "carton_sales"},
+        {"$set": {
+            "value": {"discount_percent": payload.discount_percent},
+            "description": "Automatic discount for carton sales",
+            "updated_at": now,
+        }, "$setOnInsert": {"_id": new_id(), "key": "carton_sales", "created_at": now}},
+        upsert=True,
+    )
+    log_action(db, current["_id"], "carton_sales_settings_updated", "settings", None,
+               after={"discount_percent": payload.discount_percent}, request=request)
+    return {"carton_discount_percent": payload.discount_percent}
 
 
 @router.patch("/admin/system/mode")

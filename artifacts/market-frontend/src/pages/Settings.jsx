@@ -6,6 +6,7 @@ import { Label } from '../components/ui/label';
 import {
   Settings as SettingsIcon, Cloud, Shield, Bell, Database,
   AlertTriangle, ShieldCheck, Power, Trash2, Loader2,
+  PackageCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../hooks/use-toast';
@@ -336,8 +337,66 @@ const ActivateProductionCard = ({ mode, onActivated }) => {
   );
 };
 
+const CartonSalesCard = ({ canManage }) => {
+  const [percent, setPercent] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/pos/settings')
+      .then((r) => setPercent(Number(r.data.carton_discount_percent) || 0))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    const value = Math.max(0, Math.min(100, Number(percent) || 0));
+    setSaving(true);
+    try {
+      await api.patch('/admin/pos-settings', { discount_percent: value });
+      setPercent(value);
+      toast({ title: 'تم حفظ خصم الكرتون', description: `الخصم التلقائي: ${value}%` });
+    } catch (e) {
+      toast({ title: 'فشل الحفظ', description: e.response?.data?.detail || 'خطأ', variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Card className="border-amber-300 border-2 mb-6" data-testid="carton-sales-settings-card">
+      <CardContent className="p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+            <PackageCheck className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold text-slate-900">إعدادات البيع بالكرتون</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              عند اختيار بيع بالكرتون في نقطة البيع، يُطبّق هذا الخصم تلقائياً على قيمة الكرتون.
+              المدير والمشرف المصرّح له فقط يستطيعان تعديل النسبة.
+            </p>
+            <div className="flex items-end gap-3 mt-4 max-w-sm">
+              <div className="flex-1">
+                <Label>خصم الكرتون (%)</Label>
+                <Input type="number" min="0" max="100" step="0.1" value={percent}
+                  onChange={(e) => setPercent(e.target.value)} disabled={loading || !canManage}
+                  data-testid="carton-discount-input" />
+              </div>
+              {canManage && (
+                <Button onClick={save} disabled={loading || saving} className="bg-amber-500 hover:bg-amber-600 text-white">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'حفظ الخصم'}
+                </Button>
+              )}
+            </div>
+            {!canManage && <p className="text-xs text-slate-400 mt-2">ليس لديك صلاحية تعديل إعدادات البيع بالكرتون.</p>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const Settings = () => {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const [mode, setMode] = useState('test');
   const [loadingMode, setLoadingMode] = useState(true);
   const isAdmin = user?.role === 'admin';
@@ -390,6 +449,8 @@ const Settings = () => {
           </div>
         </CardContent>
       </Card>
+
+      <CartonSalesCard canManage={can('manager')} />
 
       {isAdmin && !loadingMode && (
         <div className="space-y-4 mb-6">

@@ -27,7 +27,6 @@ class ExpenseCreate(BaseModel):
     description: Optional[str] = None
     paid_to: Optional[str] = None
     payment_method: str = "cash"
-    expense_date: Optional[date] = None
 
 
 class ExpenseOut(BaseModel):

@@ -37,6 +37,8 @@ def _sale_to_out(s, db) -> dict:
             "quantity": it["quantity"], "unit_price": it["unit_price"],
             "discount": it.get("discount", 0), "tax": it.get("tax", 0),
             "total": it["total"],
+            "sale_unit": it.get("sale_unit", "piece"),
+            "pieces_per_carton": it.get("pieces_per_carton"),
         })
     return SaleOut.model_validate({
         "id": s["_id"], "invoice_no": s["invoice_no"],
@@ -70,10 +72,13 @@ def create_sale(payload: SaleCreate, request: Request,
     today = _date.today()
     for it in payload.items:
         p = prod_map[it.product_id]
-        if float(p.get("current_stock", 0)) < float(it.quantity) and \
+        stock_qty = float(it.quantity) * (
+            int(p.get("pieces_per_carton", 1) or 1) if it.sale_unit == "carton" else 1
+        )
+        if float(p.get("current_stock", 0)) < stock_qty and \
                 current.role not in ("admin", "manager"):
             raise HTTPException(status_code=400,
-                                detail=f"المخزون غير كافٍ لـ '{p['name']}' (المتوفر: {p.get('current_stock')}, المطلوب: {it.quantity})")
+                detail=f"المخزون غير كافٍ لـ '{p['name']}' (المتوفر: {p.get('current_stock')}, المطلوب: {stock_qty})")
         ed = p.get("expiry_date")
         if ed:
             ed_d = ed.date() if hasattr(ed, "date") else ed
@@ -91,17 +96,30 @@ def create_sale(payload: SaleCreate, request: Request,
     subtotal = Decimal("0")
     item_docs = []
     for it in payload.items:
-        line_total = Decimal(str(it.quantity)) * Decimal(str(it.unit_price))
+        p = prod_map[it.product_id]
+        ppc = int(p.get("pieces_per_carton", 1) or 1) if it.sale_unit == "carton" else 1
+        effective_unit_price = Decimal(str(p.get("sale_price", it.unit_price)))
+        line_total = Decimal(str(it.quantity)) * effective_unit_price * Decimal(str(ppc))
         subtotal += line_total
         item_docs.append({
             "_id": new_id(), "sale_id": sale_id,
             "product_id": it.product_id,
-            "quantity": float(it.quantity), "unit_price": float(it.unit_price),
+            "quantity": float(it.quantity), "unit_price": float(effective_unit_price),
             "discount": 0.0, "tax": 0.0, "total": float(line_total),
+            "sale_unit": it.sale_unit, "pieces_per_carton": ppc if it.sale_unit == "carton" else None,
             "created_at": now,
         })
 
-    total = subtotal
+    carton_settings = db[C.settings].find_one({"key": "carton_sales"})
+    carton_discount_percent = Decimal(str(
+        (carton_settings or {}).get("value", {}).get("discount_percent", 0)
+        if isinstance((carton_settings or {}).get("value", {}), dict) else 0
+    ))
+    carton_subtotal = sum(
+        Decimal(str(item["total"])) for item in item_docs if item.get("sale_unit") == "carton"
+    )
+    discount_amount = (carton_subtotal * carton_discount_percent / Decimal("100")).quantize(Decimal("0.01"))
+    total = max(Decimal("0"), subtotal - discount_amount)
     if payload.payment_method == "credit":
         paid_amount = Decimal("0")
         change_amount = Decimal("0")
@@ -120,7 +138,7 @@ def create_sale(payload: SaleCreate, request: Request,
         "_id": sale_id, "invoice_no": invoice_no,
         "shift_id": payload.shift_id, "cashier_id": current["_id"],
         "customer_id": payload.customer_id,
-        "subtotal": float(subtotal), "discount_amount": 0.0, "tax_amount": 0.0,
+        "subtotal": float(subtotal), "discount_amount": float(discount_amount), "tax_amount": 0.0,
         "total": float(total), "paid_amount": float(paid_amount),
         "change_amount": float(change_amount),
         "payment_method": payload.payment_method,
@@ -133,13 +151,17 @@ def create_sale(payload: SaleCreate, request: Request,
 
     # Decrement product stock + inventory movements
     for it in payload.items:
+        stock_qty = float(it.quantity) * (
+            int(prod_map[it.product_id].get("pieces_per_carton", 1) or 1)
+            if it.sale_unit == "carton" else 1
+        )
         db[C.products].update_one({"_id": it.product_id},
-                                  {"$inc": {"current_stock": -float(it.quantity)},
+                                  {"$inc": {"current_stock": -stock_qty},
                                    "$set": {"updated_at": now}})
         db[C.inventory_movements].insert_one({
             "_id": new_id(), "product_id": it.product_id,
             "movement_type": MovementType.sale.value,
-            "quantity": -float(it.quantity),
+            "quantity": -stock_qty,
             "reference_table": "sales", "reference_id": sale_id,
             "user_id": current["_id"], "notes": f"Sale {invoice_no}",
             "created_at": now,

@@ -5,7 +5,7 @@ import {
   UserPlus, RotateCcw, Trash2, CheckCircle2, PauseCircle, PlayCircle,
   Bell, Wifi, Menu, ScanLine, Package, Droplets, Tag, Milk,
   Sparkles, Coffee, Beef, Apple, ChevronRight, Receipt, User,
-  Hash, BadgePercent, MoreHorizontal, ShoppingBasket, Boxes,
+  Hash, MoreHorizontal, ShoppingBasket, Boxes,
 } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -75,9 +75,8 @@ export default function POS() {
   const [creditCustomer,   setCreditCustomer]   = useState(null);
 
   /* discount */
-  const [discountAmt,      setDiscountAmt]      = useState(0);
-  const [discountDialog,   setDiscountDialog]   = useState(false);
-  const [discountInput,    setDiscountInput]    = useState('');
+  const [cartonMode,       setCartonMode]       = useState(false);
+  const [cartonDiscountPercent, setCartonDiscountPercent] = useState(0);
 
   /* customer picker */
   const [custDialog,       setCustDialog]       = useState(false);
@@ -109,9 +108,11 @@ export default function POS() {
     Promise.all([
       api.get('/pos/products', { params: { limit: 500 } }),
       api.get('/categories'),
-    ]).then(([pr, cr]) => {
+      api.get('/pos/settings'),
+    ]).then(([pr, cr, sr]) => {
       setAllProducts(pr.data);
       setCategories(cr.data || []);
+      setCartonDiscountPercent(Number(sr.data.carton_discount_percent) || 0);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -144,22 +145,33 @@ export default function POS() {
 
   /* ── cart helpers ───────────────────────────────────────────────────── */
   const addToCart = useCallback((p) => {
+    const piecesPerCarton = Math.max(1, Number(p.pieces_per_carton) || 1);
+    const saleUnit = cartonMode ? 'carton' : 'piece';
+    const stockPerUnit = cartonMode ? piecesPerCarton : 1;
     const stock = Number(p.current_stock ?? 0);
     if (stock <= 0) {
       toast({ title: '⛔ نفد المخزون', description: `"${p.name}" غير متوفر`, variant: 'destructive' }); return;
     }
     const existQ = cart.find((x) => x.product_id === p.id)?.quantity || 0;
-    if (existQ + 1 > stock) {
-      toast({ title: '⚠️ تجاوز المخزون', description: `متاح ${fmt(stock)} فقط`, variant: 'destructive' }); return;
+    if ((existQ + 1) * stockPerUnit > stock) {
+      toast({ title: '⚠️ تجاوز المخزون', description: 'المخزون لا يكفي لوحدة البيع المختارة', variant: 'destructive' }); return;
     }
     setCart((prev) => {
       const idx = prev.findIndex((x) => x.product_id === p.id);
-      if (idx >= 0) { const c = [...prev]; c[idx] = { ...c[idx], quantity: c[idx].quantity + 1 }; return c; }
-      return [...prev, { product_id: p.id, name: p.name, sku: p.sku, unit: p.unit, quantity: 1, unit_price: Number(p.sale_price), stock }];
+      if (idx >= 0) {
+        const c = [...prev];
+        c[idx] = { ...c[idx], quantity: c[idx].quantity + 1, sale_unit: saleUnit, pieces_per_carton: piecesPerCarton };
+        return c;
+      }
+      return [...prev, {
+        product_id: p.id, name: p.name, sku: p.sku, unit: p.unit,
+        quantity: 1, unit_price: Number(p.sale_price), stock,
+        sale_unit: saleUnit, pieces_per_carton: piecesPerCarton,
+      }];
     });
     setShowProducts(false);
     setQuery('');
-  }, [cart]);
+  }, [cart, cartonMode]);
 
   const updateQty = (idx, delta) => setCart((prev) => {
     const c = [...prev]; const q = c[idx].quantity + delta;
@@ -174,7 +186,7 @@ export default function POS() {
   };
 
   const removeItem = (idx) => setCart((prev) => prev.filter((_, i) => i !== idx));
-  const clearCart  = () => { if (window.confirm('مسح السلة كاملاً؟')) { setCart([]); setDiscountAmt(0); } };
+  const clearCart  = () => { if (window.confirm('مسح السلة كاملاً؟')) { setCart([]); } };
 
   /* ── barcode search ─────────────────────────────────────────────────── */
   const handleSearch = async (val) => {
@@ -195,15 +207,20 @@ export default function POS() {
   /* ── held ───────────────────────────────────────────────────────────── */
   const holdInvoice = () => {
     if (!cart.length) { toast({ title: 'السلة فارغة', variant: 'destructive' }); return; }
-    const held = { id: Date.now(), cart: [...cart], payMethod, creditCustomer, discountAmt, savedAt: new Date().toISOString(), total: cart.reduce((s, it) => s + it.quantity * it.unit_price, 0) - discountAmt };
+    const held = {
+      id: Date.now(), cart: [...cart], payMethod, creditCustomer,
+      discountAmt: effectiveDiscount, cartonMode,
+      savedAt: new Date().toISOString(), total,
+    };
     const updated = [...heldInvoices, held]; setHeldInvoices(updated); saveHeld(updated);
-    setCart([]); setCreditCustomer(null); setPayMethod('cash'); setDiscountAmt(0);
+    setCart([]); setCreditCustomer(null); setPayMethod('cash'); setCartonMode(false);
     toast({ title: `✅ تم تعليق الفاتورة` });
   };
 
   const resumeHeld = (held) => {
     if (cart.length > 0 && !window.confirm('السلة الحالية ستُستبدل. متابعة؟')) return;
-    setCart(held.cart); setPayMethod(held.payMethod || 'cash'); setCreditCustomer(held.creditCustomer || null); setDiscountAmt(held.discountAmt || 0);
+    setCart(held.cart); setPayMethod(held.payMethod || 'cash'); setCreditCustomer(held.creditCustomer || null);
+    setCartonMode(!!held.cartonMode);
     const updated = heldInvoices.filter((h) => h.id !== held.id); setHeldInvoices(updated); saveHeld(updated);
     setHeldDialog(false); toast({ title: 'تم استئناف الفاتورة' });
   };
@@ -222,8 +239,15 @@ export default function POS() {
   };
 
   /* ── totals ─────────────────────────────────────────────────────────── */
-  const subtotal   = cart.reduce((s, it) => s + it.quantity * it.unit_price, 0);
-  const total      = Math.max(0, subtotal - discountAmt);
+  const grossSubtotal = cart.reduce((s, it) =>
+    s + it.quantity * it.unit_price * (it.sale_unit === 'carton' ? (it.pieces_per_carton || 1) : 1), 0);
+  const cartonSubtotal = cart.reduce((s, it) =>
+    s + (it.sale_unit === 'carton' ? it.quantity * it.unit_price * (it.pieces_per_carton || 1) : 0), 0);
+  const effectiveDiscount = cartonMode
+    ? cartonSubtotal * (cartonDiscountPercent / 100)
+    : 0;
+  const subtotal   = grossSubtotal;
+  const total      = Math.max(0, grossSubtotal - effectiveDiscount);
   const totalQty   = cart.reduce((s, it) => s + it.quantity, 0);
   const canComplete = cart.length > 0 && !(payMethod === 'credit' && !creditCustomer);
   const activePayment = PAYMENT_METHODS.find((p) => p.v === payMethod);
@@ -236,12 +260,16 @@ export default function POS() {
     try {
       const { data } = await api.post('/sales', {
         customer_id: payMethod === 'credit' ? creditCustomer.id : null,
-        items: cart.map((c) => ({ product_id: c.product_id, quantity: c.quantity, unit_price: c.unit_price })),
+        items: cart.map((c) => ({
+          product_id: c.product_id, quantity: c.quantity, unit_price: c.unit_price,
+          sale_unit: c.sale_unit || 'piece', pieces_per_carton: c.pieces_per_carton || 1,
+        })),
         payment_method: payMethod,
+        discount_amount: effectiveDiscount,
       });
       setLastInvoice(data);
       toast({ title: '✅ تم البيع', description: `${data.invoice_no} — ${fmt(data.total)} ر.ي` });
-      setCart([]); setCreditCustomer(null); setPayMethod('cash'); setDiscountAmt(0);
+      setCart([]); setCreditCustomer(null); setPayMethod('cash'); setCartonMode(false);
       api.get('/pos/products', { params: { limit: 500 } }).then((r) => setAllProducts(r.data)).catch(() => {});
       searchRef.current?.focus();
     } catch (e) {
@@ -456,7 +484,8 @@ export default function POS() {
           </div>
         ) : (
           cart.map((it, i) => {
-            const lineTotal = it.quantity * it.unit_price;
+            const lineTotal = it.quantity * it.unit_price *
+              (it.sale_unit === 'carton' ? (it.pieces_per_carton || 1) : 1);
             return (
               <div
                 key={it.product_id}
@@ -475,7 +504,11 @@ export default function POS() {
                 {/* Product name + SKU */}
                 <div className="flex-1 min-w-0 text-right pr-1">
                   <p className="text-sm font-bold text-white leading-snug line-clamp-1">{it.name}</p>
-                  <p className="text-[10px] text-slate-600 font-mono">{it.sku}</p>
+                  <p className="text-[10px] text-slate-600 font-mono">
+                    {it.sku} · {it.sale_unit === 'carton'
+                      ? `كرتون (${it.pieces_per_carton || 1} قطعة)`
+                      : 'قطعة'}
+                  </p>
                 </div>
                 {/* Qty controls */}
                 <div className="w-28 flex-shrink-0 flex items-center justify-center gap-1">
@@ -544,7 +577,31 @@ export default function POS() {
 
         {/* ── Payment methods ────────────────────────────────────────── */}
         <div className="px-3 pt-2 pb-1">
-          <p className="text-[10px] font-bold text-slate-500 mb-2 tracking-widest text-center">طرق الدفع</p>
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <p className="text-[10px] font-bold text-slate-500 tracking-widest">طرق الدفع</p>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !cartonMode;
+                setCartonMode(next);
+                setCart((prev) => prev.map((item) => ({
+                  ...item,
+                  sale_unit: next ? 'carton' : 'piece',
+                  pieces_per_carton: item.pieces_per_carton || 1,
+                })));
+              }}
+              data-testid="pos-carton-mode-toggle"
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-extrabold transition-all active:scale-95 ${
+                cartonMode
+                  ? 'bg-orange-500 text-white border-orange-400 shadow-lg shadow-orange-900/30'
+                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-orange-500/60'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              بيع بالكرتون
+              {cartonMode && <span className="text-[10px] bg-white/20 rounded-md px-1.5 py-0.5">{cartonDiscountPercent}% خصم</span>}
+            </button>
+          </div>
           {/* Row 1: 4 methods */}
           <div className="grid grid-cols-4 gap-2 mb-2">
             {PAYMENT_METHODS.slice(0, 4).map((pm) => {
@@ -617,12 +674,11 @@ export default function POS() {
         )}
 
         {/* Discount info */}
-        {discountAmt > 0 && (
+  {effectiveDiscount > 0 && (
           <div className="mx-3 mb-1 flex items-center justify-between bg-amber-900/30 border border-amber-500/30 rounded-xl px-3 py-1.5">
-            <span className="text-xs text-amber-300 font-semibold">خصم مطبّق</span>
+            <span className="text-xs text-amber-300 font-semibold">خصم الكرتون ({cartonDiscountPercent}%)</span>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold text-amber-400 tabular-nums">− {fmt(discountAmt)} ر.ي</span>
-              <button onClick={() => setDiscountAmt(0)} className="text-slate-500 hover:text-rose-400"><X className="w-3.5 h-3.5" /></button>
+              <span className="text-sm font-extrabold text-amber-400 tabular-nums">− {fmt(effectiveDiscount)} ر.ي</span>
             </div>
           </div>
         )}
@@ -793,49 +849,6 @@ export default function POS() {
         </DialogContent>
       </Dialog>
 
-      {/* Discount dialog */}
-      <Dialog open={discountDialog} onOpenChange={setDiscountDialog}>
-        <DialogContent className="max-w-xs" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BadgePercent className="w-5 h-5 text-emerald-400" /> إضافة خصم
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 pt-2">
-            <div>
-              <p className="text-sm text-slate-500 mb-1">مبلغ الخصم (ريال)</p>
-              <Input
-                autoFocus
-                type="number"
-                value={discountInput}
-                onChange={(e) => setDiscountInput(e.target.value)}
-                placeholder="0"
-                className="text-center text-xl font-extrabold h-12"
-                min="0"
-                max={subtotal}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[500, 1000, 2000, 5000, 10000, 0].map((amt) => (
-                <button key={amt} onClick={() => setDiscountInput(String(amt))}
-                  className="py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 transition-all">
-                  {amt === 0 ? 'إلغاء' : fmt(amt)}
-                </button>
-              ))}
-            </div>
-            <Button
-              onClick={() => {
-                const v = parseFloat(discountInput) || 0;
-                if (v > subtotal) { toast({ title: 'الخصم أكبر من الإجمالي', variant: 'destructive' }); return; }
-                setDiscountAmt(v); setDiscountDialog(false);
-              }}
-              className="w-full h-11 bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold"
-            >
-              تطبيق الخصم
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

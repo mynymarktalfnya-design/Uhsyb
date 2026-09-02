@@ -15,13 +15,17 @@ from utils.audit import log_action
 router = APIRouter(prefix="/api", tags=["parties"])
 
 
-def _cust_out(c) -> dict:
+def _cust_out(c, db=None) -> dict:
+    has_credit_history = bool(db and db[C.sales].find_one({
+        "customer_id": c["_id"], "payment_method": "credit", "deleted_at": None,
+    }, {"_id": 1}))
     return {
         "id": c["_id"], "code": c.get("code"), "full_name": c["full_name"],
         "phone": c.get("phone"), "email": c.get("email"), "address": c.get("address"),
         "credit_limit": c.get("credit_limit", 0), "balance": c.get("balance", 0),
         "loyalty_points": c.get("loyalty_points", 0),
         "is_active": c.get("is_active", True), "created_at": c.get("created_at"),
+        "has_credit_history": has_credit_history,
     }
 
 
@@ -44,7 +48,7 @@ def list_customers(q: Optional[str] = None, db = Depends(get_db),
         rx = {"$regex": q, "$options": "i"}
         filt["$or"] = [{"full_name": rx}, {"phone": rx}, {"code": rx}]
     rows = list(db[C.customers].find(filt).sort("full_name", 1))
-    return [CustomerOut.model_validate(_cust_out(c)) for c in rows]
+    return [CustomerOut.model_validate(_cust_out(c, db)) for c in rows]
 
 
 @router.post("/customers", response_model=CustomerOut, status_code=201)
@@ -67,7 +71,7 @@ def create_customer(payload: CustomerCreate, request: Request,
     log_action(db, current["_id"], "customer_created", "customers", cid,
                after={"full_name": payload.full_name}, request=request)
     c = db[C.customers].find_one({"_id": cid})
-    return CustomerOut.model_validate(_cust_out(c))
+    return CustomerOut.model_validate(_cust_out(c, db))
 
 
 @router.get("/customers/{customer_id}")
@@ -127,6 +131,14 @@ def delete_customer(customer_id: str, request: Request,
     c = db[C.customers].find_one({"_id": customer_id, "deleted_at": None})
     if not c:
         raise HTTPException(status_code=404, detail="Customer not found")
+    credit_sale = db[C.sales].find_one({
+        "customer_id": customer_id, "payment_method": "credit", "deleted_at": None,
+    }, {"_id": 1})
+    if current.role != "admin" and (credit_sale or float(c.get("balance", 0) or 0) > 0):
+        raise HTTPException(
+            status_code=403,
+            detail="لا يمكن للمشرف حذف عميل لديه فواتير آجلة أو رصيد مستحق. هذه العملية للمدير فقط.",
+        )
     now = datetime.now(timezone.utc)
     db[C.customers].update_one({"_id": customer_id}, {"$set": {
         "deleted_at": now, "is_active": False, "updated_at": now,

@@ -12,6 +12,8 @@ class SaleItemIn(BaseModel):
     unit_price: Decimal = Field(..., ge=0)
     discount: Decimal = Decimal("0")
     tax: Decimal = Decimal("0")
+    sale_unit: str = Field(default="piece", pattern="^(piece|carton)$")
+    pieces_per_carton: Optional[int] = Field(default=None, ge=1, le=10000)
 
 
 class SaleCreate(BaseModel):
@@ -20,6 +22,7 @@ class SaleCreate(BaseModel):
     items: List[SaleItemIn] = Field(..., min_length=1)
     payment_method: str = "cash"
     notes: Optional[str] = None
+    discount_amount: Decimal = Field(default=Decimal("0"), ge=0)
 
 
 class SaleItemOut(BaseModel):
@@ -31,6 +34,8 @@ class SaleItemOut(BaseModel):
     discount: Decimal
     tax: Decimal
     total: Decimal
+    sale_unit: str = "piece"
+    pieces_per_carton: Optional[int] = None
 
     class Config:
         from_attributes = True

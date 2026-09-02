@@ -34,6 +34,7 @@ const Products = () => {
   const empty = {
     sku: '', name: '', description: '', category_id: '',
     unit: 'piece', cost_price: 0, sale_price: 0, tax_rate: 0,
+    pieces_per_carton: 1,
     min_stock_level: 0, current_stock: 0, has_expiry: false,
     expiry_date: '', is_featured: false, featured_order: 0,
     barcodes: [''],
@@ -62,6 +63,7 @@ const Products = () => {
     setForm({
       sku: p.sku, name: p.name, description: p.description || '',
       category_id: p.category_id || '', unit: p.unit,
+      pieces_per_carton: p.pieces_per_carton || 1,
       cost_price: p.cost_price, sale_price: p.sale_price, tax_rate: p.tax_rate,
       min_stock_level: p.min_stock_level, current_stock: p.current_stock,
       has_expiry: p.has_expiry,
@@ -91,6 +93,7 @@ const Products = () => {
       const payload = {
         ...form,
         cost_price: Number(form.cost_price), sale_price: Number(form.sale_price),
+        pieces_per_carton: Number(form.pieces_per_carton) || 1,
         tax_rate: Number(form.tax_rate), min_stock_level: Number(form.min_stock_level),
         current_stock: Number(form.current_stock),
         expiry_date: form.expiry_date || null,
@@ -313,6 +316,14 @@ const Products = () => {
               <Input type="number" step="0.01" value={form.sale_price}
                 onChange={(e) => setForm({ ...form, sale_price: e.target.value })}
                 disabled={!!editing && !isAdmin} data-testid="product-price-input" />
+            </div>
+            <div>
+              <Label>عدد القطع في الكرتون</Label>
+              <Input type="number" min="1" step="1" value={form.pieces_per_carton}
+                onChange={(e) => setForm({ ...form, pieces_per_carton: e.target.value })}
+                disabled={!!editing && !isAdmin}
+                data-testid="product-pieces-per-carton-input" />
+              <p className="text-[10px] text-slate-400 mt-1">يستخدم عند البيع بالكرتون</p>
             </div>
             <div>
               <Label>الحد الأدنى للمخزون</Label>

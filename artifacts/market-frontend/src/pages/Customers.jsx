@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(Number(n) || 0);
 
 const Customers = () => {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [q, setQ] = useState('');
@@ -162,12 +162,17 @@ const Customers = () => {
                     <Button size="sm" variant="ghost" onClick={() => { setEditing(c); setForm({ ...c }); setOpen(true); }}>
                       <Edit2 className="w-3.5 h-3.5" />
                     </Button>
-                    {can('admin', 'manager') && (
+                    {(user?.role === 'admin' || (can('manager') && !c.has_credit_history && !isDebt)) && (
                       <Button size="sm" variant="ghost" className="text-rose-600" onClick={() => del(c)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     )}
                   </div>
+                  {user?.role !== 'admin' && (c.has_credit_history || isDebt) && (
+                    <p className="text-[10px] text-rose-500 text-right mt-2">
+                      لا يمكن للمشرف حذف عميل له فواتير آجلة أو رصيد مستحق
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             );
