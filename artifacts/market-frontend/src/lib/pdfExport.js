@@ -464,7 +464,7 @@ export async function exportVoucherPDF(opts) {
  *   - title ('كشف حساب عميل' / 'كشف حساب تاجر')
  *   - name, phone, dateFrom, dateTo
  *   - opening, closing, balance
- *   - entries: [{date, op_no, type, description, debit, credit, balance}]
+ *   - entries: [{date, op_no, type, description, debit, credit, balance, items}]
  *   - kind: 'customer' | 'supplier' (affects stamp logic)
  *   - totalInvoices, totalPaid, totalReturns (summary cards)
  */
@@ -493,21 +493,73 @@ export async function exportStatementPDF(opts) {
     ? { code: 'PAID', label: 'مسدد بالكامل', color: BRAND.green }
     : { code: 'OUTSTANDING', label: 'متبقي على الحساب', color: BRAND.red };
 
-  const rowsHtml = entries.map((e, idx) => `
-    <tr style="background:${idx % 2 ? '#fafafa' : '#ffffff'};">
-      <td style="padding:6px;text-align:center;font-size:11px;color:#64748b;width:80px;">${arabicDate(e.date)}</td>
-      <td style="padding:6px;text-align:center;font-family:monospace;font-size:11px;color:#475569;width:110px;">${e.op_no || '—'}</td>
-      <td style="padding:6px;text-align:right;font-size:12px;">${e.description || e.type || '—'}</td>
-      <td style="padding:6px;text-align:center;font-weight:700;color:${Number(e.debit) > 0 ? BRAND.red : '#cbd5e1'};width:85px;">${Number(e.debit) > 0 ? money(e.debit) : '—'}</td>
-      <td style="padding:6px;text-align:center;font-weight:700;color:${Number(e.credit) > 0 ? BRAND.green : '#cbd5e1'};width:85px;">${Number(e.credit) > 0 ? money(e.credit) : '—'}</td>
-      <td style="padding:6px;text-align:center;font-weight:800;color:${BRAND.dark};width:85px;">${money(e.balance)}</td>
-    </tr>
-  `).join('');
+  const paymentLabels = {
+    cash: 'نقداً', jaib: 'جيب', fluusak: 'فلوسك', hasib: 'حاسب',
+    banki: 'بنكي', bank_transfer: 'تحويل بنكي', credit: 'آجل',
+  };
+  const rowsHtml = entries.map((e, idx) => {
+    const method = e.payment_method ? ` — ${paymentLabels[e.payment_method] || e.payment_method}` : '';
+    const extra = [
+      e.type === 'purchase' && e.remaining > 0 ? `متبقي الفاتورة: ${money(e.remaining)} ر.ي` : '',
+      e.type === 'return' && e.purchase_ref ? `عن فاتورة: ${e.purchase_ref}` : '',
+      e.reason ? `السبب: ${e.reason}` : '',
+      e.notes ? `ملاحظة: ${e.notes}` : '',
+    ].filter(Boolean).join(' · ');
+    const itemRows = (e.items || []).map((it, itemIdx) => {
+      const itemUnit = it.return_unit || it.unit;
+      const quantity = it.cartons != null
+        ? `${fmtInt(it.cartons)} كرتون${it.quantity != null ? ` (${fmtInt(it.quantity)} قطعة)` : ''}`
+        : `${fmtInt(it.quantity)} ${itemUnit === 'carton' ? 'كرتون' : 'قطعة'}`;
+      const price = it.carton_cost != null
+        ? `${money(it.carton_cost)} ر.ي/كرتون`
+        : `${money(it.unit_cost)} ر.ي`;
+      return `
+        <tr>
+          <td style="padding:4px 6px;color:#94a3b8;width:24px;">${itemIdx + 1}</td>
+          <td style="padding:4px 6px;font-weight:600;">${it.product_name || '—'}</td>
+          <td style="padding:4px 6px;text-align:center;">${quantity}</td>
+          <td style="padding:4px 6px;text-align:center;">${price}</td>
+          <td style="padding:4px 6px;text-align:center;font-weight:700;">${money(it.total)} ر.ي</td>
+        </tr>`;
+    }).join('');
+    const detailsRow = itemRows ? `
+      <tr style="background:#f8fafc;">
+        <td colspan="6" style="padding:5px 12px 7px;">
+          <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:3px;">تفاصيل الأصناف</div>
+          <table style="width:100%;border-collapse:collapse;font-size:10.5px;color:#475569;">
+            <thead><tr style="color:#64748b;border-bottom:1px solid #e2e8f0;">
+              <th style="padding:3px 6px;text-align:right;width:24px;">#</th>
+              <th style="padding:3px 6px;text-align:right;">الصنف</th>
+              <th style="padding:3px 6px;text-align:center;">الكمية</th>
+              <th style="padding:3px 6px;text-align:center;">السعر</th>
+              <th style="padding:3px 6px;text-align:center;">الإجمالي</th>
+            </tr></thead>
+            <tbody>${itemRows}</tbody>
+          </table>
+        </td>
+      </tr>` : '';
+    return `
+      <tr style="background:${idx % 2 ? '#fafafa' : '#ffffff'};">
+        <td style="padding:6px;text-align:center;font-size:11px;color:#64748b;width:80px;">${arabicDate(e.date)}</td>
+        <td style="padding:6px;text-align:center;font-family:monospace;font-size:11px;color:#475569;width:110px;">${e.op_no || '—'}</td>
+        <td style="padding:6px;text-align:right;font-size:12px;">
+          <strong>${e.description || e.type || '—'}${method}</strong>
+          ${extra ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${extra}</div>` : ''}
+        </td>
+        <td style="padding:6px;text-align:center;font-weight:700;color:${Number(e.debit) > 0 ? BRAND.red : '#cbd5e1'};width:85px;">${Number(e.debit) > 0 ? money(e.debit) : '—'}</td>
+        <td style="padding:6px;text-align:center;font-weight:700;color:${Number(e.credit) > 0 ? BRAND.green : '#cbd5e1'};width:85px;">${Number(e.credit) > 0 ? money(e.credit) : '—'}</td>
+        <td style="padding:6px;text-align:center;font-weight:800;color:${BRAND.dark};width:85px;">${money(e.balance)}</td>
+      </tr>
+      ${detailsRow}
+    `;
+  }).join('');
 
   // Summary KPI row
   const summaryKpis = [];
   if (opts.totalInvoices != null) summaryKpis.push({ label: opts.kind === 'supplier' ? 'إجمالي المشتريات' : 'إجمالي الفواتير', value: money(opts.totalInvoices), color: BRAND.red });
   if (opts.totalPaid != null) summaryKpis.push({ label: 'إجمالي المدفوع', value: money(opts.totalPaid), color: BRAND.green });
+  if (opts.paidOnInvoices != null) summaryKpis.push({ label: 'مدفوع عند التوريد', value: money(opts.paidOnInvoices), color: '#0ea5e9' });
+  if (opts.invoiceCreditRemaining != null) summaryKpis.push({ label: 'آجل الفواتير', value: money(opts.invoiceCreditRemaining), color: '#7c3aed' });
   if (opts.totalReturns != null) summaryKpis.push({ label: 'إجمالي المرتجعات', value: money(opts.totalReturns), color: BRAND.amber });
   summaryKpis.push({ label: 'الرصيد النهائي', value: money(closing), color: status.code === 'PAID' ? BRAND.green : BRAND.red });
 
@@ -544,7 +596,7 @@ export async function exportStatementPDF(opts) {
         ${qr ? `<img src="${qr}" style="width:88px;height:88px;border:5px solid ${BRAND.primary};border-radius:10px;align-self:flex-start;" />` : ''}
       </div>
 
-      <div style="padding:0 24px;display:flex;gap:8px;margin-bottom:14px;">${kpisHtml}</div>
+      <div style="padding:0 24px;display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">${kpisHtml}</div>
 
       <div style="margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
         <table style="width:100%;border-collapse:collapse;">

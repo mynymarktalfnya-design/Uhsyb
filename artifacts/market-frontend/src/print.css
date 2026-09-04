@@ -4,6 +4,8 @@
   body * { visibility: hidden; }
   .print-only, .print-only * { visibility: visible; }
   .print-only { position: absolute; left: 0; top: 0; width: 100%; }
+  .print-only-block, .print-only-block * { visibility: visible; }
+  .print-only-block { position: absolute; left: 0; top: 0; width: 100%; }
   .no-print { display: none !important; }
 }
 .print-only { display: none; }

@@ -46,13 +46,34 @@ def supplier_statement(supplier_id: str, db=Depends(get_db), _u=Depends(require_
         pa = float(p.get("paid_amount") or 0)
         paid_now = pa if (pa > 0 or pm == "credit") else total_p
         op_no = p.get("ref_no") or p.get("invoice_no") or p["_id"]
+        purchase_items = []
+        for pi in db[C.purchase_items].find({"purchase_id": p["_id"]}):
+            product = db[C.products].find_one({"_id": pi.get("product_id")}, {"name": 1, "unit": 1})
+            purchase_items.append({
+                "id": pi["_id"],
+                "product_id": pi.get("product_id"),
+                "product_name": product.get("name") if product else pi.get("product_id"),
+                "unit": pi.get("unit") or (product.get("unit") if product else "piece"),
+                "quantity": float(pi.get("quantity", 0) or 0),
+                "cartons": float(pi["cartons"]) if pi.get("cartons") is not None else None,
+                "pieces_per_carton": float(pi["pieces_per_carton"]) if pi.get("pieces_per_carton") is not None else None,
+                "unit_cost": float(pi.get("unit_cost", 0) or 0),
+                "carton_cost": float(pi["carton_cost"]) if pi.get("carton_cost") is not None else None,
+                "total": float(pi.get("total", 0) or 0),
+            })
         entries.append({
             "type": "purchase",
             "date": p.get("created_at"),
             "op_no": op_no,
+            "description": f"فاتورة توريد — {'آجل' if pm == 'credit' else 'مدفوع'}",
             "debit": paid_now,          # الجزء المدفوع فوراً
             "credit": total_p,          # قيمة الفاتورة كاملاً
             "payment_method": pm,
+            "paid_amount": paid_now,
+            "remaining": max(0.0, total_p - paid_now),
+            "notes": p.get("notes"),
+            "items": purchase_items,
+            "ref_id": p["_id"],
         })
 
     # سند صرف → مدين في حساب المورد (تخفيض الدين على المورد)
@@ -60,15 +81,27 @@ def supplier_statement(supplier_id: str, db=Depends(get_db), _u=Depends(require_
         entries.append({
             "type": "payment", "date": p.get("created_at"),
             "op_no": p.get("voucher_no") or p["_id"],
+            "description": "سداد للتاجر",
             "debit": float(p.get("amount", 0)), "credit": 0.0,
+            "payment_method": p.get("payment_method") or p.get("method", "cash"),
+            "notes": p.get("notes"),
+            "created_by_name": _user_name(db, p.get("paid_by") or p.get("created_by", "")),
+            "ref_id": p["_id"],
         })
 
     # مرتجع للتاجر → مدين في حساب المورد (المورد يُلزَم برد المبلغ)
     for r in db[C.supplier_returns].find({"supplier_id": supplier_id}).sort("created_at", 1):
+        purchase = db[C.purchases].find_one({"_id": r.get("purchase_id")})
         entries.append({
             "type": "return", "date": r.get("created_at"),
             "op_no": r.get("voucher_no") or r["_id"],
+            "description": "مرتجع / استبدال للتاجر",
             "debit": float(r.get("total", 0)), "credit": 0.0,
+            "purchase_ref": (purchase.get("ref_no") or purchase.get("invoice_no")) if purchase else None,
+            "reason": r.get("reason"),
+            "items": r.get("items", []),
+            "created_by_name": _user_name(db, r.get("created_by", "")),
+            "ref_id": r["_id"],
         })
 
     entries.sort(key=lambda e: e["date"] or datetime.min.replace(tzinfo=timezone.utc))
@@ -81,9 +114,22 @@ def supplier_statement(supplier_id: str, db=Depends(get_db), _u=Depends(require_
         balance += e["credit"] - e["debit"]
         e["balance"] = balance
 
+    total_invoices = sum(e["credit"] for e in entries if e["type"] == "purchase")
+    paid_on_invoices = sum(e["debit"] for e in entries if e["type"] == "purchase")
+    later_payments = sum(e["debit"] for e in entries if e["type"] == "payment")
+    total_returns = sum(e["debit"] for e in entries if e["type"] == "return")
     return {
         "opening_balance": 0,
         "closing_balance": balance,
+        "summary": {
+            "total_invoices": total_invoices,
+            "paid_on_invoices": paid_on_invoices,
+            "later_payments": later_payments,
+            "total_paid": paid_on_invoices + later_payments,
+            "total_returns": total_returns,
+            "invoice_credit_remaining": max(0.0, total_invoices - paid_on_invoices),
+        },
+        "generated_at": datetime.now(timezone.utc),
         "entries": entries,
     }
 

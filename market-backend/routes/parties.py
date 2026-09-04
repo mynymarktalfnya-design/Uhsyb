@@ -209,13 +209,20 @@ def get_supplier(supplier_id: str, db = Depends(get_db), _u = Depends(require_ma
         float(p.get("total", 0)) - _eff_paid(p)
         for p in all_purchases
     )
-    total_paid = sum(
-        p.get("amount", 0) for p in db[C.supplier_payments].find({"supplier_id": supplier_id})
+    # إجمالي المدفوع يشمل الدفعة الأولى داخل فاتورة التوريد
+    # وجميع سندات السداد اللاحقة.
+    invoice_paid = sum(_eff_paid(p) for p in all_purchases)
+    later_paid = sum(
+        float(p.get("amount", 0) or 0)
+        for p in db[C.supplier_payments].find({"supplier_id": supplier_id})
     )
+    total_paid = invoice_paid + later_paid
     total_returns = sum(
         r.get("total", 0) for r in db[C.supplier_returns].find({"supplier_id": supplier_id})
     )
-    computed_balance = total_credit_unpaid - total_paid - total_returns
+    # الرصيد النهائي = إجمالي الفواتير - كل المدفوعات - المرتجعات.
+    # total_paid يتضمن الدفعات داخل الفواتير وسندات السداد اللاحقة.
+    computed_balance = total_purchases_all - total_paid - total_returns
 
     return {
         "id": s["_id"], "name": s["name"], "phone": s.get("phone"),

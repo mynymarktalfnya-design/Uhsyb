@@ -92,10 +92,14 @@ const SupplierDetail = () => {
           </Button>
           <Button onClick={() => {
             const entries = (statement?.entries || []).map(e => ({ ...e, balance: e.running_balance ?? e.balance }));
-            // فواتير التوريد الآن في عمود الدائن، والمدفوعات/المرتجعات في عمود المدين
-            const totalPurchases = entries.filter(e => e.type === 'purchase').reduce((s, e) => s + Number(e.credit || 0), 0);
-            const totalPaid = entries.filter(e => e.type === 'payment').reduce((s, e) => s + Number(e.debit || 0), 0);
-            const totalReturns = entries.filter(e => e.type === 'return').reduce((s, e) => s + Number(e.debit || 0), 0);
+            // فواتير التوريد في عمود الدائن، والمدفوعات والمرتجعات في عمود المدين.
+            // المدفوع يشمل الدفعة الأولى داخل الفاتورة والسندات اللاحقة.
+            const summary = statement?.summary || {};
+            const totalPurchases = summary.total_invoices ?? entries.filter(e => e.type === 'purchase').reduce((s, e) => s + Number(e.credit || 0), 0);
+            const paidOnInvoices = summary.paid_on_invoices ?? entries.filter(e => e.type === 'purchase').reduce((s, e) => s + Number(e.debit || 0), 0);
+            const totalPaid = summary.total_paid ?? entries.filter(e => e.type === 'purchase' || e.type === 'payment').reduce((s, e) => s + Number(e.debit || 0), 0);
+            const totalReturns = summary.total_returns ?? entries.filter(e => e.type === 'return').reduce((s, e) => s + Number(e.debit || 0), 0);
+            const invoiceCreditRemaining = summary.invoice_credit_remaining ?? Math.max(0, totalPurchases - paidOnInvoices);
             exportStatementPDF({
               title: 'كشف حساب تاجر',
               kind: 'supplier',
@@ -107,6 +111,8 @@ const SupplierDetail = () => {
               entries,
               totalInvoices: totalPurchases,
               totalPaid,
+              paidOnInvoices,
+              invoiceCreditRemaining,
               totalReturns,
               skipValidation: true,  // some legacy entries may lack balance field
             }).catch((err) => console.error('Statement PDF failed:', err));
@@ -144,9 +150,16 @@ const SupplierDetail = () => {
             icon: TrendingDown, t: 'stat-owed-to-us',
             note: 'رصيد دائن لنا (دفعنا زيادة أو مرتجعات)',
           },
+           {
+             l: 'آجل الفواتير',
+             v: fmt(statement?.summary?.invoice_credit_remaining || 0) + ' ر.ي',
+             color: 'from-violet-600 to-violet-700',
+             icon: FileText, t: 'stat-invoice-credit',
+             note: 'المتبقي من فواتير التوريد قبل السداد والمرتجعات',
+           },
         ];
         return (
-          <div className="no-print grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+           <div className="no-print grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
             {cards.map((s) => {
               const Icon = s.icon;
               return (
@@ -180,7 +193,21 @@ const SupplierDetail = () => {
       </div>
 
       {tab === 'statement' && statement && (
-        <Card>
+        <Card className="print-only-block">
+          <div className="hidden print:block px-6 py-5 border-b">
+            <div className="text-center mb-4">
+              <h1 className="text-2xl font-black">كشف حساب تاجر تفصيلي</h1>
+              <p className="text-sm text-slate-600">ميني ماركت الفنية — هاتف: 779008092</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+              <div><span className="text-slate-500">التاجر:</span> <strong>{detail.name}</strong></div>
+              <div><span className="text-slate-500">الهاتف:</span> {detail.phone || '—'}</div>
+              <div><span className="text-slate-500">الفترة:</span> جميع المعاملات</div>
+              <div><span className="text-slate-500">إجمالي الفواتير:</span> {fmt(statement.summary?.total_invoices || 0)} ر.ي</div>
+              <div><span className="text-slate-500">إجمالي المدفوع:</span> {fmt(statement.summary?.total_paid || 0)} ر.ي</div>
+              <div><span className="text-slate-500">إجمالي المرتجعات:</span> {fmt(statement.summary?.total_returns || 0)} ر.ي</div>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm" data-testid="supplier-statement-table">
               <thead className="bg-slate-900 text-white">
@@ -204,21 +231,49 @@ const SupplierDetail = () => {
                 {statement.entries.map((e, i) => {
                   const m = typeMeta[e.type];
                   const bl = balanceLabel(e.balance);
+                  const method = e.payment_method ? ` — ${PM[e.payment_method] || e.payment_method}` : '';
+                  const itemRows = (e.items || []).map((it, itemIndex) => {
+                    const itemUnit = it.return_unit || it.unit;
+                    return (
+                      <div key={it.id || `${e.op_no}-${itemIndex}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b last:border-0 border-slate-200 py-1">
+                        <span className="text-slate-400 w-4">{itemIndex + 1}.</span>
+                        <span className="font-semibold text-slate-700 min-w-[150px]">{it.product_name || '—'}</span>
+                        <span>الكمية: <strong>{fmt(it.quantity)}</strong> {it.cartons != null ? `(${fmt(it.cartons)} كرتون)` : (itemUnit === 'carton' ? 'كرتون' : 'قطعة')}</span>
+                        <span>السعر: <strong>{fmt(it.carton_cost ?? it.unit_cost)} ر.ي</strong>{it.carton_cost != null ? ' / كرتون' : ''}</span>
+                        <span>الإجمالي: <strong>{fmt(it.total)} ر.ي</strong></span>
+                      </div>
+                    );
+                  });
                   return (
-                    <tr key={e.op_no || e.id || `entry-${i}`} className="border-t hover:bg-slate-50" data-testid={`sup-row-${e.op_no}`}>
-                      <td className="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">{fmtDate(e.date)}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{e.op_no}</td>
-                      <td className="px-3 py-2"><Badge className={`${m?.color}`}>{m?.label}</Badge></td>
-                      {/* مدين: سند صرف أو مرتجع */}
-                      <td className={`px-3 py-2 font-semibold ${e.debit > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
-                        {e.debit > 0 ? `${fmt(e.debit)} ر.ي` : '—'}
-                      </td>
-                      {/* دائن: فاتورة توريد */}
-                      <td className={`px-3 py-2 font-semibold ${e.credit > 0 ? 'text-rose-600' : 'text-slate-300'}`}>
-                        {e.credit > 0 ? `${fmt(e.credit)} ر.ي` : '—'}
-                      </td>
-                      <td className={`px-3 py-2 font-bold ${bl.color}`}>{bl.text}</td>
-                    </tr>
+                    <React.Fragment key={e.op_no || e.id || `entry-${i}`}>
+                      <tr className="border-t hover:bg-slate-50" data-testid={`sup-row-${e.op_no}`}>
+                        <td className="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">{fmtDate(e.date)}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{e.op_no}</td>
+                        <td className="px-3 py-2">
+                          <Badge className={`${m?.color}`}>{m?.label}</Badge>
+                          <div className="text-xs text-slate-500 mt-1">{(e.description || '').replace(m?.label || '', '').trim()}{method}</div>
+                          {e.remaining > 0 && <div className="text-xs text-rose-600 mt-0.5">متبقي الفاتورة: {fmt(e.remaining)} ر.ي</div>}
+                          {e.reason && <div className="text-xs text-slate-400 mt-0.5">السبب: {e.reason}</div>}
+                        </td>
+                        {/* مدين: سند صرف أو مرتجع، أو الدفعة الأولى داخل الفاتورة */}
+                        <td className={`px-3 py-2 font-semibold ${e.debit > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                          {e.debit > 0 ? `${fmt(e.debit)} ر.ي` : '—'}
+                        </td>
+                        {/* دائن: فاتورة توريد */}
+                        <td className={`px-3 py-2 font-semibold ${e.credit > 0 ? 'text-rose-600' : 'text-slate-300'}`}>
+                          {e.credit > 0 ? `${fmt(e.credit)} ر.ي` : '—'}
+                        </td>
+                        <td className={`px-3 py-2 font-bold ${bl.color}`}>{bl.text}</td>
+                      </tr>
+                      {itemRows.length > 0 && (
+                        <tr className="bg-slate-50/80">
+                          <td colSpan="6" className="px-4 py-2">
+                            <div className="text-[11px] font-bold text-slate-400 mb-1">تفاصيل الأصناف</div>
+                            <div className="text-xs">{itemRows}</div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
                 <tr className="bg-slate-100 border-t-2 font-bold">
