@@ -308,7 +308,12 @@ const Expenses = () => {
 
       {/* ─── Add Expense Dialog ─── */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl" className="max-w-md">
+        <DialogContent
+          dir="rtl"
+          className="max-w-md"
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+        >
           <DialogHeader><DialogTitle>إضافة مصروف جديد</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">

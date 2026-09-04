@@ -494,8 +494,14 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent dir="rtl" className="max-w-5xl max-h-[90vh] overflow-y-auto">
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent
+        dir="rtl"
+        className="max-w-5xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>فاتورة توريد جديدة — {supplierName}</DialogTitle>
         </DialogHeader>
@@ -549,7 +555,7 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
             {search && (
               <div className="border rounded mt-1 max-h-48 overflow-y-auto bg-white shadow">
                 {filtered.map((p) => (
-                  <button key={p.id} onClick={() => addProduct(p)}
+                  <button type="button" key={p.id} onClick={() => addProduct(p)}
                     className="block w-full text-right p-2 hover:bg-amber-50 text-sm border-b last:border-b-0">
                     <span className="font-semibold">{p.name}</span>
                     <span className="text-xs text-slate-500 mr-2">({p.sku})</span>
@@ -667,6 +673,7 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
         </DialogFooter>
       </DialogContent>
 
+      </Dialog>
       <NewProductInline
         open={newProductOpen}
         onClose={() => setNewProductOpen(false)}
@@ -675,7 +682,7 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
         supplierName={supplierName}
         onCreated={handleNewProductCreated}
       />
-    </Dialog>
+    </>
   );
 };
 
@@ -785,7 +792,13 @@ const NewProductInline = ({ open, onClose, prefillBarcode, categories, supplierN
   return (
     <>
       <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent dir="rtl" className="max-w-2xl" data-testid="new-product-inline-dialog">
+        <DialogContent
+          dir="rtl"
+          className="max-w-2xl"
+          data-testid="new-product-inline-dialog"
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PackagePlus className="w-5 h-5 text-emerald-500" />
