@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timezone
 
-from database import db, C, init_indexes
+from database import db, C, DB_BACKEND, USING_MOCK_MONGO, init_indexes
 from models import UserRole, new_id
 from utils.security import hash_password
 
@@ -81,7 +81,11 @@ def root():
 def health():
     try:
         db.command("ping")
-        return {"status": "ok", "db": "mongo"}
+        return {
+            "status": "degraded" if USING_MOCK_MONGO else "ok",
+            "db": DB_BACKEND,
+            "persistent": not USING_MOCK_MONGO,
+        }
     except Exception as e:
         return {"status": "error", "detail": str(e)[:200]}
 

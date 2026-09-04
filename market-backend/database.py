@@ -20,6 +20,7 @@ _ALLOW_MONGOMOCK = os.environ.get("ALLOW_MONGOMOCK", "false").lower() in ("1", "
 
 _client = None
 db: Database = None
+USING_MOCK_MONGO = False
 
 def _try_real_mongo():
     """Try to connect to the real MongoDB and ping it."""
@@ -34,6 +35,8 @@ def _try_real_mongo():
 
 def _use_mock_mongo():
     """Fall back to mongomock (in-memory) database."""
+    global USING_MOCK_MONGO
+    USING_MOCK_MONGO = True
     import mongomock
     logger.warning("⚠️  Using in-memory mongomock — data will NOT persist across restarts")
     client = mongomock.MongoClient(uuidRepresentation="standard", tz_aware=True)
@@ -54,6 +57,7 @@ except Exception as exc:
         raise
 
 db: Database = _client[DB_NAME]
+DB_BACKEND = "mongomock" if USING_MOCK_MONGO else "mongodb"
 
 
 def get_db() -> Database:

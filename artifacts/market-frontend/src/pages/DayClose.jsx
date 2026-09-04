@@ -11,9 +11,14 @@ import api, { formatApiError } from '../lib/api';
 import { toast } from '../hooks/use-toast';
 
 const money = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(n || 0);
+const localDate = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 export default function DayClose() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   const [businessDate, setBusinessDate] = useState(today);
   const [preview, setPreview] = useState(null);
   const [history, setHistory] = useState([]);

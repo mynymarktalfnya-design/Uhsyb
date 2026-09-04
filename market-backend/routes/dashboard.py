@@ -4,25 +4,18 @@ from fastapi import APIRouter, Depends
 from database import get_db, C
 from utils.deps import get_current_user, require_manager
 from utils.alert_settings import get_alert_settings
+from utils.time import business_now, business_today, day_range_utc, month_range_utc, year_range_utc
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 def _today_range():
-    today = _date.today()
-    start = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
-    end = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
-    return start, end
+    return day_range_utc(business_today())
 
 
 def _month_range():
-    today = _date.today()
-    start = datetime(today.year, today.month, 1, tzinfo=timezone.utc)
-    if today.month == 12:
-        end = datetime(today.year + 1, 1, 1, tzinfo=timezone.utc)
-    else:
-        end = datetime(today.year, today.month + 1, 1, tzinfo=timezone.utc)
-    return start, end
+    today = business_today()
+    return month_range_utc(today.year, today.month)
 
 
 def _sum_sales(db, start, end):
@@ -132,7 +125,7 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
     })
 
     # Expiring within the configured number of days
-    soon = datetime.now(timezone.utc) + timedelta(days=alert_settings["expiry_alert_days"])
+    soon = business_now() + timedelta(days=alert_settings["expiry_alert_days"])
     expiring_soon = db[C.products].count_documents({
         "deleted_at": None, "is_active": True,
         "expiry_date": {"$ne": None, "$lte": soon},
@@ -169,13 +162,11 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
 @router.get("/manager")
 def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
     from datetime import timedelta
-    now = datetime.now(timezone.utc)
-    today = _date.today()
-    week_start = datetime.combine(today - timedelta(days=today.weekday()),
-                                   datetime.min.time()).replace(tzinfo=timezone.utc)
+    now = business_now()
+    today = business_today()
+    week_start = day_range_utc(today - timedelta(days=today.weekday()))[0]
     month_start, month_end = _month_range()
-    year_start = datetime(today.year, 1, 1, tzinfo=timezone.utc)
-    year_end = datetime(today.year + 1, 1, 1, tzinfo=timezone.utc)
+    year_start, year_end = year_range_utc(today.year)
     today_start, today_end = _today_range()
 
     def sum_sales(start, end):
@@ -304,10 +295,18 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
         cash_sales_today += float(s.get("total", 0))
     customer_receipts = sum(float(p.get("amount", 0)) for p in db[C.customer_payments].find({
         "created_at": {"$gte": today_start, "$lte": today_end},
+        "$or": [{"payment_method": "cash"}, {"method": "cash"},
+                {"payment_method": {"$exists": False}, "method": {"$exists": False}}],
     }, {"amount": 1}))
-    expenses_paid_today = sum_expenses(today_start, today_end + timedelta(microseconds=1))
+    expenses_paid_today = sum(float(e.get("amount", 0)) for e in db[C.expenses].find({
+        "created_at": {"$gte": today_start, "$lte": today_end},
+        "deleted_at": None,
+        "$or": [{"payment_method": "cash"}, {"payment_method": {"$exists": False}}],
+    }, {"amount": 1}))
     supplier_paid_today = sum(float(p.get("amount", 0)) for p in db[C.supplier_payments].find({
         "created_at": {"$gte": today_start, "$lte": today_end},
+        "$or": [{"payment_method": "cash"}, {"method": "cash"},
+                {"payment_method": {"$exists": False}, "method": {"$exists": False}}],
     }, {"amount": 1}))
     # Cash returns — approved returns refunded in cash
     cash_returns_today = _sum_returns_by_type(db, today_start, today_end).get("cash", {}).get("total", 0.0)

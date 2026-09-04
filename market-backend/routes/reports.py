@@ -7,6 +7,7 @@ import re
 from database import get_db, C
 from utils.deps import require_manager, require_admin, get_current_user
 from utils.alert_settings import get_alert_settings
+from utils.time import business_today, day_range_utc, month_range_utc
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -14,9 +15,9 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 def _date_range(date_from: Optional[str], date_to: Optional[str]):
     rng = {}
     if date_from:
-        rng["$gte"] = datetime.combine(_date.fromisoformat(date_from), datetime.min.time())
+        rng["$gte"] = day_range_utc(_date.fromisoformat(date_from))[0]
     if date_to:
-        rng["$lte"] = datetime.combine(_date.fromisoformat(date_to), datetime.max.time())
+        rng["$lte"] = day_range_utc(_date.fromisoformat(date_to))[1]
     return rng
 
 
@@ -36,9 +37,8 @@ def _returns_for_range(db, start, end):
 
 @router.get("/daily")
 def daily_sales(date: Optional[str] = None, db = Depends(get_db), _u = Depends(require_manager)):
-    target = _date.fromisoformat(date) if date else _date.today()
-    start = datetime.combine(target, datetime.min.time())
-    end = datetime.combine(target, datetime.max.time())
+    target = _date.fromisoformat(date) if date else business_today()
+    start, end = day_range_utc(target)
 
     pipeline = [
         {"$match": {"created_at": {"$gte": start, "$lte": end}, "status": "completed", "deleted_at": None}},
@@ -77,10 +77,9 @@ def daily_sales(date: Optional[str] = None, db = Depends(get_db), _u = Depends(r
 @router.get("/monthly")
 def monthly_sales(year: Optional[int] = None, month: Optional[int] = None,
                   db = Depends(get_db), _u = Depends(require_manager)):
-    today = _date.today()
+    today = business_today()
     y, m = year or today.year, month or today.month
-    start = datetime(y, m, 1, tzinfo=timezone.utc)
-    end = datetime(y + (m // 12), (m % 12) + 1, 1, tzinfo=timezone.utc)
+    start, end = month_range_utc(y, m)
 
     pipeline = [
         {"$match": {"created_at": {"$gte": start, "$lt": end}, "status": "completed", "deleted_at": None}},
@@ -262,11 +261,11 @@ def _purchase_report_row(db, purchase: dict) -> dict:
 
 
 def _month_start(year: int, month: int) -> datetime:
-    return datetime(year, month, 1, tzinfo=timezone.utc)
+    return month_range_utc(year, month)[0]
 
 
 def _next_month(year: int, month: int) -> datetime:
-    return datetime(year + (month // 12), (month % 12) + 1, 1, tzinfo=timezone.utc)
+    return month_range_utc(year, month)[1]
 
 
 def _previous_month(year: int, month: int, offset: int) -> tuple[int, int]:
@@ -281,10 +280,10 @@ def purchases_daily(
     db = Depends(get_db),
     _u = Depends(require_manager),
 ):
-    today = _date.fromisoformat(date) if date else _date.today()
+    today = _date.fromisoformat(date) if date else business_today()
     first_day = today if date else today - timedelta(days=days - 1)
-    start = datetime.combine(first_day, datetime.min.time()).replace(tzinfo=timezone.utc)
-    end = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
+    start = day_range_utc(first_day)[0]
+    end = day_range_utc(today)[1]
     rows = list(db[C.purchases].find({
         "created_at": {"$gte": start, "$lte": end},
         "deleted_at": None,
@@ -317,7 +316,7 @@ def purchases_monthly(
     db = Depends(get_db),
     _u = Depends(require_manager),
 ):
-    today = _date.today()
+    today = business_today()
     selected_year, selected_month = year or today.year, month or today.month
 
     month_rows = []
@@ -406,7 +405,7 @@ def monthly_financial(
     _u = Depends(require_manager),
 ):
     """Monthly financial statements: sales - returns - purchases - expenses."""
-    today = _date.today()
+    today = business_today()
 
     def iso_day(value):
         if isinstance(value, datetime):

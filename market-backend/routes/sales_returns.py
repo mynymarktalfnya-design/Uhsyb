@@ -33,7 +33,7 @@ class ReturnItemIn(BaseModel):
 
 class SaleReturnCreate(BaseModel):
     sale_id: str
-    items: List[ReturnItemIn]
+    items: List[ReturnItemIn] = Field(..., min_length=1)
     reason: Optional[str] = None
     return_type: str = Field(default="cash", description="cash | credit")
 
@@ -139,21 +139,73 @@ def _apply_return_stock(db, return_id: str, current_user_id: str):
     items = list(db[C.sale_return_items].find({"return_id": return_id}))
     now = datetime.now(timezone.utc)
     for it in items:
+        stock_quantity = float(it.get("stock_quantity", it.get("quantity", 0)))
         db[C.products].update_one(
             {"_id": it["product_id"]},
-            {"$inc": {"current_stock": it["quantity"]}, "$set": {"updated_at": now}},
+            {"$inc": {"current_stock": stock_quantity}, "$set": {"updated_at": now}},
         )
         db[C.inventory_movements].insert_one({
             "_id": new_id(),
             "product_id": it["product_id"],
             "movement_type": MovementType.return_in.value,
-            "quantity": it["quantity"],
+            "quantity": stock_quantity,
             "reference_table": "sale_returns",
             "reference_id": return_id,
             "user_id": current_user_id,
             "notes": f"Return approved",
             "created_at": now,
         })
+
+
+def _prepare_return(db, payload: SaleReturnCreate):
+    """Validate all lines before writing anything, preserving sale discounts."""
+    if payload.return_type not in {"cash", "credit"}:
+        raise HTTPException(400, "نوع المرتجع يجب أن يكون cash أو credit")
+
+    sale = db[C.sales].find_one({"_id": payload.sale_id, "deleted_at": None})
+    if not sale:
+        raise HTTPException(404, "الفاتورة غير موجودة")
+    if sale.get("status") != "completed":
+        raise HTTPException(400, "لا يمكن إرجاع فاتورة ملغاة أو غير مكتملة")
+
+    seen = set()
+    item_docs = []
+    subtotal = 0.0
+    for it in payload.items:
+        if it.sale_item_id in seen:
+            raise HTTPException(400, "لا يمكن تكرار بند الفاتورة في نفس المرتجع")
+        seen.add(it.sale_item_id)
+        si = db[C.sale_items].find_one(
+            {"_id": it.sale_item_id, "sale_id": payload.sale_id}
+        )
+        if not si:
+            raise HTTPException(400, f"بند الفاتورة {it.sale_item_id} غير موجود")
+        sold_qty = float(si.get("quantity", 0))
+        already = _already_returned_qty(db, it.sale_item_id)
+        available = max(0.0, sold_qty - already)
+        if it.quantity > available + 1e-9:
+            raise HTTPException(
+                400,
+                f"كمية المرتجع ({it.quantity}) تتجاوز الكمية المتاحة للإرجاع ({available:.2f})"
+            )
+
+        # Sale item total already contains the proportional carton discount.
+        unit_refund = float(si.get("total", 0) or 0) / sold_qty if sold_qty else 0
+        line_total = round(float(it.quantity) * unit_refund, 2)
+        ppc = int(si.get("pieces_per_carton", 1) or 1)
+        stock_quantity = float(it.quantity) * (ppc if si.get("sale_unit") == "carton" else 1)
+        subtotal += line_total
+        item_docs.append({
+            "_id": new_id(),
+            "return_id": None,
+            "sale_item_id": it.sale_item_id,
+            "product_id": si["product_id"],
+            "quantity": float(it.quantity),
+            "stock_quantity": stock_quantity,
+            "unit_price": float(si.get("unit_price", 0) or 0),
+            "total": line_total,
+        })
+    return sale, item_docs, round(subtotal, 2)
 
 
 # ──────────────── POST /api/sales-returns  (creates PENDING) ─────────
@@ -165,41 +217,14 @@ def create_pending_return(
     current=Depends(require_cashier),
 ):
     """Create a pending return (requires manager approval)."""
-    sale = db[C.sales].find_one({"_id": payload.sale_id, "deleted_at": None})
-    if not sale:
-        raise HTTPException(404, "الفاتورة غير موجودة")
+    sale, item_docs, subtotal = _prepare_return(db, payload)
 
     now = datetime.now(timezone.utc)
     return_no = _next_return_no(db)
     rid = new_id()
-    subtotal = 0.0
-
-    for it in payload.items:
-        si = db[C.sale_items].find_one(
-            {"_id": it.sale_item_id, "sale_id": payload.sale_id}
-        )
-        if not si:
-            raise HTTPException(400, f"بند الفاتورة {it.sale_item_id} غير موجود")
-        sold_qty = float(si["quantity"])
-        already = _already_returned_qty(db, it.sale_item_id)
-        if it.quantity > (sold_qty - already):
-            raise HTTPException(
-                400,
-                f"كمية المرتجع ({it.quantity}) تتجاوز الكمية المتاحة للإرجاع ({sold_qty - already:.2f})"
-            )
-
-        line_total = it.quantity * float(si["unit_price"])
-        subtotal += line_total
-
-        db[C.sale_return_items].insert_one({
-            "_id": new_id(),
-            "return_id": rid,
-            "sale_item_id": it.sale_item_id,
-            "product_id": si["product_id"],
-            "quantity": it.quantity,
-            "unit_price": float(si["unit_price"]),
-            "total": line_total,
-        })
+    for item in item_docs:
+        item["return_id"] = rid
+    db[C.sale_return_items].insert_many(item_docs)
 
     db[C.sale_returns].insert_one({
         "_id": rid,
@@ -234,41 +259,14 @@ def instant_return(
     current=Depends(require_cashier),
 ):
     """Instant return — immediately approved (used from POS screen)."""
-    sale = db[C.sales].find_one({"_id": payload.sale_id, "deleted_at": None})
-    if not sale:
-        raise HTTPException(404, "الفاتورة غير موجودة")
+    sale, item_docs, subtotal = _prepare_return(db, payload)
 
     now = datetime.now(timezone.utc)
     return_no = _next_return_no(db)
     rid = new_id()
-    subtotal = 0.0
-
-    for it in payload.items:
-        si = db[C.sale_items].find_one(
-            {"_id": it.sale_item_id, "sale_id": payload.sale_id}
-        )
-        if not si:
-            raise HTTPException(400, f"بند الفاتورة {it.sale_item_id} غير موجود")
-        sold_qty = float(si["quantity"])
-        already = _already_returned_qty(db, it.sale_item_id)
-        if it.quantity > (sold_qty - already):
-            raise HTTPException(
-                400,
-                f"كمية المرتجع ({it.quantity}) تتجاوز الكمية المتاحة للإرجاع ({sold_qty - already:.2f})"
-            )
-
-        line_total = it.quantity * float(si["unit_price"])
-        subtotal += line_total
-
-        db[C.sale_return_items].insert_one({
-            "_id": new_id(),
-            "return_id": rid,
-            "sale_item_id": it.sale_item_id,
-            "product_id": si["product_id"],
-            "quantity": it.quantity,
-            "unit_price": float(si["unit_price"]),
-            "total": line_total,
-        })
+    for item in item_docs:
+        item["return_id"] = rid
+    db[C.sale_return_items].insert_many(item_docs)
 
     db[C.sale_returns].insert_one({
         "_id": rid,
@@ -302,7 +300,8 @@ def instant_return(
     log_action(db, current["_id"], "sale_return_instant", "sale_returns", rid,
                after={"return_no": return_no, "total": str(subtotal)})
 
-    return {"id": rid, "return_no": return_no, "total": subtotal, "status": "approved"}
+    result = _enrich_return(db, db[C.sale_returns].find_one({"_id": rid}))
+    return result
 
 
 # ──────────────── GET /api/sales-returns ─────────────────────────────
@@ -310,6 +309,8 @@ def instant_return(
 @router.get("/sales-returns")
 def list_returns(
     status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     limit: int = Query(100, le=500),
     db=Depends(get_db),
     _u=Depends(require_cashier),
@@ -317,6 +318,13 @@ def list_returns(
     filt: dict = {"deleted_at": None}
     if status:
         filt["status"] = status
+    if date_from or date_to:
+        rng = {}
+        if date_from:
+            rng["$gte"] = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
+        if date_to:
+            rng["$lte"] = datetime.fromisoformat(date_to.replace("Z", "+00:00"))
+        filt["created_at"] = rng
     rows = list(
         db[C.sale_returns].find(filt).sort("created_at", -1).limit(limit)
     )
@@ -502,12 +510,13 @@ class ExchangeReturnItemIn(BaseModel):
 class ExchangeNewItemIn(BaseModel):
     product_id: str
     quantity: float = Field(..., gt=0)
+    sale_unit: str = Field(default="piece")
 
 
 class ExchangePayloadV2(BaseModel):
     sale_id: str
-    return_items: List[ExchangeReturnItemIn]
-    new_items: List[ExchangeNewItemIn]
+    return_items: List[ExchangeReturnItemIn] = Field(..., min_length=1)
+    new_items: List[ExchangeNewItemIn] = Field(..., min_length=1)
     settlement: str = Field(default="cash")   # cash | cash_refund | credit
     reason: Optional[str] = None
 
@@ -529,6 +538,25 @@ def create_exchange(
         reason=payload.reason or "استبدال POS",
         return_type="cash",
     )
+    # Validate both sides before creating the return. This prevents a bad
+    # replacement product or insufficient stock from leaving a half exchange.
+    orig_sale, _, _ = _prepare_return(db, return_payload)
+    new_stock = {}
+    replacement_products = {}
+    for it in payload.new_items:
+        if it.sale_unit not in {"piece", "carton"}:
+            raise HTTPException(400, "وحدة الاستبدال يجب أن تكون piece أو carton")
+        prod = db[C.products].find_one({"_id": it.product_id, "deleted_at": None})
+        if not prod:
+            raise HTTPException(404, f"منتج {it.product_id} غير موجود")
+        ppc = int(prod.get("pieces_per_carton", 1) or 1) if it.sale_unit == "carton" else 1
+        stock_qty = float(it.quantity) * ppc
+        new_stock[it.product_id] = new_stock.get(it.product_id, 0.0) + stock_qty
+        replacement_products[it.product_id] = prod
+    for product_id, stock_qty in new_stock.items():
+        if float(replacement_products[product_id].get("current_stock", 0) or 0) < stock_qty:
+            raise HTTPException(400, f"المخزون غير كافٍ للمنتج {replacement_products[product_id].get('name', product_id)}")
+
     ret_result = instant_return(return_payload, db, current)
     return_value = float(ret_result["total"])
 
@@ -539,22 +567,21 @@ def create_exchange(
     new_sale_id = new_id()
 
     # Get original sale's customer
-    orig_sale = db[C.sales].find_one({"_id": payload.sale_id})
     customer_id = orig_sale.get("customer_id") if orig_sale else None
 
     for it in payload.new_items:
-        prod = db[C.products].find_one({"_id": it.product_id, "deleted_at": None})
-        if not prod:
-            raise HTTPException(404, f"منتج {it.product_id} غير موجود")
+        prod = replacement_products[it.product_id]
         sale_price = D(str(prod.get("sale_price", 0)))
         qty = D(str(it.quantity))
-        line_total = sale_price * qty
+        ppc = int(prod.get("pieces_per_carton", 1) or 1) if it.sale_unit == "carton" else 1
+        line_total = sale_price * qty * ppc
         new_total += line_total
         new_item_docs.append({
             "_id": new_id(), "sale_id": new_sale_id,
             "product_id": it.product_id,
             "quantity": float(qty), "unit_price": float(sale_price),
             "discount": 0.0, "tax": 0.0, "total": float(line_total),
+            "sale_unit": it.sale_unit, "pieces_per_carton": ppc if it.sale_unit == "carton" else None,
             "created_at": now,
         })
 
@@ -592,13 +619,17 @@ def create_exchange(
         db[C.sale_items].insert_many(new_item_docs)
 
         # Deduct stock + inventory movements
-        for it in payload.new_items:
-            db[C.products].update_one({"_id": it.product_id},
-                {"$inc": {"current_stock": -float(it.quantity)}, "$set": {"updated_at": now}})
+        for product_id, stock_qty in new_stock.items():
+            result = db[C.products].update_one(
+                {"_id": product_id, "current_stock": {"$gte": stock_qty}},
+                {"$inc": {"current_stock": -stock_qty}, "$set": {"updated_at": now}},
+            )
+            if result.matched_count == 0:
+                raise HTTPException(409, "تغيّر مخزون منتج الاستبدال أثناء العملية")
             db[C.inventory_movements].insert_one({
-                "_id": new_id(), "product_id": it.product_id,
+                "_id": new_id(), "product_id": product_id,
                 "movement_type": "sale",
-                "quantity": -float(it.quantity),
+                "quantity": -stock_qty,
                 "reference_table": "sales", "reference_id": new_sale_id,
                 "user_id": current["_id"],
                 "notes": f"استبدال {new_invoice_no}",
@@ -606,17 +637,17 @@ def create_exchange(
             })
 
         # If credit settlement (diff < 0 and credit mode) → decrease customer balance
-        if new_pm == "credit" and customer_id and diff > 0:
-            db[C.customers].update_one(
-                {"_id": customer_id},
-                {"$inc": {"balance": new_total_f}, "$set": {"updated_at": now}},
-            )
-        elif payload.settlement == "credit" and customer_id and diff < 0:
+        if payload.settlement == "credit" and customer_id and diff < 0:
             # Store owes customer; credit their account (reduce their debt)
             db[C.customers].update_one(
                 {"_id": customer_id},
                 {"$inc": {"balance": diff}, "$set": {"updated_at": now}},
             )
+        if new_pm != "credit":
+            db[C.sale_payments].insert_one({
+                "_id": new_id(), "sale_id": new_sale_id,
+                "method": new_pm, "amount": new_total_f, "created_at": now,
+            })
 
     # ── 3. Build response ─────────────────────────────────────────────
     if diff > 0:

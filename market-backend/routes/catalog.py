@@ -12,6 +12,7 @@ from schemas.catalog import (
 from utils.deps import get_current_user, require_manager, require_admin
 from utils.audit import log_action
 from utils.alert_settings import get_alert_settings
+from utils.time import business_today
 
 router = APIRouter(prefix="/api", tags=["catalog"])
 
@@ -156,7 +157,7 @@ def expiry_report(days: Optional[int] = Query(None, ge=1, le=365),
                   db = Depends(get_db), current = Depends(require_manager)):
     if days is None:
         days = get_alert_settings(db)["expiry_alert_days"]
-    today = _date.today()
+    today = business_today()
     threshold = today + timedelta(days=days)
     today_dt = datetime.combine(today, datetime.min.time())
     thr_dt = datetime.combine(threshold, datetime.min.time())

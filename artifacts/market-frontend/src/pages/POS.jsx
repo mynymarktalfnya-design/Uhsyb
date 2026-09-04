@@ -174,7 +174,8 @@ export default function POS() {
   }, [cart, cartonMode]);
 
   const updateQty = (idx, delta) => setCart((prev) => {
-    const c = [...prev]; const q = c[idx].quantity + delta;
+    const c = [...prev]; const item = c[idx]; const max = Math.floor(Number(item.stock || 0) / (item.sale_unit === 'carton' ? (item.pieces_per_carton || 1) : 1));
+    const q = Math.min(max, item.quantity + delta);
     if (q <= 0) return c.filter((_, i) => i !== idx);
     c[idx] = { ...c[idx], quantity: q }; return c;
   });
@@ -182,7 +183,13 @@ export default function POS() {
   const setQtyDirect = (idx, val) => {
     const q = Number(val); if (isNaN(q) || q < 0) return;
     if (q === 0) setCart((prev) => prev.filter((_, i) => i !== idx));
-    else setCart((prev) => { const c = [...prev]; c[idx] = { ...c[idx], quantity: q }; return c; });
+    else setCart((prev) => {
+      const c = [...prev];
+      const item = c[idx];
+      const max = Math.floor(Number(item.stock || 0) / (item.sale_unit === 'carton' ? (item.pieces_per_carton || 1) : 1));
+      c[idx] = { ...item, quantity: Math.min(q, max) };
+      return c;
+    });
   };
 
   const removeItem = (idx) => setCart((prev) => prev.filter((_, i) => i !== idx));

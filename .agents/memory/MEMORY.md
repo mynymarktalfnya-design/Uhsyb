@@ -2,3 +2,4 @@
 - [MiniMarket auth credentials](minimarket-auth.md) — admin login is admin / Admin@2026 (seeded on startup)
 - [MiniMarket backend gaps fixed](minimarket-backend-gaps.md) — returns workflow, day-close POST, dashboard field aliases, Vite proxy
 - [Purchase quantity display](purchase-quantity-display.md) — always distinguish piece purchases from cartons and show derived pieces when pack size is known
+- [Business timezone](business-timezone.md) — accounting day boundaries use Asia/Aden while timestamps remain UTC

@@ -252,7 +252,7 @@ class PurchaseCreate(BaseModel):
     supplier_invoice_no: str = Field(..., min_length=1, max_length=100)
     payment_method: str = Field(default="credit")
     paid_amount: Optional[float] = 0
-    items: List[PurchaseItemIn]
+    items: List[PurchaseItemIn] = Field(..., min_length=1)
     notes: Optional[str] = None
 
 
@@ -265,6 +265,8 @@ def create_purchase(payload: PurchaseCreate, request: Request,
     supplier_invoice_no = payload.supplier_invoice_no.strip()
     if not supplier_invoice_no:
         raise HTTPException(422, "رقم فاتورة التاجر مطلوب")
+    if payload.payment_method not in {"cash", "credit", "bank_transfer", "banki", "card", "jaib", "fluusak", "hasib"}:
+        raise HTTPException(400, "طريقة دفع المورد غير صحيحة")
     now = datetime.now(timezone.utc)
     today = now.strftime("%Y%m%d")
     count = db[C.purchases].count_documents({"ref_no": {"$regex": f"^PUR-{today}-"}})
@@ -273,16 +275,25 @@ def create_purchase(payload: PurchaseCreate, request: Request,
     total = 0.0
     resolved_items = []
     for it in payload.items:
+        if it.unit not in {"piece", "carton"}:
+            raise HTTPException(422, "وحدة التوريد يجب أن تكون piece أو carton")
+        product = db[C.products].find_one({"_id": it.product_id, "deleted_at": None})
+        if not product:
+            raise HTTPException(404, f"المنتج {it.product_id} غير موجود")
         if it.unit == "carton":
             cartons = float(it.cartons or 0)
-            ppc = float(it.pieces_per_carton or 1)
+            ppc = float(it.pieces_per_carton or product.get("pieces_per_carton", 1) or 1)
             cc = float(it.carton_cost or 0)
+            if cartons <= 0 or ppc <= 0 or cc < 0:
+                raise HTTPException(422, "بيانات الكرتون يجب أن تكون موجبة")
             qty = cartons * ppc
             unit_cost = cc / ppc if ppc > 0 else 0.0
             line_total = cartons * cc
         else:
             qty = float(it.quantity or 0)
             unit_cost = float(it.unit_cost or 0)
+            if qty <= 0 or unit_cost < 0:
+                raise HTTPException(422, "الكمية والتكلفة يجب أن تكونا صحيحتين")
             line_total = qty * unit_cost
         total += line_total
         resolved_items.append({
@@ -293,6 +304,12 @@ def create_purchase(payload: PurchaseCreate, request: Request,
             "line_total": line_total,
         })
 
+    paid_amount = float(payload.paid_amount or 0)
+    if paid_amount < 0 or paid_amount > total + 1e-9:
+        raise HTTPException(400, "المبلغ المدفوع لا يمكن أن يتجاوز إجمالي التوريد")
+    if payload.payment_method != "credit" and paid_amount not in (0, total):
+        raise HTTPException(400, "التوريد النقدي أو البنكي إما مسدد بالكامل أو يسجل كآجل")
+
     # لقطة رصيد التاجر قبل هذه الفاتورة
     balance_before_snap = float(s.get("balance", 0))
 
@@ -302,7 +319,7 @@ def create_purchase(payload: PurchaseCreate, request: Request,
         "supplier_invoice_no": supplier_invoice_no,
         "supplier_id": payload.supplier_id,
         "subtotal": total, "total": total,
-        "paid_amount": float(payload.paid_amount or 0),
+        "paid_amount": paid_amount,
         "payment_method": payload.payment_method,
         "notes": payload.notes, "created_by": current["_id"],
         "balance_before": balance_before_snap,
@@ -346,7 +363,7 @@ def create_purchase(payload: PurchaseCreate, request: Request,
     # تحديث رصيد التاجر بالمبلغ المتبقي (قيمة الفاتورة - المدفوع الآن)
     # يشمل جميع طرق الدفع — نقدي/بنكي بدون paid_amount صريح = مسدّد كاملاً
     _pm = payload.payment_method
-    _pa = float(payload.paid_amount or 0)
+    _pa = paid_amount
     _eff = _pa if (_pa > 0 or _pm == "credit") else total
     balance_delta = total - _eff
     if abs(balance_delta) > 0.001:
@@ -358,7 +375,7 @@ def create_purchase(payload: PurchaseCreate, request: Request,
                after={"ref_no": ref_no, "total": str(total)}, request=request)
     return {
         "id": pur_id, "ref_no": ref_no, "supplier_invoice_no": supplier_invoice_no,
-        "total": total, "paid_amount": float(payload.paid_amount or 0),
+        "total": total, "paid_amount": paid_amount,
         "payment_method": payload.payment_method, "notes": payload.notes,
         "created_by_name": _user_name(db, current["_id"]),
         "created_at": now, "items": items_out,
@@ -469,7 +486,7 @@ class ReturnItemIn(BaseModel):
 class SupplierReturnCreate(BaseModel):
     purchase_id: str
     reason: Optional[str] = None
-    items: List[ReturnItemIn]
+    items: List[ReturnItemIn] = Field(..., min_length=1)
 
 
 @router.post("/supplier-returns", status_code=201)
@@ -486,16 +503,24 @@ def create_supplier_return(payload: SupplierReturnCreate, request: Request,
 
     total = 0.0
     items_out = []
+    seen_items = set()
     for it in payload.items:
+        if it.purchase_item_id in seen_items:
+            raise HTTPException(400, "لا يمكن تكرار بند التوريد في نفس المرتجع")
+        seen_items.add(it.purchase_item_id)
+        if it.return_unit not in {"piece", "carton"}:
+            raise HTTPException(422, "وحدة المرتجع يجب أن تكون piece أو carton")
         pi = db[C.purchase_items].find_one({"_id": it.purchase_item_id, "purchase_id": payload.purchase_id})
         if not pi:
             raise HTTPException(404, f"Purchase item {it.purchase_item_id} not found")
+        ppc = int(pi.get("pieces_per_carton", 1) or 1)
+        requested_pieces = float(it.return_quantity) * (ppc if it.return_unit == "carton" else 1)
         available = max(0.0, float(pi.get("quantity", 0)) - float(pi.get("returned_quantity", 0)))
-        if it.return_quantity > available:
+        if requested_pieces > available + 1e-9:
             raise HTTPException(400, f"الكمية المرتجعة تتجاوز المتاح ({available})")
 
         unit_cost = float(pi.get("unit_cost", 0))
-        line_total = it.return_quantity * unit_cost
+        line_total = requested_pieces * unit_cost
         total += line_total
 
         prod = db[C.products].find_one({"_id": pi["product_id"]}, {"name": 1})
@@ -504,23 +529,25 @@ def create_supplier_return(payload: SupplierReturnCreate, request: Request,
             "product_id": pi["product_id"],
             "product_name": prod["name"] if prod else pi["product_id"],
             "return_unit": it.return_unit,
-            "quantity": it.return_quantity,
+            "quantity": requested_pieces,
+            "pieces": requested_pieces,
+            "cartons": float(it.return_quantity) if it.return_unit == "carton" else None,
             "unit_cost": unit_cost,
             "total": line_total,
         })
 
         db[C.purchase_items].update_one(
             {"_id": it.purchase_item_id},
-            {"$inc": {"returned_quantity": it.return_quantity}}
+            {"$inc": {"returned_quantity": requested_pieces}}
         )
         db[C.products].update_one(
             {"_id": pi["product_id"]},
-            {"$inc": {"current_stock": -it.return_quantity}, "$set": {"updated_at": now}}
+            {"$inc": {"current_stock": -requested_pieces}, "$set": {"updated_at": now}}
         )
         db[C.inventory_movements].insert_one({
             "_id": new_id(), "product_id": pi["product_id"],
             "movement_type": "supplier_return",
-            "quantity": -it.return_quantity,
+            "quantity": -requested_pieces,
             "reference_table": "supplier_returns",
             "user_id": current["_id"],
             "notes": f"استرجاع {voucher_no}",

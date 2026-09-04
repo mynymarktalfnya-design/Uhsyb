@@ -12,6 +12,7 @@ from schemas.sales import (
 )
 from utils.deps import get_current_user, require_cashier, require_manager, require_admin
 from utils.audit import log_action
+from utils.time import business_now, business_today, day_range_utc
 
 router = APIRouter(prefix="/api", tags=["sales"])
 
@@ -19,8 +20,15 @@ VALID_PAYMENT_METHODS = {"cash", "jaib", "fluusak", "hasib", "banki",
                           "bank_transfer", "credit", "card"}
 
 
+def _stock_quantity(item, product) -> float:
+    """Convert a sale line into the number of stock pieces it consumes."""
+    if item.sale_unit == "carton":
+        return float(item.quantity) * int(product.get("pieces_per_carton", 1) or 1)
+    return float(item.quantity)
+
+
 def _generate_invoice_no(db) -> str:
-    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    today = business_now().strftime("%Y%m%d")
     prefix = f"INV-{today}-"
     count = db[C.sales].count_documents({"invoice_no": {"$regex": f"^{prefix}"}})
     return f"{prefix}{count + 1:05d}"
@@ -59,6 +67,14 @@ def create_sale(payload: SaleCreate, request: Request,
         raise HTTPException(status_code=400, detail="Invalid payment method")
     if payload.payment_method == "credit" and not payload.customer_id:
         raise HTTPException(status_code=400, detail="آجل يتطلب اختيار عميل")
+    if payload.shift_id:
+        shift = db[C.shifts].find_one({
+            "_id": payload.shift_id,
+            "cashier_id": current["_id"],
+            "status": ShiftStatus.open.value,
+        })
+        if not shift:
+            raise HTTPException(status_code=400, detail="الوردية المحددة غير مفتوحة لهذا المستخدم")
 
     # Fetch all products
     product_ids = [it.product_id for it in payload.items]
@@ -69,14 +85,13 @@ def create_sale(payload: SaleCreate, request: Request,
     if len(prod_map) != len(set(product_ids)):
         raise HTTPException(status_code=400, detail="One or more products not found")
 
-    today = _date.today()
+    today = business_today()
+    requested_stock = {}
     for it in payload.items:
         p = prod_map[it.product_id]
-        stock_qty = float(it.quantity) * (
-            int(p.get("pieces_per_carton", 1) or 1) if it.sale_unit == "carton" else 1
-        )
-        if float(p.get("current_stock", 0)) < stock_qty and \
-                current.role not in ("admin", "manager"):
+        requested_stock[it.product_id] = requested_stock.get(it.product_id, 0.0) + _stock_quantity(it, p)
+        stock_qty = requested_stock[it.product_id]
+        if float(p.get("current_stock", 0)) < stock_qty:
             raise HTTPException(status_code=400,
                 detail=f"المخزون غير كافٍ لـ '{p['name']}' (المتوفر: {p.get('current_stock')}, المطلوب: {stock_qty})")
         ed = p.get("expiry_date")
@@ -120,16 +135,24 @@ def create_sale(payload: SaleCreate, request: Request,
     )
     discount_amount = (carton_subtotal * carton_discount_percent / Decimal("100")).quantize(Decimal("0.01"))
     total = max(Decimal("0"), subtotal - discount_amount)
+    customer = None
     if payload.payment_method == "credit":
+        customer = db[C.customers].find_one({
+            "_id": payload.customer_id,
+            "deleted_at": None,
+            "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
+        })
+        if not customer:
+            raise HTTPException(status_code=404, detail="العميل غير موجود أو غير نشط")
+        credit_limit = Decimal(str(customer.get("credit_limit", 0) or 0))
+        current_balance = Decimal(str(customer.get("balance", 0) or 0))
+        if credit_limit > 0 and current_balance + total > credit_limit:
+            raise HTTPException(
+                status_code=400,
+                detail=f"تجاوز حد الائتمان. المتاح للعميل: {credit_limit - current_balance:.2f}",
+            )
         paid_amount = Decimal("0")
         change_amount = Decimal("0")
-        # update customer balance atomically
-        r = db[C.customers].update_one(
-            {"_id": payload.customer_id},
-            {"$inc": {"balance": float(total)}, "$set": {"updated_at": now}},
-        )
-        if r.matched_count == 0:
-            raise HTTPException(status_code=404, detail="العميل غير موجود")
     else:
         paid_amount = total
         change_amount = Decimal("0")
@@ -150,22 +173,39 @@ def create_sale(payload: SaleCreate, request: Request,
     db[C.sale_items].insert_many(item_docs)
 
     # Decrement product stock + inventory movements
-    for it in payload.items:
-        stock_qty = float(it.quantity) * (
-            int(prod_map[it.product_id].get("pieces_per_carton", 1) or 1)
-            if it.sale_unit == "carton" else 1
+    decremented = []
+    for product_id, stock_qty in requested_stock.items():
+        result = db[C.products].update_one(
+            {"_id": product_id, "current_stock": {"$gte": stock_qty}},
+            {"$inc": {"current_stock": -stock_qty}, "$set": {"updated_at": now}},
         )
-        db[C.products].update_one({"_id": it.product_id},
-                                  {"$inc": {"current_stock": -stock_qty},
-                                   "$set": {"updated_at": now}})
+        if result.matched_count == 0:
+            # A concurrent sale may have consumed the stock after validation.
+            for rollback_id, rollback_qty in decremented:
+                db[C.products].update_one(
+                    {"_id": rollback_id},
+                    {"$inc": {"current_stock": rollback_qty}, "$set": {"updated_at": now}},
+                )
+            db[C.sale_items].delete_many({"sale_id": sale_id})
+            db[C.sales].delete_one({"_id": sale_id})
+            raise HTTPException(status_code=409, detail="تغيّر المخزون أثناء البيع، أعد المحاولة")
+        decremented.append((product_id, stock_qty))
+
+    for product_id, stock_qty in requested_stock.items():
         db[C.inventory_movements].insert_one({
-            "_id": new_id(), "product_id": it.product_id,
+            "_id": new_id(), "product_id": product_id,
             "movement_type": MovementType.sale.value,
             "quantity": -stock_qty,
             "reference_table": "sales", "reference_id": sale_id,
             "user_id": current["_id"], "notes": f"Sale {invoice_no}",
             "created_at": now,
         })
+
+    if payload.payment_method == "credit":
+        db[C.customers].update_one(
+            {"_id": payload.customer_id},
+            {"$inc": {"balance": float(total)}, "$set": {"updated_at": now}},
+        )
 
     if payload.payment_method != "credit":
         db[C.sale_payments].insert_one({
@@ -195,11 +235,15 @@ def list_sales(date_from: Optional[str] = None, date_to: Optional[str] = None,
     if date_from or date_to:
         rng = {}
         if date_from:
-            rng["$gte"] = datetime.fromisoformat(date_from.replace("Z", "+00:00")) \
-                if "T" in date_from else datetime.combine(_date.fromisoformat(date_from), datetime.min.time())
+            rng["$gte"] = (
+                datetime.fromisoformat(date_from.replace("Z", "+00:00"))
+                if "T" in date_from else day_range_utc(_date.fromisoformat(date_from))[0]
+            )
         if date_to:
-            rng["$lte"] = datetime.fromisoformat(date_to.replace("Z", "+00:00")) \
-                if "T" in date_to else datetime.combine(_date.fromisoformat(date_to), datetime.max.time())
+            rng["$lte"] = (
+                datetime.fromisoformat(date_to.replace("Z", "+00:00"))
+                if "T" in date_to else day_range_utc(_date.fromisoformat(date_to))[1]
+            )
         filt["created_at"] = rng
     rows = list(db[C.sales].find(filt).sort("created_at", -1).limit(limit))
     return [_sale_to_out(s, db) for s in rows]
@@ -227,13 +271,17 @@ def void_sale(sale_id: str, request: Request, db = Depends(get_db),
     now = datetime.now(timezone.utc)
     items = list(db[C.sale_items].find({"sale_id": sale_id}))
     for it in items:
+        restore_qty = float(it["quantity"]) * (
+            int(it.get("pieces_per_carton", 1) or 1)
+            if it.get("sale_unit") == "carton" else 1
+        )
         db[C.products].update_one({"_id": it["product_id"]},
-                                  {"$inc": {"current_stock": float(it["quantity"])},
+                                  {"$inc": {"current_stock": restore_qty},
                                    "$set": {"updated_at": now}})
         db[C.inventory_movements].insert_one({
             "_id": new_id(), "product_id": it["product_id"],
             "movement_type": MovementType.return_in.value,
-            "quantity": float(it["quantity"]),
+            "quantity": restore_qty,
             "reference_table": "sales", "reference_id": sale_id,
             "user_id": current["_id"], "notes": f"Void {s['invoice_no']}",
             "created_at": now,
@@ -331,6 +379,8 @@ def returnable_items(sale_id: str, db=Depends(get_db), _u=Depends(require_cashie
     sale = db[C.sales].find_one({"_id": sale_id, "deleted_at": None})
     if not sale:
         raise HTTPException(status_code=404, detail="الفاتورة غير موجودة")
+    if sale.get("status") != SaleStatus.completed.value:
+        raise HTTPException(status_code=400, detail="لا يمكن إرجاع فاتورة ملغاة أو غير مكتملة")
 
     items = list(db[C.sale_items].find({"sale_id": sale_id}))
 

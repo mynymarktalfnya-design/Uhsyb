@@ -14,14 +14,14 @@ from pydantic import BaseModel
 from database import get_db, C
 from models import new_id
 from utils.deps import require_manager
+from utils.time import business_today, day_range_utc
 
 router = APIRouter(prefix="/api", tags=["day-close"])
 
 
 def _build_preview(db, target: _date) -> dict:
     """Compute preview numbers for a given business date."""
-    start = datetime.combine(target, datetime.min.time()).replace(tzinfo=timezone.utc)
-    end   = datetime.combine(target, datetime.max.time()).replace(tzinfo=timezone.utc)
+    start, end = day_range_utc(target)
 
     # Sales total & cash portion
     sales_agg = list(db[C.sales].aggregate([
@@ -48,23 +48,35 @@ def _build_preview(db, target: _date) -> dict:
     total_returns = sum(float(x["total"]) for x in ret_agg)
     cash_returns  = sum(float(x["total"]) for x in ret_agg if x["_id"] == "cash")
 
-    # Expenses paid in cash
+    # Only cash movements affect the physical drawer. Keep all expense
+    # methods in total_expenses for the operating summary.
     exp_agg = list(db[C.expenses].aggregate([
-        {"$match": {"created_at": {"$gte": start, "$lte": end}, "deleted_at": None}},
+        {"$match": {"created_at": {"$gte": start, "$lte": end},
+                    "deleted_at": None,
+                    "$or": [{"payment_method": "cash"},
+                            {"payment_method": {"$exists": False}}]}},
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
     ]))
     expenses_paid = float(exp_agg[0]["total"]) if exp_agg else 0.0
+    all_exp_agg = list(db[C.expenses].aggregate([
+        {"$match": {"created_at": {"$gte": start, "$lte": end}, "deleted_at": None}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]))
+    total_expenses = float(all_exp_agg[0]["total"]) if all_exp_agg else 0.0
 
     # Supplier payments
     sp_agg = list(db[C.supplier_payments].aggregate([
-        {"$match": {"created_at": {"$gte": start, "$lte": end}}},
+        {"$match": {"created_at": {"$gte": start, "$lte": end},
+                    "$or": [{"payment_method": "cash"}, {"payment_method": {"$exists": False}}]}},
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
     ]))
     supplier_paid = float(sp_agg[0]["total"]) if sp_agg else 0.0
 
     # Customer receipts
     cp_agg = list(db[C.customer_payments].aggregate([
-        {"$match": {"created_at": {"$gte": start, "$lte": end}}},
+        {"$match": {"created_at": {"$gte": start, "$lte": end},
+                    "$or": [{"payment_method": "cash"}, {"method": "cash"},
+                            {"payment_method": {"$exists": False}, "method": {"$exists": False}}]}},
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
     ]))
     customer_receipts = float(cp_agg[0]["total"]) if cp_agg else 0.0
@@ -89,8 +101,8 @@ def _build_preview(db, target: _date) -> dict:
         "total_sales": round(total_sales, 2),
         "sales_count": sales_count,
         "total_returns": round(total_returns, 2),
-        "total_expenses": round(expenses_paid, 2),
-        "net": round(total_sales - expenses_paid - total_returns, 2),
+        "total_expenses": round(total_expenses, 2),
+        "net": round(total_sales - total_expenses - total_returns, 2),
         "by_payment": by_payment,
     }
 
@@ -99,7 +111,7 @@ def _build_preview(db, target: _date) -> dict:
 @router.get("/day-close/summary")
 def summary_singular(date: Optional[str] = None, db=Depends(get_db),
                      _u=Depends(require_manager)):
-    target = _date.fromisoformat(date) if date else _date.today()
+    target = _date.fromisoformat(date) if date else business_today()
     return _build_preview(db, target)
 
 
@@ -109,7 +121,7 @@ def preview_day_close(date: Optional[str] = None,
                       business_date: Optional[str] = None,
                       db=Depends(get_db), _u=Depends(require_manager)):
     d = business_date or date
-    target = _date.fromisoformat(d) if d else _date.today()
+    target = _date.fromisoformat(d) if d else business_today()
     return _build_preview(db, target)
 
 
@@ -152,6 +164,8 @@ def create_day_close(payload: DayCloseCreate, db=Depends(get_db),
     target = _date.fromisoformat(payload.business_date)
     preview = _build_preview(db, target)
     variance = round(payload.actual_cash - preview["expected_cash"], 2)
+    if abs(variance) >= 0.01 and not (payload.notes or "").strip():
+        raise HTTPException(400, "يجب إدخال ملاحظة عند وجود فرق في الصندوق")
 
     now = datetime.now(timezone.utc)
     doc_id = new_id()

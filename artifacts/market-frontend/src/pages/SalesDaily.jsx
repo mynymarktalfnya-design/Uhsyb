@@ -10,9 +10,14 @@ const PAYMENT_LABELS = {
   cash: 'نقداً', jaib: 'جيب', fluusak: 'فلوسك', hasib: 'حاسب',
   banki: 'بنكي', bank_transfer: 'تحويل', credit: 'آجل',
 };
+const localDate = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 const SalesDaily = () => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   const [sales, setSales] = useState([]);
   const [returns, setReturns] = useState([]);
   const [date, setDate] = useState(today);
@@ -25,16 +30,9 @@ const SalesDaily = () => {
     }).then((r) => setSales(r.data)).catch(() => setSales([]));
 
     const p2 = api.get('/sales-returns', {
-      params: { status: 'approved', date: date },
-    }).then((r) => {
-      // filter returns for the selected date on client side
-      const dayStr = date;
-      const filtered = (Array.isArray(r.data) ? r.data : r.data?.items || []).filter((ret) => {
-        const retDate = (ret.created_at || ret.approved_at || '').slice(0, 10);
-        return retDate === dayStr;
-      });
-      setReturns(filtered);
-    }).catch(() => setReturns([]));
+      params: { status: 'approved', date_from: `${date}T00:00:00+00:00`, date_to: `${date}T23:59:59.999+00:00`, limit: 500 },
+    }).then((r) => setReturns(Array.isArray(r.data) ? r.data : r.data?.items || []))
+      .catch(() => setReturns([]));
 
     Promise.all([p1, p2]).finally(() => setLoading(false));
   }, [date]);
