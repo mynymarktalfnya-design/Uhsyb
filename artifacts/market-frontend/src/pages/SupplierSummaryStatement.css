@@ -251,6 +251,16 @@
   font-weight: 800;
 }
 
+.supplier-summary-payment-dates {
+  display: grid;
+  gap: .12rem;
+  margin-top: .28rem;
+  color: #64748b;
+  font-size: .68rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .supplier-summary-empty {
   padding: 2.2rem !important;
   color: #94a3b8 !important;

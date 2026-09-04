@@ -170,7 +170,18 @@ const SupplierSummaryStatement = () => {
                   <td className="supplier-summary-invoice">{row.invoice_no || '—'}</td>
                   <td>{displayDate(row.invoice_date)}</td>
                   <td className="supplier-summary-amount">{money(row.amount)}</td>
-                  <td className="supplier-summary-paid">{money(row.paid_amount)}</td>
+                  <td className="supplier-summary-paid">
+                    <strong>{money(row.paid_amount)}</strong>
+                    {row.payment_items?.length > 0 && (
+                      <div className="supplier-summary-payment-dates">
+                        {row.payment_items.map((payment, paymentIndex) => (
+                          <div key={`${payment.voucher_no || 'payment'}-${paymentIndex}`}>
+                            {money(payment.amount)} — بتاريخ {displayDate(payment.date)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                 </tr>
               )) : (
                 <tr>

@@ -175,18 +175,54 @@ def supplier_summary_statement(
 
     # Payments are independent account movements. For display only, allocate them
     # FIFO across invoice rows without changing the original invoice values.
-    remaining_paid = total_paid
+    payment_queue = [
+        {
+            "remaining": float(payment.get("amount", 0) or 0),
+            "date": payment.get("created_at"),
+            "voucher_no": payment.get("voucher_no") or payment.get("_id"),
+        }
+        for payment in payments
+    ]
     rows = []
     for invoice in invoices:
         amount = float(invoice.get("total", 0) or 0)
-        paid_for_display = min(amount, max(remaining_paid, 0))
-        remaining_paid = max(0, remaining_paid - paid_for_display)
+        invoice_remaining = amount
+        payment_items = []
+        for payment in payment_queue:
+            if invoice_remaining <= 0:
+                break
+            applied = min(invoice_remaining, payment["remaining"])
+            if applied <= 0:
+                continue
+            payment_items.append({
+                "amount": applied,
+                "date": payment["date"],
+                "voucher_no": payment["voucher_no"],
+            })
+            payment["remaining"] -= applied
+            invoice_remaining -= applied
+        paid_for_display = amount - invoice_remaining
         rows.append({
             "invoice_no": invoice.get("supplier_invoice_no") or invoice.get("ref_no") or invoice.get("invoice_no") or invoice["_id"],
             "invoice_date": invoice.get("created_at"),
             "amount": amount,
             "paid_amount": paid_for_display,
+            "payment_items": payment_items,
         })
+
+    # Keep any overpayment visible too, without changing the invoice amount.
+    if rows:
+        overflow = []
+        for payment in payment_queue:
+            if payment["remaining"] > 0:
+                overflow.append({
+                    "amount": payment["remaining"],
+                    "date": payment["date"],
+                    "voucher_no": payment["voucher_no"],
+                })
+        if overflow:
+            rows[-1]["payment_items"].extend(overflow)
+            rows[-1]["paid_amount"] += sum(item["amount"] for item in overflow)
 
     today = business_today()
     return {
