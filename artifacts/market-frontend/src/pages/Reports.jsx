@@ -3,7 +3,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { FileText, AlertTriangle, Truck, Calendar, Crown, FileDown, RefreshCw, TrendingUp } from 'lucide-react';
 import api from '../lib/api';
-import { exportDailyReportPDF } from '../lib/pdfExport';
+import { exportDailyReportPDF, exportVoucherPDF } from '../lib/pdfExport';
 import { formatStatementDate, formatPurchaseQuantity } from '../lib/statementUtils';
 
 const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(n || 0);
@@ -25,6 +25,9 @@ const Reports = () => {
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
   const [monthlyDetail, setMonthlyDetail] = useState(null);
   const [monthlyDetailLoading, setMonthlyDetailLoading] = useState(false);
+  const [purchaseInvoiceQuery, setPurchaseInvoiceQuery] = useState('');
+  const [purchaseInvoiceResults, setPurchaseInvoiceResults] = useState([]);
+  const [purchaseInvoiceSearchLoading, setPurchaseInvoiceSearchLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('sales'); // sales | purchases-daily | purchases-monthly | low-stock
 
   useEffect(() => {
@@ -37,6 +40,35 @@ const Reports = () => {
       params: { year: today.getFullYear(), month: today.getMonth() + 1, months: 12 },
     }).then((r) => setMonthlyDetail(r.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const query = purchaseInvoiceQuery.trim();
+    if (!query) {
+      setPurchaseInvoiceResults([]);
+      setPurchaseInvoiceSearchLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    const timer = setTimeout(async () => {
+      setPurchaseInvoiceSearchLoading(true);
+      try {
+        const { data } = await api.get('/reports/purchases-search', {
+          params: { q: query, limit: 20 },
+        });
+        if (active) setPurchaseInvoiceResults(data || []);
+      } catch {
+        if (active) setPurchaseInvoiceResults([]);
+      } finally {
+        if (active) setPurchaseInvoiceSearchLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [purchaseInvoiceQuery]);
 
   const loadMonthlyDetail = async () => {
     setMonthlyDetailLoading(true);
@@ -90,6 +122,33 @@ const Reports = () => {
       rows,
       grandRow: ['إجمالي الشهر', money(month.sales_total), month.returns_total > 0 ? `- ${money(month.returns_total)}` : '—', money(month.net_sales_total), money(month.purchases_total), money(month.expenses_total), money(month.profit_remaining)],
     });
+  };
+
+  const printPurchaseInvoice = (invoice) => {
+    exportVoucherPDF({
+      title: 'كشف فاتورة شراء من التاجر',
+      voucherNo: invoice.supplier_invoice_no || invoice.ref_no,
+      dateISO: invoice.date,
+      subjectLabel: 'التاجر',
+      subjectName: invoice.supplier_name,
+      employeeName: invoice.created_by_name,
+      paymentMethod: invoice.payment_method,
+      total: invoice.total,
+      paid: invoice.paid_amount,
+      remaining: invoice.remaining,
+      skipValidation: true,
+      items: (invoice.items || []).map((item) => ({
+        name: item.product_name,
+        quantity: item.cartons != null ? item.cartons : item.quantity,
+        unit: item.cartons != null || item.unit === 'carton' ? 'carton' : 'piece',
+        unit_price: item.carton_cost ?? item.unit_cost,
+        total: item.total,
+      })),
+      extraRows: [
+        { label: 'رقم فاتورة التاجر', value: invoice.supplier_invoice_no || '—' },
+        { label: 'الرقم الداخلي للنظام', value: invoice.ref_no || '—' },
+      ],
+    }).catch((error) => console.error('Purchase invoice PDF failed:', error));
   };
 
   return (
@@ -424,6 +483,93 @@ const Reports = () => {
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-indigo-200 bg-indigo-50/40" data-testid="purchase-invoice-search-panel">
+            <CardContent className="p-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">بحث في فواتير التاجر</h2>
+                  <p className="text-sm text-slate-600 mt-1">
+                    اكتب رقم فاتورة التاجر للعثور على الفاتورة ومنتجاتها وطباعتها مباشرة.
+                  </p>
+                </div>
+                <div className="w-full md:w-96">
+                  <Label htmlFor="purchase-invoice-search" className="text-sm font-semibold">رقم فاتورة الشراء من التاجر</Label>
+                  <Input
+                    id="purchase-invoice-search"
+                    value={purchaseInvoiceQuery}
+                    onChange={(event) => setPurchaseInvoiceQuery(event.target.value)}
+                    placeholder="ابدأ بكتابة رقم الفاتورة..."
+                    className="mt-1 h-10 bg-white"
+                    data-testid="purchase-invoice-search-input"
+                  />
+                </div>
+              </div>
+
+              {purchaseInvoiceSearchLoading && (
+                <p className="text-center text-sm text-indigo-600 py-5">جاري البحث...</p>
+              )}
+              {!purchaseInvoiceSearchLoading && purchaseInvoiceQuery.trim() && purchaseInvoiceResults.length === 0 && (
+                <p className="text-center text-sm text-slate-500 py-5">لا توجد فاتورة بهذا الرقم.</p>
+              )}
+              {!purchaseInvoiceSearchLoading && purchaseInvoiceResults.length > 0 && (
+                <div className="mt-5 space-y-4">
+                  {purchaseInvoiceResults.map((invoice) => (
+                    <div key={invoice.id} className="rounded-xl border border-indigo-200 bg-white p-4 shadow-sm" data-testid={`purchase-invoice-result-${invoice.id}`}>
+                      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                        <div>
+                          <h3 className="font-bold text-slate-900">
+                            فاتورة التاجر: <span className="font-mono text-indigo-700">{invoice.supplier_invoice_no}</span>
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-1">
+                            التاجر: <strong>{invoice.supplier_name}</strong>
+                            {' • '}التاريخ: {formatStatementDate(invoice.date)}
+                            {' • '}رقم النظام: {invoice.ref_no}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">المسجل بواسطة: {invoice.created_by_name || '—'}</p>
+                        </div>
+                        <Button
+                          onClick={() => printPurchaseInvoice(invoice)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                          data-testid={`print-purchase-invoice-${invoice.id}`}
+                        >
+                          <FileDown className="w-4 h-4 ml-1" /> طباعة كشف الفاتورة
+                        </Button>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="statement-ledger w-full text-sm">
+                          <thead>
+                            <tr>
+                              <th className="px-3 py-2 text-right">المنتج</th>
+                              <th className="px-3 py-2 text-right">الكمية والوحدة</th>
+                              <th className="px-3 py-2 text-right">سعر الوحدة</th>
+                              <th className="px-3 py-2 text-right">الإجمالي</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(invoice.items || []).map((item) => (
+                              <tr key={item.id}>
+                                <td className="px-3 py-2 font-semibold">{item.product_name}</td>
+                                <td className="px-3 py-2 font-semibold">{formatPurchaseQuantity(item)}</td>
+                                <td className="px-3 py-2">{money(item.carton_cost ?? item.unit_cost)}</td>
+                                <td className="px-3 py-2 font-bold text-indigo-700">{money(item.total)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="bg-indigo-50 font-bold">
+                            <tr>
+                              <td colSpan="3" className="px-3 py-2">إجمالي الفاتورة</td>
+                              <td className="px-3 py-2 text-indigo-700">{money(invoice.total)}</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

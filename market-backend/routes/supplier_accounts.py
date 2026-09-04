@@ -315,6 +315,7 @@ def create_purchase(payload: PurchaseCreate, request: Request,
         db[C.purchase_items].insert_one({
             "_id": pi_id, "purchase_id": pur_id,
             "product_id": it["product_id"],
+            "unit": it["unit"],
             "quantity": it["quantity"], "unit_cost": it["unit_cost"],
             "cartons": it.get("cartons"),
             "pieces_per_carton": it.get("pieces_per_carton"),

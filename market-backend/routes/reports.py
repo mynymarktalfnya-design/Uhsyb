@@ -2,6 +2,7 @@
 from datetime import datetime, timezone, timedelta, date as _date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
+import re
 
 from database import get_db, C
 from utils.deps import require_manager, require_admin, get_current_user
@@ -378,6 +379,24 @@ def purchases_monthly(
         "invoices": selected_invoices,
         "daily_totals": sorted(daily_map.values(), key=lambda x: x["date"], reverse=True),
     }
+
+
+@router.get("/purchases-search")
+def search_purchases(
+    q: str = Query(..., min_length=1, max_length=100),
+    limit: int = Query(20, ge=1, le=100),
+    db = Depends(get_db),
+    _u = Depends(require_manager),
+):
+    """Live search for a supplier's printed purchase invoice number."""
+    query = q.strip()
+    if not query:
+        return []
+    rows = list(db[C.purchases].find({
+        "deleted_at": None,
+        "supplier_invoice_no": {"$regex": re.escape(query), "$options": "i"},
+    }).sort("created_at", -1).limit(limit))
+    return [_purchase_report_row(db, purchase) for purchase in rows]
 
 
 @router.get("/monthly-financial")
