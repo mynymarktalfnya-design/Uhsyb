@@ -173,56 +173,42 @@ def supplier_summary_statement(
     total_amount = sum(float(p.get("total", 0) or 0) for p in invoices)
     total_paid = sum(float(p.get("amount", 0) or 0) for p in payments)
 
-    # Payments are independent account movements. For display only, allocate them
-    # FIFO across invoice rows without changing the original invoice values.
-    payment_queue = [
-        {
-            "remaining": float(payment.get("amount", 0) or 0),
-            "date": payment.get("created_at"),
-            "voucher_no": payment.get("voucher_no") or payment.get("_id"),
-        }
-        for payment in payments
-    ]
-    rows = []
+    movements = []
     for invoice in invoices:
-        amount = float(invoice.get("total", 0) or 0)
-        invoice_remaining = amount
-        payment_items = []
-        for payment in payment_queue:
-            if invoice_remaining <= 0:
-                break
-            applied = min(invoice_remaining, payment["remaining"])
-            if applied <= 0:
-                continue
-            payment_items.append({
-                "amount": applied,
-                "date": payment["date"],
-                "voucher_no": payment["voucher_no"],
-            })
-            payment["remaining"] -= applied
-            invoice_remaining -= applied
-        paid_for_display = amount - invoice_remaining
-        rows.append({
-            "invoice_no": invoice.get("supplier_invoice_no") or invoice.get("ref_no") or invoice.get("invoice_no") or invoice["_id"],
-            "invoice_date": invoice.get("created_at"),
-            "amount": amount,
-            "paid_amount": paid_for_display,
-            "payment_items": payment_items,
+        invoice_no = (
+            invoice.get("supplier_invoice_no")
+            or invoice.get("ref_no")
+            or invoice.get("invoice_no")
+            or invoice["_id"]
+        )
+        movements.append({
+            "date": invoice.get("created_at"),
+            "movement_type": "فاتورة شراء",
+            "invoice_no": invoice_no,
+            "payment_no": None,
+            "amount": float(invoice.get("total", 0) or 0),
+            "invoice_id": invoice["_id"],
+            "payment_id": None,
+            "payment_method": invoice.get("payment_method"),
+            "notes": invoice.get("notes"),
+            "created_by_name": _user_name(db, invoice.get("created_by", "")),
         })
 
-    # Keep any overpayment visible too, without changing the invoice amount.
-    if rows:
-        overflow = []
-        for payment in payment_queue:
-            if payment["remaining"] > 0:
-                overflow.append({
-                    "amount": payment["remaining"],
-                    "date": payment["date"],
-                    "voucher_no": payment["voucher_no"],
-                })
-        if overflow:
-            rows[-1]["payment_items"].extend(overflow)
-            rows[-1]["paid_amount"] += sum(item["amount"] for item in overflow)
+    for payment in payments:
+        movements.append({
+            "date": payment.get("created_at"),
+            "movement_type": "دفعة للتاجر",
+            "invoice_no": None,
+            "payment_no": payment.get("voucher_no") or payment.get("_id"),
+            "amount": float(payment.get("amount", 0) or 0),
+            "invoice_id": None,
+            "payment_id": payment["_id"],
+            "payment_method": payment.get("payment_method") or payment.get("method", "cash"),
+            "notes": payment.get("notes"),
+            "created_by_name": _user_name(db, payment.get("paid_by") or payment.get("created_by", "")),
+        })
+
+    movements.sort(key=lambda movement: movement["date"] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
 
     today = business_today()
     return {
@@ -235,10 +221,12 @@ def supplier_summary_statement(
         "report_no": f"TR-{today.strftime('%Y%m%d')}-{supplier_id[:6].upper()}",
         "issued_at": today.isoformat(),
         "period": {"from": date_from, "to": date_to},
-        "rows": rows,
+        "movements": movements,
         "summary": {
-            "total_amount": total_amount,
-            "total_paid": total_paid,
+            "invoice_count": len(invoices),
+            "total_invoices": total_amount,
+            "payment_count": len(payments),
+            "total_payments": total_paid,
             "balance": total_amount - total_paid,
         },
     }

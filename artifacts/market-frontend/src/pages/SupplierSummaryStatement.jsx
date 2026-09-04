@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, CalendarDays, FileText, MapPin, Phone, Printer, Store, Wallet } from 'lucide-react';
+import { ArrowRight, CalendarDays, FileText, MapPin, Phone, Printer, Store, Wallet, X } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import api, { formatApiError } from '../lib/api';
@@ -45,6 +45,9 @@ const SupplierSummaryStatement = () => {
   const [data, setData] = useState(null);
   const [filters, setFilters] = useState({ from: '', to: '' });
   const [loading, setLoading] = useState(true);
+  const [selectedMovement, setSelectedMovement] = useState(null);
+  const [movementDetail, setMovementDetail] = useState(null);
+  const [movementLoading, setMovementLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (filters.from && filters.to && filters.from > filters.to) {
@@ -70,6 +73,21 @@ const SupplierSummaryStatement = () => {
   }, [filters.from, filters.to, id]);
 
   useEffect(() => { load(); }, [load]);
+
+  const openMovement = async (movement) => {
+    setSelectedMovement(movement);
+    setMovementDetail(movement);
+    if (!movement.invoice_id) return;
+    setMovementLoading(true);
+    try {
+      const response = await api.get(`/purchases/${movement.invoice_id}`);
+      setMovementDetail({ ...movement, purchase: response.data });
+    } catch (error) {
+      toast({ title: 'تعذر تحميل تفاصيل الفاتورة', description: formatApiError(error), variant: 'destructive' });
+    } finally {
+      setMovementLoading(false);
+    }
+  };
 
   if (loading && !data) {
     return <div className="p-10 text-center text-slate-400" dir="rtl">جاري تحميل ملخص كشف الحساب...</div>;
@@ -158,34 +176,43 @@ const SupplierSummaryStatement = () => {
           <table className="supplier-summary-table" data-testid="supplier-summary-table">
             <thead>
               <tr>
-                <th>رقم فاتورة التاجر</th>
-                <th>تاريخ الفاتورة</th>
-                <th>المبلغ (القيمة الأصلية للفاتورة)</th>
-                <th>المبلغ المدفوع للتاجر</th>
+                <th>تاريخ الحركة</th>
+                <th>نوع الحركة</th>
+                <th>رقم الفاتورة</th>
+                <th>رقم الدفعة</th>
+                <th>المبلغ</th>
               </tr>
             </thead>
             <tbody>
-              {data.rows?.length ? data.rows.map((row, index) => (
-                <tr key={`${row.invoice_no}-${index}`}>
-                  <td className="supplier-summary-invoice">{row.invoice_no || '—'}</td>
-                  <td>{displayDate(row.invoice_date)}</td>
-                  <td className="supplier-summary-amount">{money(row.amount)}</td>
-                  <td className="supplier-summary-paid">
-                    <strong>{money(row.paid_amount)}</strong>
-                    {row.payment_items?.length > 0 && (
-                      <div className="supplier-summary-payment-dates">
-                        {row.payment_items.map((payment, paymentIndex) => (
-                          <div key={`${payment.voucher_no || 'payment'}-${paymentIndex}`}>
-                            {money(payment.amount)} — بتاريخ {displayDate(payment.date)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              {data.movements?.length ? data.movements.map((movement, index) => (
+                <tr key={`${movement.payment_id || movement.invoice_id || 'movement'}-${index}`}>
+                  <td>{displayDate(movement.date)}</td>
+                  <td>
+                    <span className={`supplier-summary-movement-badge ${movement.movement_type === 'دفعة للتاجر' ? 'is-payment' : 'is-invoice'}`}>
+                      {movement.movement_type}
+                    </span>
+                  </td>
+                  <td>
+                    {movement.invoice_no ? (
+                      <button type="button" className="supplier-summary-link" onClick={() => openMovement(movement)}>
+                        {movement.invoice_no}
+                      </button>
+                    ) : '—'}
+                  </td>
+                  <td>
+                    {movement.payment_no ? (
+                      <button type="button" className="supplier-summary-link supplier-summary-payment-link" onClick={() => openMovement(movement)}>
+                        {movement.payment_no}
+                      </button>
+                    ) : '—'}
+                  </td>
+                  <td className={`supplier-summary-amount ${movement.movement_type === 'دفعة للتاجر' ? 'is-payment' : ''}`}>
+                    {money(movement.amount)}
                   </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="4" className="supplier-summary-empty">لا توجد فواتير في الفترة المحددة</td>
+                  <td colSpan="5" className="supplier-summary-empty">لا توجد حركات في الفترة المحددة</td>
                 </tr>
               )}
             </tbody>
@@ -197,9 +224,20 @@ const SupplierSummaryStatement = () => {
         </div>
 
         <section className="supplier-summary-totals" aria-label="ملخص الحساب">
-          <SummaryCard icon={Wallet} label="إجمالي المبلغ" value={summary.total_amount} tone="amount" />
-          <SummaryCard icon={Wallet} label="إجمالي المدفوع للتاجر" value={summary.total_paid} tone="paid" />
-          <SummaryCard icon={FileText} label="الرصيد المتبقي" value={summary.balance} tone="balance" />
+          <SummaryCard icon={Wallet} label="إجمالي فواتير الشراء" value={summary.total_invoices} tone="amount" />
+          <SummaryCard icon={Wallet} label="إجمالي الدفعات للتاجر" value={summary.total_payments} tone="paid" />
+          <SummaryCard icon={FileText} label="المستحق للتاجر" value={summary.balance} tone="balance" />
+        </section>
+
+        <section className="supplier-summary-final">
+          <div className="supplier-summary-final-title">الملخص النهائي</div>
+          <div className="supplier-summary-final-grid">
+            <div><span>إجمالي عدد الفواتير</span><strong>{summary.invoice_count || 0}</strong></div>
+            <div><span>إجمالي قيمة فواتير الشراء</span><strong>{money(summary.total_invoices)} ريال</strong></div>
+            <div><span>إجمالي عدد الدفعات</span><strong>{summary.payment_count || 0}</strong></div>
+            <div><span>إجمالي الدفعات للتاجر</span><strong>{money(summary.total_payments)} ريال</strong></div>
+            <div><span>المستحق للتاجر</span><strong>{money(summary.balance)} ريال</strong></div>
+          </div>
         </section>
 
         <footer className="supplier-summary-footer">
@@ -208,6 +246,75 @@ const SupplierSummaryStatement = () => {
           <div className="supplier-summary-footer-note">هذا التقرير مختصر ولا يستبدل كشف الحساب التفصيلي</div>
         </footer>
       </article>
+
+      {selectedMovement && (
+        <MovementDetailsDialog
+          movement={movementDetail || selectedMovement}
+          loading={movementLoading}
+          onClose={() => { setSelectedMovement(null); setMovementDetail(null); }}
+        />
+      )}
+    </div>
+  );
+};
+
+const MovementDetailsDialog = ({ movement, loading, onClose }) => {
+  const purchase = movement.purchase;
+  const methodNames = {
+    cash: 'نقداً',
+    credit: 'آجل',
+    bank_transfer: 'تحويل بنكي',
+    banki: 'بنكي',
+    card: 'بطاقة',
+    jaib: 'جيب',
+    fluusak: 'فلوسك',
+    hasib: 'حاسب',
+  };
+
+  return (
+    <div className="supplier-summary-modal-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section className="supplier-summary-modal" role="dialog" aria-modal="true" aria-label={`تفاصيل ${movement.movement_type}`}>
+        <div className="supplier-summary-modal-header">
+          <div>
+            <span className={`supplier-summary-movement-badge ${movement.movement_type === 'دفعة للتاجر' ? 'is-payment' : 'is-invoice'}`}>
+              {movement.movement_type}
+            </span>
+            <h2>{movement.invoice_no || movement.payment_no || 'تفاصيل الحركة'}</h2>
+          </div>
+          <button type="button" className="supplier-summary-modal-close" onClick={onClose} aria-label="إغلاق">
+            <X size={20} />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="supplier-summary-modal-loading">جاري تحميل التفاصيل...</div>
+        ) : (
+          <div className="supplier-summary-modal-body">
+            <div className="supplier-summary-detail-grid">
+              <div><span>تاريخ الحركة</span><strong>{displayDate(movement.date)}</strong></div>
+              <div><span>المبلغ</span><strong>{money(movement.amount)} ريال</strong></div>
+              <div><span>رقم الفاتورة</span><strong>{movement.invoice_no || '—'}</strong></div>
+              <div><span>رقم الدفعة</span><strong>{movement.payment_no || '—'}</strong></div>
+              <div><span>طريقة الدفع</span><strong>{methodNames[movement.payment_method] || movement.payment_method || '—'}</strong></div>
+              <div><span>المسجل بواسطة</span><strong>{movement.created_by_name || '—'}</strong></div>
+            </div>
+            {movement.notes && <div className="supplier-summary-detail-note"><span>ملاحظات</span><p>{movement.notes}</p></div>}
+            {purchase?.items?.length > 0 && (
+              <div className="supplier-summary-items">
+                <h3>أصناف الفاتورة</h3>
+                {purchase.items.map((item, index) => (
+                  <div key={item.id || index}>
+                    <span>{item.product_name || 'صنف'}</span>
+                    <span>{item.quantity} × {money(item.unit_cost)} = {money(item.total)} ريال</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 };
