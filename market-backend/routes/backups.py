@@ -3,6 +3,7 @@ import gzip
 import json
 import os
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -15,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from database import get_db, C
+from database import get_db, C, init_indexes
 from models import new_id
 from utils.deps import require_admin
 from utils.audit import log_action
@@ -114,37 +115,81 @@ _COLLECTIONS = [
 
 def _json_default(obj):
     if isinstance(obj, datetime):
-        return obj.isoformat()
+        return {"__market_type__": "datetime", "value": obj.isoformat()}
     try:
+        from datetime import date
         from decimal import Decimal
+        if isinstance(obj, date):
+            return {"__market_type__": "date", "value": obj.isoformat()}
         if isinstance(obj, Decimal):
-            return float(obj)
+            return {"__market_type__": "decimal", "value": str(obj)}
     except ImportError:
         pass
     return str(obj)
 
 
+_LEGACY_DATETIME = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"
+    r"(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
+)
+
+
+def _restore_value(value):
+    """Restore tagged values from new backups and timestamps from v1.1 backups."""
+    if isinstance(value, dict):
+        value_type = value.get("__market_type__")
+        if value_type == "datetime":
+            try:
+                return datetime.fromisoformat(value["value"].replace("Z", "+00:00"))
+            except (KeyError, TypeError, ValueError):
+                return value.get("value")
+        if value_type == "date":
+            # MongoDB stores dates as BSON datetimes; midnight UTC preserves the date.
+            try:
+                return datetime.fromisoformat(value["value"]).replace(tzinfo=timezone.utc)
+            except (KeyError, TypeError, ValueError):
+                return value.get("value")
+        if value_type == "decimal":
+            try:
+                return float(value["value"])
+            except (KeyError, TypeError, ValueError):
+                return value.get("value")
+        return {key: _restore_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_restore_value(item) for item in value]
+    # Backward compatibility with existing format_version 1.1 backups.
+    if isinstance(value, str) and _LEGACY_DATETIME.match(value):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+    return value
+
+
+def _backup_collection_names(db):
+    """Return all known app collections plus any collections created by newer code."""
+    return sorted(set(_COLLECTIONS) | set(db.list_collection_names()))
+
+
 def _do_backup(db, trigger: str = "manual") -> Path:
-    """Export every collection to a gzipped JSON file and enforce retention."""
+    """Export every application collection to a gzipped JSON file."""
     global _last_auto_backup, _last_auto_error
     BACKUP_DIR.mkdir(exist_ok=True, parents=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     filepath = BACKUP_DIR / f"market_db_{ts}_{trigger}.json.gz"
 
     data: dict = {}
-    for col_name in _COLLECTIONS:
-        try:
-            rows = list(db[col_name].find())
-            data[col_name] = [{k: v for k, v in r.items()} for r in rows]
-        except Exception:
-            data[col_name] = []
+    for col_name in _backup_collection_names(db):
+        rows = list(db[col_name].find())
+        data[col_name] = [{k: v for k, v in r.items()} for r in rows]
 
     meta = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "trigger": trigger,
         "collections": len(data),
         "total_documents": sum(len(v) for v in data.values()),
-        "format_version": "1.1",
+        "format_version": "1.2",
+        "date_encoding": "tagged",
     }
     with gzip.open(str(filepath), "wt", encoding="utf-8") as fh:
         json.dump({"meta": meta, "data": data}, fh,
@@ -164,6 +209,47 @@ def _do_backup(db, trigger: str = "manual") -> Path:
     logger.info("Backup created: %s (%.1f KB)", filepath.name,
                 filepath.stat().st_size / 1024)
     return filepath
+
+
+def _restore_collections(db, col_data: dict) -> tuple[int, int, list[str]]:
+    """Replace all app collections from a backup and rebuild indexes.
+
+    Returns (collections restored, documents restored, failed collection names).
+    """
+    if not isinstance(col_data, dict):
+        raise ValueError("النسخة لا تحتوي على بيانات مجموعات صحيحة")
+
+    collection_names = set(_COLLECTIONS) | set(col_data.keys())
+    restored_collections = 0
+    restored_documents = 0
+    failures = []
+
+    for col_name in sorted(collection_names):
+        if not isinstance(col_name, str) or not col_name or col_name.startswith("$"):
+            failures.append(str(col_name))
+            continue
+        rows = col_data.get(col_name, [])
+        if not isinstance(rows, list):
+            failures.append(col_name)
+            continue
+        try:
+            db[col_name].drop()
+            restored_rows = [_restore_value(row) for row in rows]
+            if restored_rows:
+                db[col_name].insert_many(restored_rows, ordered=True)
+            restored_collections += 1
+            restored_documents += len(restored_rows)
+        except Exception:
+            logger.exception("Failed restoring collection %s", col_name)
+            failures.append(col_name)
+
+    try:
+        init_indexes()
+    except Exception:
+        logger.exception("Failed rebuilding database indexes after restore")
+        failures.append("_indexes")
+
+    return restored_collections, restored_documents, failures
 
 
 def _auto_backup_job(trigger: str = "auto"):
@@ -402,22 +488,25 @@ def restore(filename: str, payload: RestorePayload,
         raise HTTPException(400, f"تعذّر قراءة ملف النسخة الاحتياطية: {exc}")
 
     col_data = backup.get("data", {})
-    restored = 0
-    for col_name, rows in col_data.items():
-        try:
-            db[col_name].drop()
-            if rows:
-                db[col_name].insert_many(rows)
-            restored += 1
-        except Exception:
-            pass
+    try:
+        restored, documents_restored, failures = _restore_collections(db, col_data)
+    except Exception as exc:
+        raise HTTPException(400, f"بيانات النسخة غير صالحة: {exc}")
+    if failures:
+        raise HTTPException(
+            500,
+            "تعذّرت استعادة بعض مجموعات البيانات: " + ", ".join(failures)
+            + f". تم إنشاء نسخة الأمان: {safety_name}",
+        )
 
     log_action(db, current["_id"], "restore_success", "system", None,
                after={"file": filename, "safety_backup": safety_name,
-                      "collections_restored": restored}, request=request)
+                       "collections_restored": restored,
+                       "documents_restored": documents_restored}, request=request)
     return {
-        "detail": "✅ تمت الاستعادة بنجاح — يرجى تسجيل الدخول من جديد",
+        "detail": "✅ تمت استعادة جميع بيانات النظام بنجاح — يرجى تسجيل الدخول من جديد",
         "restored_from": filename,
         "collections_restored": restored,
+        "documents_restored": documents_restored,
         "safety_backup_created": safety_name,
     }

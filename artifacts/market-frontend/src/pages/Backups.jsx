@@ -219,6 +219,20 @@ export default function Backups() {
         </div>
       </div>
 
+      <Card className="border-2 border-cyan-200 bg-cyan-50/60">
+        <CardContent className="p-4 flex items-start gap-3">
+          <Info className="w-5 h-5 text-cyan-700 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-cyan-950">
+            <p className="font-bold">النسخة الاحتياطية شاملة للنظام بالكامل</p>
+            <p className="mt-1 text-cyan-800">
+              تشمل المبيعات وفواتيرها وأصنافها، المشتريات، المخزون، العملاء والتجار،
+              المدفوعات، المرتجعات، المصروفات، الورديات، الإعدادات وسجل العمليات.
+              عند الاستعادة يتم إرجاع جميع هذه البيانات معاً.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* ── Error banner ── */}
       {status?.last_auto_error && (
         <div className="flex items-start gap-3 bg-rose-50 border border-rose-200 rounded-xl p-4">
