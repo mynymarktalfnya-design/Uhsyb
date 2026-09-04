@@ -215,6 +215,10 @@ def _purchase_report_row(db, purchase: dict) -> dict:
     supplier = db[C.suppliers].find_one(
         {"_id": purchase.get("supplier_id")}, {"name": 1, "phone": 1}
     )
+    creator = db[C.users].find_one(
+        {"_id": purchase.get("created_by")},
+        {"name": 1, "full_name": 1, "username": 1},
+    )
     items = []
     for item in db[C.purchase_items].find({"purchase_id": purchase["_id"]}):
         product = db[C.products].find_one(
@@ -242,6 +246,10 @@ def _purchase_report_row(db, purchase: dict) -> dict:
         "supplier_id": purchase.get("supplier_id"),
         "supplier_name": supplier.get("name") if supplier else "غير محدد",
         "supplier_phone": supplier.get("phone") if supplier else None,
+        "created_by_name": (
+            (creator.get("full_name") or creator.get("username"))
+            if creator else "غير محدد"
+        ),
         "total": total,
         "payment_method": purchase.get("payment_method", "credit"),
         "paid_amount": paid,

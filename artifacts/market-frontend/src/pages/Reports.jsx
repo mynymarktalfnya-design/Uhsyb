@@ -4,6 +4,7 @@ import { Button } from '../components/ui/button';
 import { FileText, AlertTriangle, Truck, Calendar, Crown, FileDown, RefreshCw, TrendingUp } from 'lucide-react';
 import api from '../lib/api';
 import { exportDailyReportPDF } from '../lib/pdfExport';
+import { formatStatementDate, formatPurchaseQuantity } from '../lib/statementUtils';
 
 const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(n || 0);
 const money = (n) => `${fmt(n)} ر.ي`;
@@ -143,7 +144,7 @@ const Reports = () => {
               <FileText className="w-5 h-5" /> مبيعات يومية (30 يوم)
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="statement-ledger w-full text-sm">
                 <thead className="bg-slate-50 text-slate-700">
                   <tr>
                     <th className="px-4 py-2 text-right">التاريخ</th>
@@ -157,7 +158,7 @@ const Reports = () => {
                   {byDay.length === 0 && <tr><td colSpan="5" className="text-center py-6 text-slate-400">لا بيانات</td></tr>}
                   {byDay.map((d) => (
                     <tr key={d.date} className="border-t hover:bg-slate-50" data-testid={`sales-row-${d.date}`}>
-                      <td className="px-4 py-2">{d.date}</td>
+                      <td className="px-4 py-2">{formatStatementDate(d.date)}</td>
                       <td className="px-4 py-2">{d.count}</td>
                       <td className="px-4 py-2 font-bold text-emerald-600">{money(d.total)}</td>
                       <td className="px-4 py-2 text-rose-600">
@@ -197,11 +198,16 @@ const Reports = () => {
                   { label: 'عدد فواتير الشراء', value: fmt(purchasesDaily?.grand_invoices_count), color: 'blue' },
                   { label: 'عدد الأيام', value: fmt(purchasesDaily?.days || 30), color: 'amber' },
                 ],
-                columns: ['التاريخ', 'رقم الفاتورة', 'اسم التاجر', 'قيمة الفاتورة (ر.ي)'],
+                columns: ['التاريخ', 'رقم الفاتورة', 'اسم التاجر', 'الأصناف', 'المسجل بواسطة', 'قيمة الفاتورة (ر.ي)'],
                 rows: (purchasesDaily?.invoices || []).map((inv) => [
-                  inv.date, inv.ref_no, inv.supplier_name, money(inv.total),
+                  formatStatementDate(inv.date),
+                  inv.ref_no,
+                  inv.supplier_name,
+                  (inv.items || []).map((item) => `${item.product_name} (${formatPurchaseQuantity(item)})`).join('، ') || '—',
+                  inv.created_by_name || '—',
+                  money(inv.total),
                 ]),
-                grandRow: ['الإجمالي', '', '', money(purchasesDaily?.grand_total)],
+                grandRow: ['الإجمالي', '', '', '', '', money(purchasesDaily?.grand_total)],
               })}
               disabled={!purchasesDaily?.invoices?.length}
               className="bg-rose-500 hover:bg-rose-600 text-white"
@@ -218,7 +224,7 @@ const Reports = () => {
                 <Truck className="w-5 h-5 text-indigo-600" /> إجمالي مشتريات كل يوم
               </h2>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="statement-ledger w-full text-sm">
                   <thead className="bg-slate-50 text-slate-700">
                     <tr>
                       <th className="px-4 py-2 text-right">التاريخ</th>
@@ -259,24 +265,30 @@ const Reports = () => {
                 <Truck className="w-5 h-5 text-indigo-600" /> تفاصيل فواتير الشراء
               </h2>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="statement-ledger w-full text-sm">
                   <thead className="bg-slate-50 text-slate-700">
                     <tr>
                       <th className="px-4 py-2 text-right">التاريخ</th>
                       <th className="px-4 py-2 text-right">رقم الفاتورة</th>
                       <th className="px-4 py-2 text-right">اسم التاجر</th>
+                      <th className="px-4 py-2 text-right">الأصناف</th>
+                      <th className="px-4 py-2 text-right">المسجل بواسطة</th>
                       <th className="px-4 py-2 text-right">قيمة الفاتورة</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(!purchasesDaily?.invoices?.length) && (
-                      <tr><td colSpan="4" className="text-center py-6 text-slate-400">لا توجد فواتير</td></tr>
+                      <tr><td colSpan="6" className="text-center py-6 text-slate-400">لا توجد فواتير</td></tr>
                     )}
                     {purchasesDaily?.invoices?.map((inv) => (
                       <tr key={inv.id} className="border-t" data-testid={`purchases-invoice-row-${inv.ref_no}`}>
-                        <td className="px-4 py-2">{inv.date}</td>
+                        <td className="px-4 py-2">{formatStatementDate(inv.date)}</td>
                         <td className="px-4 py-2 text-slate-500">{inv.ref_no}</td>
                         <td className="px-4 py-2 font-medium">{inv.supplier_name}</td>
+                        <td className="px-4 py-2 text-xs">
+                          {(inv.items || []).map((item) => `${item.product_name} (${formatPurchaseQuantity(item)})`).join('، ') || '—'}
+                        </td>
+                        <td className="px-4 py-2 text-xs font-semibold">{inv.created_by_name || '—'}</td>
                         <td className="px-4 py-2 font-bold text-indigo-600">{money(inv.total)}</td>
                       </tr>
                     ))}
@@ -343,17 +355,18 @@ const Reports = () => {
                       const rows = (monthlyDetail?.invoices || []).flatMap((invoice) => (
                         invoice.items?.length
                           ? invoice.items.map((item, index) => [
-                              index === 0 ? invoice.date : '',
+                               index === 0 ? formatStatementDate(invoice.date) : '',
                               index === 0 ? invoice.ref_no : '',
                               index === 0 ? invoice.supplier_name : '',
                               `${item.product_name} — ${fmt(item.quantity)} ${item.unit || ''}`,
                               money(item.unit_cost),
                               money(item.total),
+                               index === 0 ? (invoice.created_by_name || '—') : '',
                               index === 0 ? money(invoice.total) : '',
                               index === 0 ? money(invoice.paid_amount) : '',
                               index === 0 ? money(invoice.remaining) : '',
                             ])
-                          : [[invoice.date, invoice.ref_no, invoice.supplier_name, 'لا توجد أصناف', '', '', money(invoice.total), money(invoice.paid_amount), money(invoice.remaining)]]
+                           : [[formatStatementDate(invoice.date), invoice.ref_no, invoice.supplier_name, 'لا توجد أصناف', '', '', invoice.created_by_name || '—', money(invoice.total), money(invoice.paid_amount), money(invoice.remaining)]]
                       ));
                       exportDailyReportPDF({
                         title: 'كشف مشتريات شهري',
@@ -364,9 +377,9 @@ const Reports = () => {
                           { label: 'المتبقي', value: money(monthlyDetail?.selected?.remaining_total), color: 'rose' },
                           { label: 'الفواتير', value: fmt(monthlyDetail?.selected?.invoices_count), color: 'blue' },
                         ],
-                        columns: ['التاريخ', 'رقم الفاتورة', 'التاجر', 'الصنف والكمية', 'سعر الوحدة', 'إجمالي الصنف', 'إجمالي الفاتورة', 'المدفوع', 'المتبقي'],
+                         columns: ['التاريخ', 'رقم الفاتورة', 'التاجر', 'الصنف والكمية', 'سعر الوحدة', 'إجمالي الصنف', 'المسجل بواسطة', 'إجمالي الفاتورة', 'المدفوع', 'المتبقي'],
                         rows,
-                        grandRow: ['الإجمالي', '', '', '', '', '', money(monthlyDetail?.selected?.total), money(monthlyDetail?.selected?.paid_total), money(monthlyDetail?.selected?.remaining_total)],
+                         grandRow: ['الإجمالي', '', '', '', '', '', '', money(monthlyDetail?.selected?.total), money(monthlyDetail?.selected?.paid_total), money(monthlyDetail?.selected?.remaining_total)],
                       });
                     }}
                     disabled={!monthlyDetail?.invoices?.length}
@@ -405,16 +418,17 @@ const Reports = () => {
                 تفاصيل مشتريات {MONTH_NAMES_AR[(monthlyDetail?.month || selectedMonth) - 1]} {monthlyDetail?.year || selectedYear}
               </h2>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="statement-ledger w-full text-sm">
                   <thead className="bg-slate-50 text-slate-700">
                     <tr>
                       <th className="px-3 py-2 text-right">التاريخ</th>
                       <th className="px-3 py-2 text-right">رقم الفاتورة</th>
                       <th className="px-3 py-2 text-right">التاجر</th>
                       <th className="px-3 py-2 text-right">الصنف</th>
-                      <th className="px-3 py-2 text-right">الكمية</th>
+                      <th className="px-3 py-2 text-right">الكمية والوحدة</th>
                       <th className="px-3 py-2 text-right">سعر الوحدة</th>
                       <th className="px-3 py-2 text-right">إجمالي الصنف</th>
+                      <th className="px-3 py-2 text-right">المسجل بواسطة</th>
                       <th className="px-3 py-2 text-right">إجمالي الفاتورة</th>
                       <th className="px-3 py-2 text-right">المدفوع</th>
                       <th className="px-3 py-2 text-right">المتبقي</th>
@@ -422,18 +436,19 @@ const Reports = () => {
                   </thead>
                   <tbody>
                     {(!monthlyDetail?.invoices?.length) && (
-                      <tr><td colSpan="10" className="text-center py-8 text-slate-400">لا توجد مشتريات في هذا الشهر</td></tr>
+                      <tr><td colSpan="11" className="text-center py-8 text-slate-400">لا توجد مشتريات في هذا الشهر</td></tr>
                     )}
                     {monthlyDetail?.invoices?.flatMap((invoice) => (
                       (invoice.items?.length ? invoice.items : [{ product_name: 'لا توجد أصناف', quantity: 0, unit: '', unit_cost: 0, total: 0 }]).map((item, index) => (
                         <tr key={`${invoice.id}-${item.id || index}`} className="border-t hover:bg-purple-50/40">
-                          <td className="px-3 py-2 whitespace-nowrap">{index === 0 ? invoice.date : ''}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{index === 0 ? formatStatementDate(invoice.date) : ''}</td>
                           <td className="px-3 py-2 text-slate-500">{index === 0 ? invoice.ref_no : ''}</td>
                           <td className="px-3 py-2 font-medium">{index === 0 ? invoice.supplier_name : ''}</td>
                           <td className="px-3 py-2">{item.product_name}</td>
-                          <td className="px-3 py-2">{fmt(item.quantity)} {item.unit}</td>
+                          <td className="px-3 py-2 font-semibold">{formatPurchaseQuantity(item)}</td>
                           <td className="px-3 py-2">{money(item.unit_cost)}</td>
                           <td className="px-3 py-2 font-medium">{money(item.total)}</td>
+                          <td className="px-3 py-2 text-xs font-semibold">{index === 0 ? (invoice.created_by_name || '—') : ''}</td>
                           <td className="px-3 py-2 font-bold text-purple-700">{index === 0 ? money(invoice.total) : ''}</td>
                           <td className="px-3 py-2 text-emerald-700">{index === 0 ? money(invoice.paid_amount) : ''}</td>
                           <td className="px-3 py-2 text-rose-700">{index === 0 ? money(invoice.remaining) : ''}</td>
@@ -444,7 +459,7 @@ const Reports = () => {
                   {monthlyDetail?.selected && (
                     <tfoot className="bg-purple-50 font-bold border-t-2">
                       <tr>
-                        <td className="px-3 py-3" colSpan="7">إجمالي مشتريات الشهر</td>
+                        <td className="px-3 py-3" colSpan="8">إجمالي مشتريات الشهر</td>
                         <td className="px-3 py-3 text-purple-800">{money(monthlyDetail.selected.total)}</td>
                         <td className="px-3 py-3 text-emerald-700">{money(monthlyDetail.selected.paid_total)}</td>
                         <td className="px-3 py-3 text-rose-700">{money(monthlyDetail.selected.remaining_total)}</td>
@@ -462,7 +477,7 @@ const Reports = () => {
               <Calendar className="w-5 h-5 text-purple-600" /> المشتريات الشهرية (آخر 12 شهر)
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="statement-ledger w-full text-sm">
                 <thead className="bg-slate-50 text-slate-700">
                   <tr>
                     <th className="px-4 py-2 text-right">الشهر</th>

@@ -50,6 +50,19 @@ def customer_statement(
     if dt_to:
         sale_filt.setdefault("created_at", {})["$lte"] = dt_to
     for s in db[C.sales].find(sale_filt).sort("created_at", 1):
+        sale_items = []
+        for item in db[C.sale_items].find({"sale_id": s["_id"]}):
+            product = db[C.products].find_one(
+                {"_id": item.get("product_id")}, {"name": 1, "unit": 1}
+            )
+            sale_items.append({
+                "id": item["_id"],
+                "product_name": product.get("name") if product else item.get("product_id"),
+                "unit": item.get("sale_unit") or (product.get("unit") if product else "piece"),
+                "quantity": float(item.get("quantity", 0) or 0),
+                "unit_price": float(item.get("unit_price", 0) or 0),
+                "total": float(item.get("total", 0) or 0),
+            })
         entries.append({
             "type": "sale",
             "date": s.get("created_at"),
@@ -58,6 +71,8 @@ def customer_statement(
             "debit": float(s.get("total", 0)),
             "credit": 0.0,
             "ref_id": s["_id"],
+            "created_by_name": _user_name(db, s.get("cashier_id") or s.get("created_by", "")),
+            "items": sale_items,
             "voided": s.get("status") == "voided",
         })
 
@@ -76,6 +91,7 @@ def customer_statement(
             "debit": 0.0,
             "credit": float(p.get("amount", 0)),
             "ref_id": p["_id"],
+            "created_by_name": _user_name(db, p.get("received_by") or p.get("created_by", "")),
             "voided": False,
         })
 
@@ -94,6 +110,7 @@ def customer_statement(
             "debit": 0.0,
             "credit": float(r.get("total", 0)),
             "ref_id": r["_id"],
+            "created_by_name": _user_name(db, r.get("created_by", "")),
             "voided": False,
         })
 

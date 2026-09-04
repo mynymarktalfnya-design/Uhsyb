@@ -15,9 +15,11 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { toast } from '../hooks/use-toast';
 import api, { formatApiError } from '../lib/api';
 import { exportStatementPDF } from '../lib/pdfExport';
+import { formatStatementDate, formatStatementTime } from '../lib/statementUtils';
 
 const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(Number(n) || 0);
-const fmtDate = (s) => new Date(s).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+const fmtDate = formatStatementDate;
+const fmtTime = formatStatementTime;
 const fmtDateOnly = (s) => new Date(s).toLocaleDateString('ar-EG');
 
 const PRESETS = [
@@ -133,8 +135,10 @@ const CustomerDetail = () => {
     if (!search.trim()) return statement.entries;
     const s = search.toLowerCase();
     return statement.entries.filter((e) =>
-      e.op_no.toLowerCase().includes(s) ||
-      e.description.toLowerCase().includes(s)
+      String(e.op_no || '').toLowerCase().includes(s) ||
+      String(e.description || '').toLowerCase().includes(s) ||
+      String(e.created_by_name || '').toLowerCase().includes(s) ||
+      (e.items || []).some((item) => String(item.product_name || '').toLowerCase().includes(s))
     );
   }, [statement, search]);
 
@@ -273,7 +277,7 @@ const CustomerDetail = () => {
           </Card>
 
           {/* Bank-style statement table (also used for print) */}
-          <Card className="print-only-block">
+          <Card className="print-only-block statement-print">
             {/* Print header */}
             <div className="hidden print:block px-6 py-4 border-b">
               <div className="text-center mb-3">
@@ -291,12 +295,14 @@ const CustomerDetail = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm" data-testid="statement-table">
+              <table className="statement-ledger w-full text-sm" data-testid="statement-table">
                 <thead className="bg-slate-900 text-white">
                   <tr>
                     <th className="px-3 py-3 text-right">التاريخ</th>
                     <th className="px-3 py-3 text-right">رقم العملية</th>
+                    <th className="px-3 py-3 text-right">الطرف</th>
                     <th className="px-3 py-3 text-right">البيان</th>
+                    <th className="px-3 py-3 text-right">المسجل بواسطة</th>
                     <th className="px-3 py-3 text-right">مدين</th>
                     <th className="px-3 py-3 text-right">دائن</th>
                     <th className="px-3 py-3 text-right">الرصيد</th>
@@ -305,42 +311,77 @@ const CustomerDetail = () => {
                 <tbody>
                   {/* Opening row */}
                   <tr className="bg-slate-50 border-t font-semibold text-slate-600">
-                    <td colSpan="5" className="px-3 py-2">رصيد افتتاحي</td>
+                    <td colSpan="7" className="px-3 py-2">رصيد افتتاحي</td>
                     <td className="px-3 py-2">{fmt(statement?.opening_balance || 0)} ر.ي</td>
                   </tr>
                   {filteredEntries.length === 0 && (
-                    <tr><td colSpan="6" className="px-3 py-8 text-center text-slate-400">لا توجد عمليات في هذه الفترة</td></tr>
+                    <tr><td colSpan="8" className="px-3 py-8 text-center text-slate-400">لا توجد عمليات في هذه الفترة</td></tr>
                   )}
                   {filteredEntries.map((e, i) => {
                     const m = typeMeta[e.type];
-                    return (
-                      <tr
-                        key={i}
-                        className={`border-t cursor-pointer hover:bg-slate-50 ${e.voided ? 'opacity-50 line-through' : ''}`}
-                        onClick={() => openRowDetail(e)}
-                        data-testid={`statement-row-${e.op_no}`}
-                      >
-                        <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">{fmtDate(e.date)}</td>
-                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{e.op_no}</td>
-                        <td className="px-3 py-2">
-                          <Badge className={`${m?.color || ''} hover:opacity-90`}>{m?.label} </Badge>
-                          {e.description.replace(m?.label || '', '').trim() && (
-                            <span className="text-xs text-slate-500 mr-1">{e.description}</span>
-                          )}
-                        </td>
-                        <td className={`px-3 py-2 font-semibold ${e.debit > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
-                          {e.debit > 0 ? `${fmt(e.debit)} ر.ي` : '—'}
-                        </td>
-                        <td className={`px-3 py-2 font-semibold ${e.credit > 0 && e.type === 'payment' ? 'text-emerald-600' : e.credit > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
-                          {e.credit > 0 ? `${fmt(e.credit)} ر.ي` : '—'}
-                        </td>
-                        <td className="px-3 py-2 font-bold">{fmt(e.balance)} ر.ي</td>
+                    const itemRows = (e.items || []).map((item, itemIndex) => (
+                      <tr key={item.id || `${e.op_no}-${itemIndex}`}>
+                        <td className="px-2 py-1 text-slate-400">{itemIndex + 1}</td>
+                        <td className="px-2 py-1 font-semibold">{item.product_name || '—'}</td>
+                        <td className="px-2 py-1 text-center">{fmt(item.quantity)} {item.unit === 'carton' ? 'كرتون' : 'قطعة'}</td>
+                        <td className="px-2 py-1 text-center">{fmt(item.unit_price)} ر.ي</td>
+                        <td className="px-2 py-1 text-center font-semibold">{fmt(item.total)} ر.ي</td>
                       </tr>
+                    ));
+                    return (
+                      <React.Fragment key={i}>
+                        <tr
+                          className={`border-t cursor-pointer hover:bg-slate-50 ${e.voided ? 'opacity-50 line-through' : ''}`}
+                          onClick={() => openRowDetail(e)}
+                          data-testid={`statement-row-${e.op_no}`}
+                        >
+                          <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
+                            <span>{fmtDate(e.date)}</span>
+                            {fmtTime(e.date) && <small className="no-print block text-slate-400">{fmtTime(e.date)}</small>}
+                          </td>
+                          <td className="px-3 py-2 font-mono text-xs text-slate-700">{e.op_no}</td>
+                          <td className="px-3 py-2 font-medium text-slate-700">{detail.full_name}</td>
+                          <td className="px-3 py-2">
+                            <Badge className={`${m?.color || ''} hover:opacity-90`}>{m?.label || e.type}</Badge>
+                            <div className="text-xs text-slate-500 mt-1">{String(e.description || '').replace(m?.label || '', '').trim() || '—'}</div>
+                            {itemRows.length > 0 && (
+                              <div className="mt-2 text-[11px] text-slate-500">عدد الأصناف: {itemRows.length}</div>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-xs font-semibold text-slate-700">{e.created_by_name || '—'}</td>
+                          <td className={`px-3 py-2 font-semibold ${e.debit > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                            {e.debit > 0 ? `${fmt(e.debit)} ر.ي` : '—'}
+                          </td>
+                          <td className={`px-3 py-2 font-semibold ${e.credit > 0 && e.type === 'payment' ? 'text-emerald-600' : e.credit > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
+                            {e.credit > 0 ? `${fmt(e.credit)} ر.ي` : '—'}
+                          </td>
+                          <td className="px-3 py-2 font-bold">{fmt(e.balance)} ر.ي</td>
+                        </tr>
+                        {itemRows.length > 0 && (
+                          <tr className="ledger-items">
+                            <td colSpan="8" className="px-4 py-2">
+                              <div className="mb-1 text-[11px] font-bold text-slate-500">تفاصيل المنتجات في العملية</div>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th className="text-right">المنتج</th>
+                                    <th>الكمية</th>
+                                    <th>سعر الوحدة</th>
+                                    <th>الإجمالي</th>
+                                  </tr>
+                                </thead>
+                                <tbody>{itemRows}</tbody>
+                              </table>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                   {/* Closing row */}
                   <tr className="bg-slate-100 border-t-2 border-slate-300 font-bold">
-                    <td colSpan="5" className="px-3 py-3">الرصيد الختامي</td>
+                    <td colSpan="7" className="px-3 py-3">الرصيد الختامي</td>
                     <td className={`px-3 py-3 text-lg ${(statement?.closing_balance || 0) > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                       {fmt(statement?.closing_balance || 0)} ر.ي
                     </td>

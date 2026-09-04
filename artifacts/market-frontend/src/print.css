@@ -7,6 +7,56 @@
   .print-only-block, .print-only-block * { visibility: visible; }
   .print-only-block { position: absolute; left: 0; top: 0; width: 100%; }
   .no-print { display: none !important; }
+  body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .statement-print { width: 100% !important; box-shadow: none !important; border: 0 !important; }
+  .statement-ledger { width: 100% !important; table-layout: fixed; border-collapse: collapse !important; }
+  .statement-ledger th,
+  .statement-ledger td { border: 1px solid #94a3b8 !important; }
+  .statement-ledger tr { break-inside: avoid; page-break-inside: avoid; }
+  .statement-ledger .ledger-items { background: #f8fafc !important; }
 }
 .print-only { display: none; }
 @media print { .print-only { display: block; } }
+
+.statement-ledger {
+  width: 100%;
+  border-collapse: collapse;
+  color: #0f172a;
+}
+
+.statement-ledger th,
+.statement-ledger td {
+  border: 1px solid #cbd5e1;
+  vertical-align: top;
+}
+
+.statement-ledger thead th {
+  background: #172033;
+  color: #fff;
+  font-weight: 800;
+}
+
+.statement-ledger tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.statement-ledger .ledger-items {
+  background: #f8fafc;
+}
+
+.statement-ledger .ledger-items table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.statement-ledger .ledger-items th,
+.statement-ledger .ledger-items td {
+  border: 1px solid #dbe3ee;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.statement-ledger .ledger-items th {
+  background: #e2e8f0;
+  color: #334155;
+}

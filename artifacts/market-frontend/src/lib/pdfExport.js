@@ -15,6 +15,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import QRCode from 'qrcode';
 import { STORE } from '../config/store';
+import { formatPurchaseQuantity } from './statementUtils';
 
 // ====================== BRAND ======================
 const BRAND = {
@@ -506,13 +507,10 @@ export async function exportStatementPDF(opts) {
       e.notes ? `ملاحظة: ${e.notes}` : '',
     ].filter(Boolean).join(' · ');
     const itemRows = (e.items || []).map((it, itemIdx) => {
-      const itemUnit = it.return_unit || it.unit;
-      const quantity = it.cartons != null
-        ? `${fmtInt(it.cartons)} كرتون${it.quantity != null ? ` (${fmtInt(it.quantity)} قطعة)` : ''}`
-        : `${fmtInt(it.quantity)} ${itemUnit === 'carton' ? 'كرتون' : 'قطعة'}`;
-      const price = it.carton_cost != null
-        ? `${money(it.carton_cost)} ر.ي/كرتون`
-        : `${money(it.unit_cost)} ر.ي`;
+       const quantity = formatPurchaseQuantity(it);
+       const price = it.carton_cost != null
+         ? `${money(it.carton_cost)} ر.ي/كرتون`
+         : `${money(it.unit_cost ?? it.unit_price)} ر.ي`;
       return `
         <tr>
           <td style="padding:4px 6px;color:#94a3b8;width:24px;">${itemIdx + 1}</td>
@@ -524,7 +522,7 @@ export async function exportStatementPDF(opts) {
     }).join('');
     const detailsRow = itemRows ? `
       <tr style="background:#f8fafc;">
-        <td colspan="6" style="padding:5px 12px 7px;">
+         <td colspan="8" style="padding:5px 12px 7px;">
           <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:3px;">تفاصيل الأصناف</div>
           <table style="width:100%;border-collapse:collapse;font-size:10.5px;color:#475569;">
             <thead><tr style="color:#64748b;border-bottom:1px solid #e2e8f0;">
@@ -542,10 +540,12 @@ export async function exportStatementPDF(opts) {
       <tr style="background:${idx % 2 ? '#fafafa' : '#ffffff'};">
         <td style="padding:6px;text-align:center;font-size:11px;color:#64748b;width:80px;">${arabicDate(e.date)}</td>
         <td style="padding:6px;text-align:center;font-family:monospace;font-size:11px;color:#475569;width:110px;">${e.op_no || '—'}</td>
-        <td style="padding:6px;text-align:right;font-size:12px;">
+         <td style="padding:6px;text-align:center;font-size:11px;font-weight:700;">${opts.name || '—'}</td>
+         <td style="padding:6px;text-align:right;font-size:12px;">
           <strong>${e.description || e.type || '—'}${method}</strong>
           ${extra ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${extra}</div>` : ''}
         </td>
+         <td style="padding:6px;text-align:center;font-size:11px;font-weight:700;">${e.created_by_name || '—'}</td>
         <td style="padding:6px;text-align:center;font-weight:700;color:${Number(e.debit) > 0 ? BRAND.red : '#cbd5e1'};width:85px;">${Number(e.debit) > 0 ? money(e.debit) : '—'}</td>
         <td style="padding:6px;text-align:center;font-weight:700;color:${Number(e.credit) > 0 ? BRAND.green : '#cbd5e1'};width:85px;">${Number(e.credit) > 0 ? money(e.credit) : '—'}</td>
         <td style="padding:6px;text-align:center;font-weight:800;color:${BRAND.dark};width:85px;">${money(e.balance)}</td>
@@ -604,13 +604,15 @@ export async function exportStatementPDF(opts) {
             <tr style="background:${BRAND.dark};color:#fff;font-size:12px;">
               <th style="padding:9px;text-align:center;">التاريخ</th>
               <th style="padding:9px;text-align:center;">رقم العملية</th>
+              <th style="padding:9px;text-align:center;">الطرف</th>
               <th style="padding:9px;text-align:right;">البيان</th>
+              <th style="padding:9px;text-align:center;">المسجل بواسطة</th>
               <th style="padding:9px;text-align:center;color:#fca5a5;">مدين</th>
               <th style="padding:9px;text-align:center;color:#86efac;">دائن</th>
               <th style="padding:9px;text-align:center;color:#fcd34d;">الرصيد</th>
             </tr>
           </thead>
-          <tbody>${rowsHtml || `<tr><td colspan="6" style="padding:30px;text-align:center;color:#94a3b8;">لا توجد عمليات في هذه الفترة</td></tr>`}</tbody>
+          <tbody>${rowsHtml || `<tr><td colspan="8" style="padding:30px;text-align:center;color:#94a3b8;">لا توجد عمليات في هذه الفترة</td></tr>`}</tbody>
         </table>
       </div>
 
@@ -648,16 +650,16 @@ export async function exportDailyReportPDF(opts) {
     </div>
   `).join('');
 
-  const colsHtml = (opts.columns || []).map((c) => `<th style="padding:9px;text-align:center;">${c}</th>`).join('');
+  const colsHtml = (opts.columns || []).map((c) => `<th style="padding:9px;text-align:center;border:1px solid #94a3b8;">${c}</th>`).join('');
   const rowsHtml = (opts.rows || []).map((r, idx) => `
     <tr style="background:${idx % 2 ? '#fafafa' : '#ffffff'};">
-      ${r.map((v) => `<td style="padding:7px;text-align:center;font-size:11.5px;">${v ?? '—'}</td>`).join('')}
+       ${r.map((v) => `<td style="padding:7px;text-align:center;font-size:11.5px;border:1px solid #cbd5e1;vertical-align:top;">${v ?? '—'}</td>`).join('')}
     </tr>
   `).join('');
   const grandHtml = opts.grandRow ? `
     <tfoot>
       <tr style="background:${BRAND.primary};color:#fff;font-weight:800;">
-        ${opts.grandRow.map((v) => `<td style="padding:9px;text-align:center;">${v ?? ''}</td>`).join('')}
+         ${opts.grandRow.map((v) => `<td style="padding:9px;text-align:center;border:1px solid #b45309;">${v ?? ''}</td>`).join('')}
       </tr>
     </tfoot>
   ` : '';

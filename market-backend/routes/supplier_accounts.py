@@ -66,6 +66,7 @@ def supplier_statement(supplier_id: str, db=Depends(get_db), _u=Depends(require_
             "date": p.get("created_at"),
             "op_no": op_no,
             "description": f"فاتورة توريد — {'آجل' if pm == 'credit' else 'مدفوع'}",
+            "created_by_name": _user_name(db, p.get("created_by", "")),
             "debit": paid_now,          # الجزء المدفوع فوراً
             "credit": total_p,          # قيمة الفاتورة كاملاً
             "payment_method": pm,
