@@ -26,12 +26,12 @@ export const formatStatementDateTime = (value) => {
 };
 
 export const formatStatementMoney = (value) =>
-  `${new Intl.NumberFormat('ar-EG', {
+  `${new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 2,
   }).format(Number(value) || 0)} ر.ي`;
 
 const formatQuantity = (value) =>
-  new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(Number(value) || 0);
+  new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(Number(value) || 0);
 
 export const formatPurchaseQuantity = (item = {}) => {
   const isCarton = item.unit === 'carton' || item.return_unit === 'carton' || item.cartons != null;

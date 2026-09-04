@@ -16,8 +16,9 @@ import { toast } from '../hooks/use-toast';
 import api, { formatApiError } from '../lib/api';
 import { exportStatementPDF, exportVoucherPDF } from '../lib/pdfExport';
 import { formatStatementDate, formatStatementTime, formatPurchaseQuantity } from '../lib/statementUtils';
+import { STORE } from '../config/store';
 
-const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(Number(n) || 0);
+const fmt = (n) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(Number(n) || 0);
 const fmtDate = formatStatementDate;
 const fmtTime = formatStatementTime;
 
@@ -201,10 +202,32 @@ const SupplierDetail = () => {
 
       {tab === 'statement' && statement && (
         <Card className="print-only-block statement-print">
+          <div className="no-print px-6 py-5 border-b flex items-center justify-between gap-5 bg-gradient-to-l from-slate-950 to-amber-700 text-white rounded-t-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-300 to-amber-600 text-slate-950 flex items-center justify-center text-2xl font-black shadow-lg">M</div>
+              <div>
+                <div className="text-xl font-black">{STORE.name}</div>
+                <div className="text-xs text-white/75 mt-1">{STORE.tagline}</div>
+              </div>
+            </div>
+            <div className="text-left">
+              <h2 className="text-xl font-black text-amber-200">كشف حساب تاجر تفصيلي</h2>
+              <p className="text-xs text-white/75 mt-1">هاتف: {STORE.phone}</p>
+            </div>
+          </div>
           <div className="hidden print:block px-6 py-5 border-b">
-            <div className="text-center mb-4">
-              <h1 className="text-2xl font-black">كشف حساب تاجر تفصيلي</h1>
-              <p className="text-sm text-slate-600">ميني ماركت الفنية — هاتف: 779008092</p>
+            <div className="flex items-center justify-between gap-5 mb-4 pb-4 border-b">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-300 to-amber-600 text-slate-950 flex items-center justify-center text-2xl font-black">M</div>
+                <div>
+                  <div className="text-xl font-black">{STORE.name}</div>
+                  <div className="text-xs text-slate-500 mt-1">{STORE.tagline}</div>
+                </div>
+              </div>
+              <div className="text-left">
+                <h1 className="text-2xl font-black">كشف حساب تاجر تفصيلي</h1>
+                <p className="text-xs text-slate-500 mt-1">هاتف: {STORE.phone}</p>
+              </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
               <div><span className="text-slate-500">التاجر:</span> <strong>{detail.name}</strong></div>

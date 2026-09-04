@@ -431,7 +431,7 @@ def monthly_financial(
             "created_at": {"$gte": start, "$lt": end},
             "status": "completed",
             "deleted_at": None,
-        }, {"total": 1, "created_at": 1}))
+        }, {"_id": 1, "total": 1, "created_at": 1}))
         returns = list(db[C.sale_returns].find({
             "created_at": {"$gte": start, "$lt": end},
             "status": "approved",
@@ -458,6 +458,25 @@ def monthly_financial(
             if day:
                 purchases_by_day[day] = purchases_by_day.get(day, 0.0) + float(row.get("total", 0) or 0)
 
+        # إجمالي الأرباح = صافي المبيعات - تكلفة البضاعة المباعة.
+        # نستخدم تكلفة المنتج المسجلة وقت إعداد التقرير، مثل endpoint الأرباح العام.
+        sale_dates = {sale["_id"]: iso_day(sale.get("created_at")) for sale in sales}
+        sale_ids = list(sale_dates)
+        sale_items = list(db[C.sale_items].find({"sale_id": {"$in": sale_ids}})) if sale_ids else []
+        product_ids = list({item.get("product_id") for item in sale_items if item.get("product_id")})
+        products = {
+            product["_id"]: product
+            for product in db[C.products].find({"_id": {"$in": product_ids}}, {"cost_price": 1})
+        } if product_ids else {}
+        cost_by_day = {}
+        for item in sale_items:
+            day = sale_dates.get(item.get("sale_id"))
+            if not day:
+                continue
+            product = products.get(item.get("product_id"), {})
+            cost = float(product.get("cost_price", 0) or 0) * float(item.get("quantity", 0) or 0)
+            cost_by_day[day] = cost_by_day.get(day, 0.0) + cost
+
         month_prefix = f"{year:04d}-{month:02d}"
         month_expenses = {
             day: total for day, total in expenses_by_day.items()
@@ -471,6 +490,7 @@ def monthly_financial(
             net_sales = gross_sales - returned
             purchase_total = purchases_by_day.get(day, 0.0)
             expense_total = month_expenses.get(day, 0.0)
+            cost_total = cost_by_day.get(day, 0.0)
             daily.append({
                 "date": day,
                 "sales": round(gross_sales, 2),
@@ -478,6 +498,8 @@ def monthly_financial(
                 "net_sales": round(net_sales, 2),
                 "purchases": round(purchase_total, 2),
                 "expenses": round(expense_total, 2),
+                "cost_of_goods_sold": round(cost_total, 2),
+                "profit_total": round(net_sales - cost_total, 2),
                 "profit_remaining": round(net_sales - purchase_total - expense_total, 2),
             })
 
@@ -485,6 +507,7 @@ def monthly_financial(
         returns_total = sum(returns_by_day.values())
         purchases_total = sum(purchases_by_day.values())
         expenses_total = sum(month_expenses.values())
+        cost_of_goods_sold = sum(cost_by_day.values())
         net_sales_total = sales_total - returns_total
         month_rows.append({
             "year": year,
@@ -495,6 +518,8 @@ def monthly_financial(
             "net_sales_total": round(net_sales_total, 2),
             "purchases_total": round(purchases_total, 2),
             "expenses_total": round(expenses_total, 2),
+            "cost_of_goods_sold": round(cost_of_goods_sold, 2),
+            "profit_total": round(net_sales_total - cost_of_goods_sold, 2),
             "profit_remaining": round(net_sales_total - purchases_total - expenses_total, 2),
             "daily": daily,
         })
@@ -505,6 +530,8 @@ def monthly_financial(
         "grand_sales": round(sum(row["sales_total"] for row in month_rows), 2),
         "grand_purchases": round(sum(row["purchases_total"] for row in month_rows), 2),
         "grand_expenses": round(sum(row["expenses_total"] for row in month_rows), 2),
+        "grand_cost_of_goods_sold": round(sum(row["cost_of_goods_sold"] for row in month_rows), 2),
+        "grand_profit_total": round(sum(row["profit_total"] for row in month_rows), 2),
         "grand_profit_remaining": round(sum(row["profit_remaining"] for row in month_rows), 2),
     }
 

@@ -33,9 +33,9 @@ const BRAND = {
 
 // ====================== FORMATTERS ======================
 const money = (n) =>
-  new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
+  new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(n) || 0);
 
-const fmtInt = (n) => new Intl.NumberFormat('ar-EG').format(Number(n) || 0);
+const fmtInt = (n) => new Intl.NumberFormat('en-US').format(Number(n) || 0);
 
 const arabicDateTime = (d) => {
   if (!d) return '—';

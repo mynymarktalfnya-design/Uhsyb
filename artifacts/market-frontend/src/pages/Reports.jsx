@@ -6,7 +6,7 @@ import api from '../lib/api';
 import { exportDailyReportPDF, exportVoucherPDF } from '../lib/pdfExport';
 import { formatStatementDate, formatPurchaseQuantity } from '../lib/statementUtils';
 
-const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(n || 0);
+const fmt = (n) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(n || 0);
 const money = (n) => `${fmt(n)} ر.ي`;
 
 const MONTH_NAMES_AR = [
@@ -106,6 +106,7 @@ const Reports = () => {
       money(day.net_sales),
       money(day.purchases),
       money(day.expenses),
+      money(day.profit_total),
       money(day.profit_remaining),
     ]);
     exportDailyReportPDF({
@@ -116,11 +117,12 @@ const Reports = () => {
         { label: 'صافي المبيعات', value: money(month.net_sales_total), color: 'blue' },
         { label: 'إجمالي المشتريات', value: money(month.purchases_total), color: 'purple' },
         { label: 'إجمالي المصروفات', value: money(month.expenses_total), color: 'rose' },
+        { label: 'إجمالي الأرباح', value: money(month.profit_total), color: month.profit_total >= 0 ? 'green' : 'rose' },
         { label: 'المتبقي من الأرباح', value: money(month.profit_remaining), color: month.profit_remaining >= 0 ? 'green' : 'rose' },
       ],
-      columns: ['اليوم', 'المبيعات', 'المرتجعات', 'صافي المبيعات', 'المشتريات', 'المصروفات', 'المتبقي من الأرباح'],
+      columns: ['اليوم', 'المبيعات', 'المرتجعات', 'صافي المبيعات', 'المشتريات', 'المصروفات', 'إجمالي الأرباح', 'المتبقي من الأرباح'],
       rows,
-      grandRow: ['إجمالي الشهر', money(month.sales_total), month.returns_total > 0 ? `- ${money(month.returns_total)}` : '—', money(month.net_sales_total), money(month.purchases_total), money(month.expenses_total), money(month.profit_remaining)],
+      grandRow: ['إجمالي الشهر', money(month.sales_total), month.returns_total > 0 ? `- ${money(month.returns_total)}` : '—', money(month.net_sales_total), money(month.purchases_total), money(month.expenses_total), money(month.profit_total), money(month.profit_remaining)],
     });
   };
 
@@ -723,7 +725,7 @@ const Reports = () => {
                     <TrendingUp className="w-5 h-5 text-emerald-600" /> كشف مالي تفصيلي لكل شهر
                   </h2>
                   <p className="text-sm text-slate-600 mt-1">
-                    المتبقي من الأرباح = صافي المبيعات − المشتريات − المصروفات.
+                     إجمالي الأرباح = صافي المبيعات − تكلفة البضاعة المباعة، والمتبقي من الأرباح = صافي المبيعات − المشتريات − المصروفات.
                     يمكنك طباعة كشف مستقل لأي شهر.
                   </p>
                 </div>
@@ -738,13 +740,14 @@ const Reports = () => {
                       <th className="px-3 py-3 text-right">المرتجعات</th>
                       <th className="px-3 py-3 text-right">المشتريات</th>
                       <th className="px-3 py-3 text-right">المصروفات</th>
+                      <th className="px-3 py-3 text-right">إجمالي الأرباح</th>
                       <th className="px-3 py-3 text-right">المتبقي من الأرباح</th>
                       <th className="px-3 py-3 text-center">الطباعة</th>
                     </tr>
                   </thead>
                   <tbody>
                     {!financialMonthly?.months?.length && (
-                      <tr><td colSpan="7" className="px-3 py-10 text-center text-slate-400">لا توجد بيانات مالية</td></tr>
+                      <tr><td colSpan="8" className="px-3 py-10 text-center text-slate-400">لا توجد بيانات مالية</td></tr>
                     )}
                     {financialMonthly?.months?.map((month) => (
                       <tr key={month.month_label} data-testid={`monthly-financial-row-${month.month_label}`}>
@@ -755,6 +758,9 @@ const Reports = () => {
                         <td className="px-3 py-3 text-rose-600">{month.returns_total > 0 ? `- ${money(month.returns_total)}` : '—'}</td>
                         <td className="px-3 py-3 font-semibold text-purple-700">{money(month.purchases_total)}</td>
                         <td className="px-3 py-3 font-semibold text-orange-700">{money(month.expenses_total)}</td>
+                        <td className={`px-3 py-3 font-extrabold ${month.profit_total >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {money(month.profit_total)}
+                        </td>
                         <td className={`px-3 py-3 font-extrabold ${month.profit_remaining >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                           {money(month.profit_remaining)}
                         </td>
@@ -779,6 +785,9 @@ const Reports = () => {
                         <td className="px-3 py-3">—</td>
                         <td className="px-3 py-3 text-purple-700">{money(financialMonthly.grand_purchases)}</td>
                         <td className="px-3 py-3 text-orange-700">{money(financialMonthly.grand_expenses)}</td>
+                        <td className={`px-3 py-3 ${financialMonthly.grand_profit_total >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {money(financialMonthly.grand_profit_total)}
+                        </td>
                         <td className={`px-3 py-3 ${financialMonthly.grand_profit_remaining >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                           {money(financialMonthly.grand_profit_remaining)}
                         </td>
