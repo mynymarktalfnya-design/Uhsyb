@@ -19,6 +19,7 @@ const Reports = () => {
   const [lowStock, setLowStock] = useState([]);
   const [purchasesDaily, setPurchasesDaily] = useState(null);
   const [purchasesMonthly, setPurchasesMonthly] = useState(null);
+  const [financialMonthly, setFinancialMonthly] = useState(null);
   const today = new Date();
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
@@ -31,6 +32,7 @@ const Reports = () => {
     api.get('/reports/low-stock').then((r) => setLowStock(r.data)).catch(() => {});
     api.get('/reports/purchases-daily', { params: { days: 30 } }).then((r) => setPurchasesDaily(r.data)).catch(() => {});
     api.get('/reports/purchases-monthly', { params: { months: 12 } }).then((r) => setPurchasesMonthly(r.data)).catch(() => {});
+    api.get('/reports/monthly-financial', { params: { months: 12 } }).then((r) => setFinancialMonthly(r.data)).catch(() => {});
     api.get('/reports/purchases-monthly', {
       params: { year: today.getFullYear(), month: today.getMonth() + 1, months: 12 },
     }).then((r) => setMonthlyDetail(r.data)).catch(() => {});
@@ -59,8 +61,36 @@ const Reports = () => {
     { id: 'sales',             label: 'المبيعات اليومية',      icon: FileText, testid: 'tab-sales' },
     { id: 'purchases-daily',   label: 'المشتريات اليومية',     icon: Truck,    testid: 'tab-purchases-daily' },
     { id: 'purchases-monthly', label: 'المشتريات الشهرية',     icon: Calendar, testid: 'tab-purchases-monthly' },
+    { id: 'monthly-financial',  label: 'الكشف المالي الشهري',   icon: TrendingUp, testid: 'tab-monthly-financial' },
     { id: 'low-stock',         label: 'المخزون المنخفض',       icon: AlertTriangle, testid: 'tab-low-stock' },
   ];
+
+  const printMonthlyFinancial = (month) => {
+    const monthLabel = `${MONTH_NAMES_AR[month.month - 1]} ${month.year}`;
+    const rows = (month.daily || []).map((day) => [
+      day.date,
+      money(day.sales),
+      day.returns > 0 ? `- ${money(day.returns)}` : '—',
+      money(day.net_sales),
+      money(day.purchases),
+      money(day.expenses),
+      money(day.profit_remaining),
+    ]);
+    exportDailyReportPDF({
+      title: `كشف مالي تفصيلي — ${monthLabel}`,
+      dateLabel: monthLabel,
+      kpis: [
+        { label: 'إجمالي المبيعات', value: money(month.sales_total), color: 'green' },
+        { label: 'صافي المبيعات', value: money(month.net_sales_total), color: 'blue' },
+        { label: 'إجمالي المشتريات', value: money(month.purchases_total), color: 'purple' },
+        { label: 'إجمالي المصروفات', value: money(month.expenses_total), color: 'rose' },
+        { label: 'المتبقي من الأرباح', value: money(month.profit_remaining), color: month.profit_remaining >= 0 ? 'green' : 'rose' },
+      ],
+      columns: ['اليوم', 'المبيعات', 'المرتجعات', 'صافي المبيعات', 'المشتريات', 'المصروفات', 'المتبقي من الأرباح'],
+      rows,
+      grandRow: ['إجمالي الشهر', money(month.sales_total), month.returns_total > 0 ? `- ${money(month.returns_total)}` : '—', money(month.net_sales_total), money(month.purchases_total), money(month.expenses_total), money(month.profit_remaining)],
+    });
+  };
 
   return (
     <div className="p-6 lg:p-8" dir="rtl" data-testid="reports-page">
@@ -533,6 +563,87 @@ const Reports = () => {
             </div>
           </CardContent>
         </Card>
+        </div>
+      )}
+
+      {/* LOW STOCK */}
+      {activeTab === 'monthly-financial' && (
+        <div className="space-y-6">
+          <Card className="border-2 border-emerald-200 bg-emerald-50/40" data-testid="panel-monthly-financial">
+            <CardContent className="p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-emerald-600" /> كشف مالي تفصيلي لكل شهر
+                  </h2>
+                  <p className="text-sm text-slate-600 mt-1">
+                    المتبقي من الأرباح = صافي المبيعات − المشتريات − المصروفات.
+                    يمكنك طباعة كشف مستقل لأي شهر.
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="statement-ledger w-full text-sm" data-testid="monthly-financial-table">
+                  <thead>
+                    <tr>
+                      <th className="px-3 py-3 text-right">الشهر</th>
+                      <th className="px-3 py-3 text-right">المبيعات</th>
+                      <th className="px-3 py-3 text-right">المرتجعات</th>
+                      <th className="px-3 py-3 text-right">المشتريات</th>
+                      <th className="px-3 py-3 text-right">المصروفات</th>
+                      <th className="px-3 py-3 text-right">المتبقي من الأرباح</th>
+                      <th className="px-3 py-3 text-center">الطباعة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!financialMonthly?.months?.length && (
+                      <tr><td colSpan="7" className="px-3 py-10 text-center text-slate-400">لا توجد بيانات مالية</td></tr>
+                    )}
+                    {financialMonthly?.months?.map((month) => (
+                      <tr key={month.month_label} data-testid={`monthly-financial-row-${month.month_label}`}>
+                        <td className="px-3 py-3 font-bold text-slate-800">
+                          {MONTH_NAMES_AR[month.month - 1]} {month.year}
+                        </td>
+                        <td className="px-3 py-3 font-semibold text-emerald-700">{money(month.sales_total)}</td>
+                        <td className="px-3 py-3 text-rose-600">{month.returns_total > 0 ? `- ${money(month.returns_total)}` : '—'}</td>
+                        <td className="px-3 py-3 font-semibold text-purple-700">{money(month.purchases_total)}</td>
+                        <td className="px-3 py-3 font-semibold text-orange-700">{money(month.expenses_total)}</td>
+                        <td className={`px-3 py-3 font-extrabold ${month.profit_remaining >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {money(month.profit_remaining)}
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <Button
+                            size="sm"
+                            onClick={() => printMonthlyFinancial(month)}
+                            className="bg-slate-900 hover:bg-slate-800 text-white"
+                            data-testid={`print-monthly-financial-${month.month_label}`}
+                          >
+                            <FileDown className="w-3.5 h-3.5 ml-1" /> طباعة الكشف
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {financialMonthly?.months?.length > 0 && (
+                    <tfoot className="bg-emerald-50 font-bold">
+                      <tr>
+                        <td className="px-3 py-3">إجمالي الفترة</td>
+                        <td className="px-3 py-3 text-emerald-700">{money(financialMonthly.grand_sales)}</td>
+                        <td className="px-3 py-3">—</td>
+                        <td className="px-3 py-3 text-purple-700">{money(financialMonthly.grand_purchases)}</td>
+                        <td className="px-3 py-3 text-orange-700">{money(financialMonthly.grand_expenses)}</td>
+                        <td className={`px-3 py-3 ${financialMonthly.grand_profit_remaining >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {money(financialMonthly.grand_profit_remaining)}
+                        </td>
+                        <td className="px-3 py-3">—</td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 

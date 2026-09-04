@@ -380,6 +380,117 @@ def purchases_monthly(
     }
 
 
+@router.get("/monthly-financial")
+def monthly_financial(
+    months: int = Query(12, ge=1, le=24),
+    db = Depends(get_db),
+    _u = Depends(require_manager),
+):
+    """Monthly financial statements: sales - returns - purchases - expenses."""
+    today = _date.today()
+
+    def iso_day(value):
+        if isinstance(value, datetime):
+            return value.astimezone(timezone.utc).date().isoformat() if value.tzinfo else value.date().isoformat()
+        return str(value)[:10] if value else None
+
+    expenses_by_day = {}
+    for expense in db[C.expenses].find(
+        {"deleted_at": None},
+        {"amount": 1, "expense_date": 1, "created_at": 1},
+    ):
+        day = expense.get("expense_date") or iso_day(expense.get("created_at"))
+        if day:
+            expenses_by_day[day] = expenses_by_day.get(day, 0.0) + float(expense.get("amount", 0) or 0)
+
+    month_rows = []
+    for offset in range(months - 1, -1, -1):
+        year, month = _previous_month(today.year, today.month, offset)
+        start = _month_start(year, month)
+        end = _next_month(year, month)
+
+        sales = list(db[C.sales].find({
+            "created_at": {"$gte": start, "$lt": end},
+            "status": "completed",
+            "deleted_at": None,
+        }, {"total": 1, "created_at": 1}))
+        returns = list(db[C.sale_returns].find({
+            "created_at": {"$gte": start, "$lt": end},
+            "status": "approved",
+            "deleted_at": None,
+        }, {"total": 1, "created_at": 1}))
+        purchases = list(db[C.purchases].find({
+            "created_at": {"$gte": start, "$lt": end},
+            "deleted_at": None,
+        }, {"total": 1, "created_at": 1}))
+
+        sales_by_day = {}
+        returns_by_day = {}
+        purchases_by_day = {}
+        for row in sales:
+            day = iso_day(row.get("created_at"))
+            if day:
+                sales_by_day[day] = sales_by_day.get(day, 0.0) + float(row.get("total", 0) or 0)
+        for row in returns:
+            day = iso_day(row.get("created_at"))
+            if day:
+                returns_by_day[day] = returns_by_day.get(day, 0.0) + float(row.get("total", 0) or 0)
+        for row in purchases:
+            day = iso_day(row.get("created_at"))
+            if day:
+                purchases_by_day[day] = purchases_by_day.get(day, 0.0) + float(row.get("total", 0) or 0)
+
+        month_prefix = f"{year:04d}-{month:02d}"
+        month_expenses = {
+            day: total for day, total in expenses_by_day.items()
+            if day.startswith(month_prefix)
+        }
+        days = sorted(set(sales_by_day) | set(returns_by_day) | set(purchases_by_day) | set(month_expenses), reverse=True)
+        daily = []
+        for day in days:
+            gross_sales = sales_by_day.get(day, 0.0)
+            returned = returns_by_day.get(day, 0.0)
+            net_sales = gross_sales - returned
+            purchase_total = purchases_by_day.get(day, 0.0)
+            expense_total = month_expenses.get(day, 0.0)
+            daily.append({
+                "date": day,
+                "sales": round(gross_sales, 2),
+                "returns": round(returned, 2),
+                "net_sales": round(net_sales, 2),
+                "purchases": round(purchase_total, 2),
+                "expenses": round(expense_total, 2),
+                "profit_remaining": round(net_sales - purchase_total - expense_total, 2),
+            })
+
+        sales_total = sum(sales_by_day.values())
+        returns_total = sum(returns_by_day.values())
+        purchases_total = sum(purchases_by_day.values())
+        expenses_total = sum(month_expenses.values())
+        net_sales_total = sales_total - returns_total
+        month_rows.append({
+            "year": year,
+            "month": month,
+            "month_label": f"{year:04d}-{month:02d}",
+            "sales_total": round(sales_total, 2),
+            "returns_total": round(returns_total, 2),
+            "net_sales_total": round(net_sales_total, 2),
+            "purchases_total": round(purchases_total, 2),
+            "expenses_total": round(expenses_total, 2),
+            "profit_remaining": round(net_sales_total - purchases_total - expenses_total, 2),
+            "daily": daily,
+        })
+
+    return {
+        "months_requested": months,
+        "months": month_rows,
+        "grand_sales": round(sum(row["sales_total"] for row in month_rows), 2),
+        "grand_purchases": round(sum(row["purchases_total"] for row in month_rows), 2),
+        "grand_expenses": round(sum(row["expenses_total"] for row in month_rows), 2),
+        "grand_profit_remaining": round(sum(row["profit_remaining"] for row in month_rows), 2),
+    }
+
+
 @router.get("/low-stock")
 def low_stock(db = Depends(get_db), _u = Depends(require_manager)):
     rows = list(db[C.products].find({"deleted_at": None, "is_active": True}))
