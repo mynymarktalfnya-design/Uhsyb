@@ -198,16 +198,17 @@ const Reports = () => {
                   { label: 'عدد فواتير الشراء', value: fmt(purchasesDaily?.grand_invoices_count), color: 'blue' },
                   { label: 'عدد الأيام', value: fmt(purchasesDaily?.days || 30), color: 'amber' },
                 ],
-                columns: ['التاريخ', 'رقم الفاتورة', 'اسم التاجر', 'الأصناف', 'المسجل بواسطة', 'قيمة الفاتورة (ر.ي)'],
+                columns: ['التاريخ', 'رقم النظام', 'رقم فاتورة التاجر', 'اسم التاجر', 'الأصناف', 'المسجل بواسطة', 'قيمة الفاتورة (ر.ي)'],
                 rows: (purchasesDaily?.invoices || []).map((inv) => [
                   formatStatementDate(inv.date),
                   inv.ref_no,
+                  inv.supplier_invoice_no || '—',
                   inv.supplier_name,
                   (inv.items || []).map((item) => `${item.product_name} (${formatPurchaseQuantity(item)})`).join('، ') || '—',
                   inv.created_by_name || '—',
                   money(inv.total),
                 ]),
-                grandRow: ['الإجمالي', '', '', '', '', money(purchasesDaily?.grand_total)],
+                grandRow: ['الإجمالي', '', '', '', '', '', money(purchasesDaily?.grand_total)],
               })}
               disabled={!purchasesDaily?.invoices?.length}
               className="bg-rose-500 hover:bg-rose-600 text-white"
@@ -270,6 +271,7 @@ const Reports = () => {
                     <tr>
                       <th className="px-4 py-2 text-right">التاريخ</th>
                       <th className="px-4 py-2 text-right">رقم الفاتورة</th>
+                      <th className="px-4 py-2 text-right">رقم فاتورة التاجر</th>
                       <th className="px-4 py-2 text-right">اسم التاجر</th>
                       <th className="px-4 py-2 text-right">الأصناف</th>
                       <th className="px-4 py-2 text-right">المسجل بواسطة</th>
@@ -278,12 +280,13 @@ const Reports = () => {
                   </thead>
                   <tbody>
                     {(!purchasesDaily?.invoices?.length) && (
-                      <tr><td colSpan="6" className="text-center py-6 text-slate-400">لا توجد فواتير</td></tr>
+                      <tr><td colSpan="7" className="text-center py-6 text-slate-400">لا توجد فواتير</td></tr>
                     )}
                     {purchasesDaily?.invoices?.map((inv) => (
                       <tr key={inv.id} className="border-t" data-testid={`purchases-invoice-row-${inv.ref_no}`}>
                         <td className="px-4 py-2">{formatStatementDate(inv.date)}</td>
                         <td className="px-4 py-2 text-slate-500">{inv.ref_no}</td>
+                        <td className="px-4 py-2 font-mono font-semibold text-indigo-700">{inv.supplier_invoice_no || '—'}</td>
                         <td className="px-4 py-2 font-medium">{inv.supplier_name}</td>
                         <td className="px-4 py-2 text-xs">
                           {(inv.items || []).map((item) => `${item.product_name} (${formatPurchaseQuantity(item)})`).join('، ') || '—'}
@@ -356,7 +359,8 @@ const Reports = () => {
                         invoice.items?.length
                           ? invoice.items.map((item, index) => [
                                index === 0 ? formatStatementDate(invoice.date) : '',
-                              index === 0 ? invoice.ref_no : '',
+                               index === 0 ? invoice.ref_no : '',
+                               index === 0 ? (invoice.supplier_invoice_no || '—') : '',
                               index === 0 ? invoice.supplier_name : '',
                               `${item.product_name} — ${fmt(item.quantity)} ${item.unit || ''}`,
                               money(item.unit_cost),
@@ -366,7 +370,7 @@ const Reports = () => {
                               index === 0 ? money(invoice.paid_amount) : '',
                               index === 0 ? money(invoice.remaining) : '',
                             ])
-                           : [[formatStatementDate(invoice.date), invoice.ref_no, invoice.supplier_name, 'لا توجد أصناف', '', '', invoice.created_by_name || '—', money(invoice.total), money(invoice.paid_amount), money(invoice.remaining)]]
+                           : [[formatStatementDate(invoice.date), invoice.ref_no, invoice.supplier_invoice_no || '—', invoice.supplier_name, 'لا توجد أصناف', '', '', invoice.created_by_name || '—', money(invoice.total), money(invoice.paid_amount), money(invoice.remaining)]]
                       ));
                       exportDailyReportPDF({
                         title: 'كشف مشتريات شهري',
@@ -377,9 +381,9 @@ const Reports = () => {
                           { label: 'المتبقي', value: money(monthlyDetail?.selected?.remaining_total), color: 'rose' },
                           { label: 'الفواتير', value: fmt(monthlyDetail?.selected?.invoices_count), color: 'blue' },
                         ],
-                         columns: ['التاريخ', 'رقم الفاتورة', 'التاجر', 'الصنف والكمية', 'سعر الوحدة', 'إجمالي الصنف', 'المسجل بواسطة', 'إجمالي الفاتورة', 'المدفوع', 'المتبقي'],
+                         columns: ['التاريخ', 'رقم النظام', 'رقم فاتورة التاجر', 'التاجر', 'الصنف والكمية', 'سعر الوحدة', 'إجمالي الصنف', 'المسجل بواسطة', 'إجمالي الفاتورة', 'المدفوع', 'المتبقي'],
                         rows,
-                         grandRow: ['الإجمالي', '', '', '', '', '', '', money(monthlyDetail?.selected?.total), money(monthlyDetail?.selected?.paid_total), money(monthlyDetail?.selected?.remaining_total)],
+                         grandRow: ['الإجمالي', '', '', '', '', '', '', '', money(monthlyDetail?.selected?.total), money(monthlyDetail?.selected?.paid_total), money(monthlyDetail?.selected?.remaining_total)],
                       });
                     }}
                     disabled={!monthlyDetail?.invoices?.length}
@@ -423,6 +427,7 @@ const Reports = () => {
                     <tr>
                       <th className="px-3 py-2 text-right">التاريخ</th>
                       <th className="px-3 py-2 text-right">رقم الفاتورة</th>
+                      <th className="px-3 py-2 text-right">رقم فاتورة التاجر</th>
                       <th className="px-3 py-2 text-right">التاجر</th>
                       <th className="px-3 py-2 text-right">الصنف</th>
                       <th className="px-3 py-2 text-right">الكمية والوحدة</th>
@@ -436,13 +441,14 @@ const Reports = () => {
                   </thead>
                   <tbody>
                     {(!monthlyDetail?.invoices?.length) && (
-                      <tr><td colSpan="11" className="text-center py-8 text-slate-400">لا توجد مشتريات في هذا الشهر</td></tr>
+                      <tr><td colSpan="12" className="text-center py-8 text-slate-400">لا توجد مشتريات في هذا الشهر</td></tr>
                     )}
                     {monthlyDetail?.invoices?.flatMap((invoice) => (
                       (invoice.items?.length ? invoice.items : [{ product_name: 'لا توجد أصناف', quantity: 0, unit: '', unit_cost: 0, total: 0 }]).map((item, index) => (
                         <tr key={`${invoice.id}-${item.id || index}`} className="border-t hover:bg-purple-50/40">
                           <td className="px-3 py-2 whitespace-nowrap">{index === 0 ? formatStatementDate(invoice.date) : ''}</td>
                           <td className="px-3 py-2 text-slate-500">{index === 0 ? invoice.ref_no : ''}</td>
+                          <td className="px-3 py-2 font-mono font-semibold text-indigo-700">{index === 0 ? (invoice.supplier_invoice_no || '—') : ''}</td>
                           <td className="px-3 py-2 font-medium">{index === 0 ? invoice.supplier_name : ''}</td>
                           <td className="px-3 py-2">{item.product_name}</td>
                           <td className="px-3 py-2 font-semibold">{formatPurchaseQuantity(item)}</td>
@@ -459,7 +465,7 @@ const Reports = () => {
                   {monthlyDetail?.selected && (
                     <tfoot className="bg-purple-50 font-bold border-t-2">
                       <tr>
-                        <td className="px-3 py-3" colSpan="8">إجمالي مشتريات الشهر</td>
+                        <td className="px-3 py-3" colSpan="9">إجمالي مشتريات الشهر</td>
                         <td className="px-3 py-3 text-purple-800">{money(monthlyDetail.selected.total)}</td>
                         <td className="px-3 py-3 text-emerald-700">{money(monthlyDetail.selected.paid_total)}</td>
                         <td className="px-3 py-3 text-rose-700">{money(monthlyDetail.selected.remaining_total)}</td>

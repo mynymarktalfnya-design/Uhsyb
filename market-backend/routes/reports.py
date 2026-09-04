@@ -243,6 +243,7 @@ def _purchase_report_row(db, purchase: dict) -> dict:
         "id": purchase["_id"],
         "date": created_at.isoformat() if hasattr(created_at, "isoformat") else created_at,
         "ref_no": purchase.get("ref_no") or purchase.get("invoice_no") or purchase["_id"],
+        "supplier_invoice_no": purchase.get("supplier_invoice_no"),
         "supplier_id": purchase.get("supplier_id"),
         "supplier_name": supplier.get("name") if supplier else "غير محدد",
         "supplier_phone": supplier.get("phone") if supplier else None,

@@ -66,6 +66,7 @@ def supplier_statement(supplier_id: str, db=Depends(get_db), _u=Depends(require_
             "date": p.get("created_at"),
             "op_no": op_no,
             "description": f"فاتورة توريد — {'آجل' if pm == 'credit' else 'مدفوع'}",
+            "supplier_invoice_no": p.get("supplier_invoice_no"),
             "created_by_name": _user_name(db, p.get("created_by", "")),
             "debit": paid_now,          # الجزء المدفوع فوراً
             "credit": total_p,          # قيمة الفاتورة كاملاً
@@ -144,6 +145,7 @@ def supplier_purchases(supplier_id: str, db=Depends(get_db), _u=Depends(require_
         out.append({
             "id": p["_id"],
             "ref_no": p.get("ref_no") or p.get("invoice_no"),
+            "supplier_invoice_no": p.get("supplier_invoice_no"),
             "items_count": items_count,
             "total": p.get("total", 0),
             "payment_method": p.get("payment_method"),
@@ -247,6 +249,7 @@ class PurchaseItemIn(BaseModel):
 
 class PurchaseCreate(BaseModel):
     supplier_id: str
+    supplier_invoice_no: str = Field(..., min_length=1, max_length=100)
     payment_method: str = Field(default="credit")
     paid_amount: Optional[float] = 0
     items: List[PurchaseItemIn]
@@ -259,6 +262,9 @@ def create_purchase(payload: PurchaseCreate, request: Request,
     s = db[C.suppliers].find_one({"_id": payload.supplier_id, "deleted_at": None})
     if not s:
         raise HTTPException(404, "Supplier not found")
+    supplier_invoice_no = payload.supplier_invoice_no.strip()
+    if not supplier_invoice_no:
+        raise HTTPException(422, "رقم فاتورة التاجر مطلوب")
     now = datetime.now(timezone.utc)
     today = now.strftime("%Y%m%d")
     count = db[C.purchases].count_documents({"ref_no": {"$regex": f"^PUR-{today}-"}})
@@ -293,6 +299,7 @@ def create_purchase(payload: PurchaseCreate, request: Request,
     pur_id = new_id()
     db[C.purchases].insert_one({
         "_id": pur_id, "ref_no": ref_no, "invoice_no": ref_no,
+        "supplier_invoice_no": supplier_invoice_no,
         "supplier_id": payload.supplier_id,
         "subtotal": total, "total": total,
         "paid_amount": float(payload.paid_amount or 0),
@@ -349,7 +356,7 @@ def create_purchase(payload: PurchaseCreate, request: Request,
     log_action(db, current["_id"], "purchase_created", "purchases", pur_id,
                after={"ref_no": ref_no, "total": str(total)}, request=request)
     return {
-        "id": pur_id, "ref_no": ref_no,
+        "id": pur_id, "ref_no": ref_no, "supplier_invoice_no": supplier_invoice_no,
         "total": total, "paid_amount": float(payload.paid_amount or 0),
         "payment_method": payload.payment_method, "notes": payload.notes,
         "created_by_name": _user_name(db, current["_id"]),
@@ -431,6 +438,7 @@ def get_purchase(purchase_id: str, db=Depends(get_db), _u=Depends(require_manage
     return {
         "id": p["_id"],
         "ref_no": p.get("ref_no") or p.get("invoice_no"),
+        "supplier_invoice_no": p.get("supplier_invoice_no"),
         "supplier_id": p.get("supplier_id"),
         "supplier_name": sup["name"] if sup else None,
         "supplier_phone": sup.get("phone") if sup else None,

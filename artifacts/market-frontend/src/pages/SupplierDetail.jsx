@@ -259,6 +259,7 @@ const SupplierDetail = () => {
                         <td className="px-3 py-2">
                           <Badge className={`${m?.color}`}>{m?.label}</Badge>
                           <div className="text-xs text-slate-500 mt-1">{(e.description || '').replace(m?.label || '', '').trim()}{method}</div>
+                          {e.supplier_invoice_no && <div className="text-xs text-indigo-700 mt-1">رقم فاتورة التاجر: <strong>{e.supplier_invoice_no}</strong></div>}
                           {e.remaining > 0 && <div className="text-xs text-rose-600 mt-0.5">متبقي الفاتورة: {fmt(e.remaining)} ر.ي</div>}
                           {e.reason && <div className="text-xs text-slate-400 mt-0.5">السبب: {e.reason}</div>}
                         </td>
@@ -321,6 +322,7 @@ const SupplierDetail = () => {
             <thead className="bg-slate-50 text-slate-700">
               <tr>
                 <th className="px-4 py-3 text-right">رقم الفاتورة</th>
+                  <th className="px-4 py-3 text-right">رقم فاتورة التاجر</th>
                 <th className="px-4 py-3 text-right">التاريخ</th>
                 <th className="px-4 py-3 text-right">عدد المنتجات</th>
                 <th className="px-4 py-3 text-right">الإجمالي</th>
@@ -328,12 +330,13 @@ const SupplierDetail = () => {
               </tr>
             </thead>
             <tbody>
-              {purchases.length === 0 && (
-                <tr><td colSpan="5" className="text-center py-12 text-slate-400">لا فواتير</td></tr>
+                  {purchases.length === 0 && (
+                    <tr><td colSpan="6" className="text-center py-12 text-slate-400">لا فواتير</td></tr>
               )}
               {purchases.map((p) => (
                 <tr key={p.id} className="border-t hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono font-semibold text-rose-700">{p.ref_no}</td>
+                  <td className="px-4 py-3 font-mono font-semibold text-indigo-700">{p.supplier_invoice_no || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{fmtDate(p.created_at)}</td>
                   <td className="px-4 py-3 text-center">{p.items_count}</td>
                   <td className="px-4 py-3 font-bold text-rose-600">{fmt(p.total)} ر.ي</td>
@@ -447,6 +450,7 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [supplierInvoiceNo, setSupplierInvoiceNo] = useState('');
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const [paidAmount, setPaidAmount] = useState('');
@@ -461,7 +465,7 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
 
   useEffect(() => {
     if (open) {
-      setItems([]); setNotes(''); setBarcode(''); setPaymentMethod('credit'); setPaidAmount('');
+      setItems([]); setSupplierInvoiceNo(''); setNotes(''); setBarcode(''); setPaymentMethod('credit'); setPaidAmount('');
       reload();
       api.get('/categories').then((r) => setCategories(r.data || [])).catch(() => {});
     }
@@ -542,11 +546,16 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
   const remaining = grand - paidNow;
 
   const save = async () => {
+    if (!supplierInvoiceNo.trim()) {
+      toast({ title: 'رقم فاتورة التاجر مطلوب', description: 'أدخل الرقم المطبوع في فاتورة التاجر قبل الحفظ.', variant: 'destructive' });
+      return;
+    }
     if (items.length === 0) { toast({ title: 'أضف منتجاً واحداً على الأقل', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       const payload = {
-        supplier_id: supplierId, notes: notes || null, paid_amount: paidNow,
+        supplier_id: supplierId, supplier_invoice_no: supplierInvoiceNo.trim(),
+        notes: notes || null, paid_amount: paidNow,
         payment_method: paymentMethod,
         items: items.map((it) => it.unit === 'carton' ? ({
           product_id: it.product_id, unit: 'carton',
@@ -588,6 +597,22 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
             <li>لإلغاء الفاتورة بالكامل اضغط زر <strong>&quot;إلغاء&quot;</strong> أسفل النافذة.</li>
             <li>بعد حفظ الفاتورة، لاسترجاع منتج تالف استخدم زر <strong>&quot;استرجاع منتج تالف&quot;</strong> (بالقطعة أو الكرتون).</li>
           </ul>
+        </div>
+
+        <div className="mb-3 rounded-lg border-2 border-rose-200 bg-rose-50 p-3">
+          <Label htmlFor="supplier-invoice-no" className="text-sm font-bold text-rose-900">
+            رقم فاتورة التاجر <span className="text-rose-600">*</span>
+          </Label>
+          <Input
+            id="supplier-invoice-no"
+            value={supplierInvoiceNo}
+            onChange={(e) => setSupplierInvoiceNo(e.target.value)}
+            placeholder="أدخل رقم الفاتورة المطبوع من التاجر"
+            className="mt-1 h-10 border-rose-300 bg-white"
+            required
+            data-testid="supplier-invoice-no-input"
+          />
+          <p className="mt-1 text-xs text-rose-700">هذا هو رقم فاتورة التاجر، وليس الرقم الداخلي الذي ينشئه النظام.</p>
         </div>
 
         <div className="grid grid-cols-12 gap-3 mb-3">
@@ -740,7 +765,7 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
-          <Button onClick={save} disabled={saving || items.length === 0}
+          <Button onClick={save} disabled={saving || items.length === 0 || !supplierInvoiceNo.trim()}
             className="bg-emerald-600 hover:bg-emerald-700 text-white" data-testid="save-purchase-btn">
             {saving ? 'جارٍ الحفظ...' : 'حفظ فاتورة التوريد'}
           </Button>

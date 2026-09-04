@@ -503,6 +503,7 @@ export async function exportStatementPDF(opts) {
     const extra = [
       e.type === 'purchase' && e.remaining > 0 ? `متبقي الفاتورة: ${money(e.remaining)} ر.ي` : '',
       e.type === 'return' && e.purchase_ref ? `عن فاتورة: ${e.purchase_ref}` : '',
+      e.supplier_invoice_no ? `رقم فاتورة التاجر: ${e.supplier_invoice_no}` : '',
       e.reason ? `السبب: ${e.reason}` : '',
       e.notes ? `ملاحظة: ${e.notes}` : '',
     ].filter(Boolean).join(' · ');
