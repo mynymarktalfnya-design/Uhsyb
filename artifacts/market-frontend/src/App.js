@@ -20,6 +20,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Purchases from './pages/Purchases';
 import SupplierDetail from './pages/SupplierDetail';
+import SupplierSummaryStatement from './pages/SupplierSummaryStatement';
 import Approvals from './pages/Approvals';
 import Returns from './pages/Returns';
 import ManagerDashboard from './pages/ManagerDashboard';
@@ -206,6 +207,17 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <SupplierDetail />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/suppliers/:id/summary"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <SupplierSummaryStatement />
                 </DashboardLayout>
               </ProtectedRoute>
             }

@@ -1,5 +1,5 @@
 """Supplier accounts, purchases, payments, and returns. MongoDB."""
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -8,6 +8,7 @@ from database import get_db, C
 from models import new_id, MovementType
 from utils.deps import get_current_user, require_manager
 from utils.audit import log_action
+from utils.time import business_today, day_range_utc
 
 router = APIRouter(prefix="/api", tags=["supplier-accounts"])
 
@@ -133,6 +134,77 @@ def supplier_statement(supplier_id: str, db=Depends(get_db), _u=Depends(require_
         },
         "generated_at": datetime.now(timezone.utc),
         "entries": entries,
+    }
+
+
+@router.get("/suppliers/{supplier_id}/summary-statement")
+def supplier_summary_statement(
+    supplier_id: str,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db=Depends(get_db),
+    _u=Depends(require_manager),
+):
+    """Compact supplier statement; intentionally separate from the detailed statement."""
+    supplier = db[C.suppliers].find_one({"_id": supplier_id, "deleted_at": None})
+    if not supplier:
+        raise HTTPException(404, "Supplier not found")
+
+    def date_filter(field="created_at"):
+        filt = {"supplier_id": supplier_id}
+        if date_from:
+            filt[field] = {"$gte": day_range_utc(date.fromisoformat(date_from))[0]}
+        if date_to:
+            upper = day_range_utc(date.fromisoformat(date_to))[1]
+            filt.setdefault(field, {})["$lte"] = upper
+        return filt
+
+    invoices = list(
+        db[C.purchases]
+        .find({**date_filter(), "deleted_at": None})
+        .sort("created_at", 1)
+    )
+    payments = list(
+        db[C.supplier_payments]
+        .find(date_filter())
+        .sort("created_at", 1)
+    )
+
+    total_amount = sum(float(p.get("total", 0) or 0) for p in invoices)
+    total_paid = sum(float(p.get("amount", 0) or 0) for p in payments)
+
+    # Payments are independent account movements. For display only, allocate them
+    # FIFO across invoice rows without changing the original invoice values.
+    remaining_paid = total_paid
+    rows = []
+    for invoice in invoices:
+        amount = float(invoice.get("total", 0) or 0)
+        paid_for_display = min(amount, max(remaining_paid, 0))
+        remaining_paid = max(0, remaining_paid - paid_for_display)
+        rows.append({
+            "invoice_no": invoice.get("supplier_invoice_no") or invoice.get("ref_no") or invoice.get("invoice_no") or invoice["_id"],
+            "invoice_date": invoice.get("created_at"),
+            "amount": amount,
+            "paid_amount": paid_for_display,
+        })
+
+    today = business_today()
+    return {
+        "supplier": {
+            "id": supplier["_id"],
+            "name": supplier.get("name") or "—",
+            "address": supplier.get("address") or "",
+            "phone": supplier.get("phone") or "",
+        },
+        "report_no": f"TR-{today.strftime('%Y%m%d')}-{supplier_id[:6].upper()}",
+        "issued_at": today.isoformat(),
+        "period": {"from": date_from, "to": date_to},
+        "rows": rows,
+        "summary": {
+            "total_amount": total_amount,
+            "total_paid": total_paid,
+            "balance": total_amount - total_paid,
+        },
     }
 
 

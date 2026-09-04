@@ -122,6 +122,11 @@ const SupplierDetail = () => {
             className="bg-rose-500 hover:bg-rose-600 text-white" data-testid="export-supplier-pdf-btn">
             <FileDown className="w-4 h-4 ml-1" /> تصدير PDF
           </Button>
+          <Button asChild variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-50" data-testid="open-supplier-summary-btn">
+            <Link to={`/dashboard/suppliers/${id}/summary`}>
+              <FileText className="w-4 h-4 ml-1" /> ملخص كشف الحساب
+            </Link>
+          </Button>
           <Button onClick={() => window.print()} variant="outline" data-testid="print-supplier-statement-btn">
             <Printer className="w-4 h-4 ml-1" /> طباعة الكشف
           </Button>
