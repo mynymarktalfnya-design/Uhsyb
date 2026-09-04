@@ -5,6 +5,7 @@ from typing import Optional
 
 from database import get_db, C
 from utils.deps import require_manager, require_admin, get_current_user
+from utils.alert_settings import get_alert_settings
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -235,10 +236,12 @@ def purchases_monthly(year: Optional[int] = None, month: Optional[int] = None,
 @router.get("/low-stock")
 def low_stock(db = Depends(get_db), _u = Depends(require_manager)):
     rows = list(db[C.products].find({"deleted_at": None, "is_active": True}))
+    threshold = get_alert_settings(db)["low_stock_threshold"]
     out = [{"id": p["_id"], "name": p["name"], "current_stock": p.get("current_stock", 0),
             "min_stock_level": p.get("min_stock_level", 0)}
            for p in rows
-           if float(p.get("current_stock", 0) or 0) <= float(p.get("min_stock_level", 0) or 0)]
+           if float(p.get("current_stock", 0) or 0) <= threshold or
+           float(p.get("current_stock", 0) or 0) <= float(p.get("min_stock_level", 0) or 0)]
     return out
 
 

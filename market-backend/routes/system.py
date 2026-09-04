@@ -11,6 +11,7 @@ from models import new_id
 from utils.deps import get_current_user, require_admin, require_manager
 from utils.security import hash_password, verify_password
 from utils.audit import log_action
+from utils.alert_settings import ALERT_SETTINGS_KEY, get_alert_settings
 
 router = APIRouter(prefix="/api", tags=["system"])
 
@@ -108,6 +109,39 @@ class ModeUpdate(BaseModel):
 
 class CartonSalesSettings(BaseModel):
     discount_percent: float = Field(default=0, ge=0, le=100)
+
+
+class InventoryAlertSettings(BaseModel):
+    expiry_alert_days: int = Field(default=30, ge=1, le=365)
+    low_stock_threshold: float = Field(default=0, ge=0, le=100000)
+
+
+@router.get("/alert-settings")
+def read_alert_settings(db=Depends(get_db), _u=Depends(get_current_user)):
+    return get_alert_settings(db)
+
+
+@router.patch("/admin/alert-settings")
+def update_alert_settings(payload: InventoryAlertSettings, request: Request,
+                          db=Depends(get_db), current=Depends(require_manager)):
+    before = get_alert_settings(db)
+    now = datetime.now(timezone.utc)
+    db[C.settings].update_one(
+        {"key": ALERT_SETTINGS_KEY},
+        {"$set": {
+            "value": {
+                "expiry_alert_days": payload.expiry_alert_days,
+                "low_stock_threshold": payload.low_stock_threshold,
+            },
+            "description": "Inventory and expiry alert thresholds",
+            "updated_at": now,
+        }, "$setOnInsert": {"_id": new_id(), "key": ALERT_SETTINGS_KEY, "created_at": now}},
+        upsert=True,
+    )
+    after = get_alert_settings(db)
+    log_action(db, current["_id"], "inventory_alert_settings_updated", "settings", None,
+               before=before, after=after, request=request)
+    return after
 
 
 @router.get("/pos/settings")

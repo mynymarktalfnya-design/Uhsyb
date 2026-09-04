@@ -11,6 +11,7 @@ from schemas.catalog import (
 )
 from utils.deps import get_current_user, require_manager, require_admin
 from utils.audit import log_action
+from utils.alert_settings import get_alert_settings
 
 router = APIRouter(prefix="/api", tags=["catalog"])
 
@@ -106,7 +107,10 @@ def list_products(q: Optional[str] = None, category_id: Optional[str] = None,
         ]
     rows = list(db[C.products].find(filt).sort("name", 1).limit(limit))
     if low_stock:
-        rows = [r for r in rows if float(r.get("current_stock", 0)) <= float(r.get("min_stock_level", 0))]
+        threshold = get_alert_settings(db)["low_stock_threshold"]
+        rows = [r for r in rows if
+                float(r.get("current_stock", 0) or 0) <= threshold or
+                float(r.get("current_stock", 0) or 0) <= float(r.get("min_stock_level", 0) or 0)]
     return [ProductOut.model_validate(_product_out(p, db, current.role)) for p in rows]
 
 
@@ -148,8 +152,10 @@ def toggle_featured(product_id: str, payload: dict,
 
 
 @router.get("/products/expiry-report")
-def expiry_report(days: int = Query(90, ge=1, le=365),
+def expiry_report(days: Optional[int] = Query(None, ge=1, le=365),
                   db = Depends(get_db), current = Depends(require_manager)):
+    if days is None:
+        days = get_alert_settings(db)["expiry_alert_days"]
     today = _date.today()
     threshold = today + timedelta(days=days)
     today_dt = datetime.combine(today, datetime.min.time())

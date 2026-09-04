@@ -26,7 +26,7 @@ const Dashboard = () => {
       .then((r) => setSummary(r.data))
       .finally(() => setLoading(false));
     if (!isCashier) {
-      api.get('/products/expiry-report', { params: { days: 90 } })
+      api.get('/products/expiry-report')
         .then((r) => setExpiry(r.data))
         .catch(() => {});
     }

@@ -395,6 +395,84 @@ const CartonSalesCard = ({ canManage }) => {
   );
 };
 
+const InventoryAlertSettingsCard = ({ canManage }) => {
+  const [form, setForm] = useState({ expiry_alert_days: 30, low_stock_threshold: 0 });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/alert-settings')
+      .then((r) => setForm({
+        expiry_alert_days: Number(r.data.expiry_alert_days) || 30,
+        low_stock_threshold: Number(r.data.low_stock_threshold) || 0,
+      }))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    const payload = {
+      expiry_alert_days: Math.max(1, Math.min(365, Number(form.expiry_alert_days) || 30)),
+      low_stock_threshold: Math.max(0, Math.min(100000, Number(form.low_stock_threshold) || 0)),
+    };
+    setSaving(true);
+    try {
+      const { data } = await api.patch('/admin/alert-settings', payload);
+      setForm(data);
+      toast({ title: 'تم حفظ إعدادات التنبيهات' });
+    } catch (e) {
+      toast({ title: 'فشل الحفظ', description: e.response?.data?.detail || 'خطأ', variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Card className="border-sky-300 border-2 mb-6" data-testid="inventory-alert-settings-card">
+      <CardContent className="p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center">
+            <Bell className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold text-slate-900">إعدادات تنبيهات المخزون والصلاحية</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              حدد متى تظهر التنبيهات في لوحات التحكم. حد المخزون هنا يطبق على جميع المنتجات،
+              مع احترام الحد الأعلى المحدد داخل المنتج.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 max-w-2xl">
+              <div>
+                <Label>تنبيه انتهاء الصلاحية قبل (يوم)</Label>
+                <Input
+                  type="number" min="1" max="365" step="1"
+                  value={form.expiry_alert_days}
+                  onChange={(e) => setForm({ ...form, expiry_alert_days: e.target.value })}
+                  disabled={loading || !canManage}
+                  data-testid="expiry-alert-days-input"
+                />
+              </div>
+              <div>
+                <Label>تنبيه انخفاض المخزون عند (وحدة)</Label>
+                <Input
+                  type="number" min="0" max="100000" step="1"
+                  value={form.low_stock_threshold}
+                  onChange={(e) => setForm({ ...form, low_stock_threshold: e.target.value })}
+                  disabled={loading || !canManage}
+                  data-testid="low-stock-threshold-input"
+                />
+              </div>
+            </div>
+            {canManage && (
+              <Button onClick={save} disabled={loading || saving} className="mt-4 bg-sky-600 hover:bg-sky-700 text-white">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'حفظ إعدادات التنبيهات'}
+              </Button>
+            )}
+            {!canManage && <p className="text-xs text-slate-400 mt-2">ليس لديك صلاحية تعديل إعدادات التنبيهات.</p>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const Settings = () => {
   const { user, can } = useAuth();
   const [mode, setMode] = useState('test');
@@ -451,6 +529,7 @@ const Settings = () => {
       </Card>
 
       <CartonSalesCard canManage={can('manager')} />
+      <InventoryAlertSettingsCard canManage={can('manager')} />
 
       {isAdmin && !loadingMode && (
         <div className="space-y-4 mb-6">

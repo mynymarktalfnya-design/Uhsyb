@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta, date as _date
 from fastapi import APIRouter, Depends
 from database import get_db, C
 from utils.deps import get_current_user, require_manager
+from utils.alert_settings import get_alert_settings
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -119,14 +120,19 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
     products_count = db[C.products].count_documents({"deleted_at": None, "is_active": True})
     customers_count = db[C.customers].count_documents({"deleted_at": None})
     suppliers_count = db[C.suppliers].count_documents({"deleted_at": None})
-    # Server-side low stock count using $expr (avoids client-side iteration)
+    alert_settings = get_alert_settings(db)
+    low_stock_threshold = alert_settings["low_stock_threshold"]
+    # A product is low when it reaches the global threshold or its own threshold.
     low_stock_count = db[C.products].count_documents({
         "deleted_at": None, "is_active": True,
-        "$expr": {"$lte": ["$current_stock", "$min_stock_level"]},
+        "$or": [
+            {"$expr": {"$lte": ["$current_stock", low_stock_threshold]}},
+            {"$expr": {"$lte": ["$current_stock", "$min_stock_level"]}},
+        ],
     })
 
-    # Expiring within 30 days
-    soon = datetime.now(timezone.utc) + timedelta(days=30)
+    # Expiring within the configured number of days
+    soon = datetime.now(timezone.utc) + timedelta(days=alert_settings["expiry_alert_days"])
     expiring_soon = db[C.products].count_documents({
         "deleted_at": None, "is_active": True,
         "expiry_date": {"$ne": None, "$lte": soon},
@@ -156,6 +162,7 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
         "suppliers_count": suppliers_count,
         "low_stock_count": low_stock_count,
         "expiring_soon_count": expiring_soon,
+        "alert_settings": alert_settings,
     }
 
 
@@ -331,10 +338,15 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
 
     low_stock = []
     out_of_stock = []
+    alert_settings = get_alert_settings(db)
+    low_stock_threshold = alert_settings["low_stock_threshold"]
     # Server-side filter for low-stock / out-of-stock products
     low_or_out = list(db[C.products].find({
         "deleted_at": None, "is_active": True,
-        "$expr": {"$lte": ["$current_stock", "$min_stock_level"]},
+        "$or": [
+            {"$expr": {"$lte": ["$current_stock", low_stock_threshold]}},
+            {"$expr": {"$lte": ["$current_stock", "$min_stock_level"]}},
+        ],
     }, {"_id": 1, "name": 1, "current_stock": 1, "min_stock_level": 1}).limit(100))
     for p in low_or_out:
         cs = float(p.get("current_stock", 0) or 0)
@@ -345,7 +357,7 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
             low_stock.append({"id": p["_id"], "name": p["name"],
                                "current_stock": cs, "min_stock_level": ms})
 
-    soon = now + timedelta(days=30)
+    soon = now + timedelta(days=alert_settings["expiry_alert_days"])
     expiring_soon = []
     for p in db[C.products].find({
         "deleted_at": None, "is_active": True,
