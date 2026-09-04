@@ -181,6 +181,7 @@ const SupplierSummaryStatement = () => {
                 <th>رقم الفاتورة</th>
                 <th>رقم الدفعة</th>
                 <th>المبلغ</th>
+                <th>الرصيد المستحق بعد الحركة</th>
               </tr>
             </thead>
             <tbody>
@@ -209,10 +210,13 @@ const SupplierSummaryStatement = () => {
                   <td className={`supplier-summary-amount ${movement.movement_type === 'دفعة للتاجر' ? 'is-payment' : ''}`}>
                     {money(movement.amount)}
                   </td>
+                   <td className={`supplier-summary-balance ${Number(movement.balance_after) < 0 ? 'is-negative' : ''}`}>
+                     {money(movement.balance_after)}
+                   </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="5" className="supplier-summary-empty">لا توجد حركات في الفترة المحددة</td>
+                   <td colSpan="6" className="supplier-summary-empty">لا توجد حركات في الفترة المحددة</td>
                 </tr>
               )}
             </tbody>
@@ -299,6 +303,7 @@ const MovementDetailsDialog = ({ movement, loading, onClose }) => {
               <div><span>رقم الدفعة</span><strong>{movement.payment_no || '—'}</strong></div>
               <div><span>طريقة الدفع</span><strong>{methodNames[movement.payment_method] || movement.payment_method || '—'}</strong></div>
               <div><span>المسجل بواسطة</span><strong>{movement.created_by_name || '—'}</strong></div>
+               <div><span>الرصيد المستحق بعد الحركة</span><strong>{money(movement.balance_after)} ريال</strong></div>
             </div>
             {movement.notes && <div className="supplier-summary-detail-note"><span>ملاحظات</span><p>{movement.notes}</p></div>}
             {purchase?.items?.length > 0 && (

@@ -208,7 +208,16 @@ def supplier_summary_statement(
             "created_by_name": _user_name(db, payment.get("paid_by") or payment.get("created_by", "")),
         })
 
-    movements.sort(key=lambda movement: movement["date"] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    # الرصيد التراكمي يُحسب من أقدم حركة إلى أحدث حركة حتى يوضح أثر كل عملية.
+    # هذا يجعل قيمة balance_after في كل صف قابلة للمراجعة بشكل مستقل.
+    movements.sort(key=lambda movement: movement["date"] or datetime.min.replace(tzinfo=timezone.utc))
+    running_balance = 0.0
+    for movement in movements:
+        if movement["movement_type"] == "فاتورة شراء":
+            running_balance += movement["amount"]
+        else:
+            running_balance -= movement["amount"]
+        movement["balance_after"] = running_balance
 
     today = business_today()
     return {

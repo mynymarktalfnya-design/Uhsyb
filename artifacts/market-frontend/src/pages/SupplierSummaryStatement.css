@@ -236,7 +236,8 @@
   background: #f8fafc;
 }
 
-.supplier-summary-table td:nth-child(5) {
+.supplier-summary-table td:nth-child(5),
+.supplier-summary-table td:nth-child(6) {
   font-weight: 800;
 }
 
@@ -289,6 +290,15 @@
 
 .supplier-summary-amount.is-payment {
   color: #047857;
+}
+
+.supplier-summary-balance {
+  color: #0f2948 !important;
+  font-weight: 900 !important;
+}
+
+.supplier-summary-balance.is-negative {
+  color: #b91c1c !important;
 }
 
 .supplier-summary-final {
@@ -591,7 +601,7 @@
   }
 
   .supplier-summary-table {
-    min-width: 860px;
+    min-width: 1000px;
   }
 
   .supplier-summary-totals {
