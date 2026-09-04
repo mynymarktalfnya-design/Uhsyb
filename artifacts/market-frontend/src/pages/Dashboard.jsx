@@ -19,6 +19,7 @@ const Dashboard = () => {
   const { user } = useAuth();
   const canViewPurchases = user?.role !== 'cashier';
   const isCashier = user?.role === 'cashier';
+  const isSupervisor = user?.role === 'manager';
 
   useEffect(() => {
     api.get('/dashboard/summary')
@@ -115,7 +116,9 @@ const Dashboard = () => {
   // بطاقات الوحدات
   const cards = [
     { title: 'نقطة البيع (POS)', desc: 'بدء فاتورة جديدة بسرعة فائقة', icon: ShoppingCart, link: '/dashboard/pos', color: 'amber' },
-    { title: 'مخزون منخفض', desc: `${formatNum(summary?.low_stock_count)} منتج يحتاج تجديد`, icon: AlertTriangle, link: '/dashboard/products?lowStock=1', color: 'red' },
+    ...(!isSupervisor ? [
+      { title: 'مخزون منخفض', desc: `${formatNum(summary?.low_stock_count)} منتج يحتاج تجديد`, icon: AlertTriangle, link: '/dashboard/products?lowStock=1', color: 'red' },
+    ] : []),
     { title: 'العملاء', desc: `${formatNum(summary?.customers_count)} عميل مسجّل`, icon: Users, link: '/dashboard/customers', color: 'emerald' },
     { title: 'المصروفات', desc: `${formatMoney(summary?.expenses_month)} هذا الشهر`, icon: Wallet, link: '/dashboard/expenses', color: 'pink' },
   ];
