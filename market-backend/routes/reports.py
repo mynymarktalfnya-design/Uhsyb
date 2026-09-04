@@ -201,36 +201,174 @@ def payment_methods_report(
     }
 
 
+def _effective_purchase_paid(purchase: dict) -> float:
+    """Amount actually paid for a purchase, including legacy records."""
+    method = purchase.get("payment_method", "credit")
+    paid = float(purchase.get("paid_amount") or 0)
+    total = float(purchase.get("total") or 0)
+    if paid > 0:
+        return paid
+    return total if method != "credit" else 0.0
+
+
+def _purchase_report_row(db, purchase: dict) -> dict:
+    supplier = db[C.suppliers].find_one(
+        {"_id": purchase.get("supplier_id")}, {"name": 1, "phone": 1}
+    )
+    items = []
+    for item in db[C.purchase_items].find({"purchase_id": purchase["_id"]}):
+        product = db[C.products].find_one(
+            {"_id": item.get("product_id")}, {"name": 1, "unit": 1}
+        )
+        items.append({
+            "id": item["_id"],
+            "product_id": item.get("product_id"),
+            "product_name": product.get("name") if product else item.get("product_id"),
+            "unit": item.get("unit") or (product.get("unit") if product else "piece"),
+            "quantity": float(item.get("quantity", 0) or 0),
+            "cartons": float(item["cartons"]) if item.get("cartons") is not None else None,
+            "pieces_per_carton": float(item["pieces_per_carton"]) if item.get("pieces_per_carton") is not None else None,
+            "unit_cost": float(item.get("unit_cost", 0) or 0),
+            "carton_cost": float(item["carton_cost"]) if item.get("carton_cost") is not None else None,
+            "total": float(item.get("total", 0) or 0),
+        })
+    total = float(purchase.get("total", 0) or 0)
+    paid = _effective_purchase_paid(purchase)
+    created_at = purchase.get("created_at")
+    return {
+        "id": purchase["_id"],
+        "date": created_at.isoformat() if hasattr(created_at, "isoformat") else created_at,
+        "ref_no": purchase.get("ref_no") or purchase.get("invoice_no") or purchase["_id"],
+        "supplier_id": purchase.get("supplier_id"),
+        "supplier_name": supplier.get("name") if supplier else "غير محدد",
+        "supplier_phone": supplier.get("phone") if supplier else None,
+        "total": total,
+        "payment_method": purchase.get("payment_method", "credit"),
+        "paid_amount": paid,
+        "remaining": max(0.0, total - paid),
+        "notes": purchase.get("notes"),
+        "items": items,
+    }
+
+
+def _month_start(year: int, month: int) -> datetime:
+    return datetime(year, month, 1, tzinfo=timezone.utc)
+
+
+def _next_month(year: int, month: int) -> datetime:
+    return datetime(year + (month // 12), (month % 12) + 1, 1, tzinfo=timezone.utc)
+
+
+def _previous_month(year: int, month: int, offset: int) -> tuple[int, int]:
+    index = year * 12 + (month - 1) - offset
+    return index // 12, index % 12 + 1
+
+
 @router.get("/purchases-daily")
-def purchases_daily(date: Optional[str] = None, db = Depends(get_db), _u = Depends(require_manager)):
-    target = _date.fromisoformat(date) if date else _date.today()
-    start = datetime.combine(target, datetime.min.time())
-    end = datetime.combine(target, datetime.max.time())
-    pipeline = [
-        {"$match": {"created_at": {"$gte": start, "$lte": end}, "deleted_at": None}},
-        {"$group": {"_id": None, "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
-    ]
-    agg = list(db[C.purchases].aggregate(pipeline))
-    return {"date": target.isoformat(),
-            "total_purchases": agg[0]["total"] if agg else 0,
-            "invoices_count": agg[0]["count"] if agg else 0}
+def purchases_daily(
+    date: Optional[str] = None,
+    days: int = Query(30, ge=1, le=366),
+    db = Depends(get_db),
+    _u = Depends(require_manager),
+):
+    today = _date.fromisoformat(date) if date else _date.today()
+    first_day = today if date else today - timedelta(days=days - 1)
+    start = datetime.combine(first_day, datetime.min.time()).replace(tzinfo=timezone.utc)
+    end = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
+    rows = list(db[C.purchases].find({
+        "created_at": {"$gte": start, "$lte": end},
+        "deleted_at": None,
+    }).sort("created_at", -1))
+    invoices = [_purchase_report_row(db, purchase) for purchase in rows]
+    totals_by_day = {}
+    for invoice in invoices:
+        day = str(invoice["date"])[:10] if invoice["date"] else "غير محدد"
+        bucket = totals_by_day.setdefault(day, {"date": day, "invoices_count": 0, "total": 0.0})
+        bucket["invoices_count"] += 1
+        bucket["total"] += invoice["total"]
+    daily_totals = sorted(totals_by_day.values(), key=lambda x: x["date"], reverse=True)
+    return {
+        "date": today.isoformat(),
+        "from": first_day.isoformat(),
+        "to": today.isoformat(),
+        "days": 1 if date else days,
+        "grand_total": round(sum(invoice["total"] for invoice in invoices), 2),
+        "grand_invoices_count": len(invoices),
+        "daily_totals": daily_totals,
+        "invoices": invoices,
+    }
 
 
 @router.get("/purchases-monthly")
-def purchases_monthly(year: Optional[int] = None, month: Optional[int] = None,
-                      db = Depends(get_db), _u = Depends(require_manager)):
+def purchases_monthly(
+    year: Optional[int] = Query(None, ge=2000, le=2100),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    months: int = Query(12, ge=1, le=24),
+    db = Depends(get_db),
+    _u = Depends(require_manager),
+):
     today = _date.today()
-    y, m = year or today.year, month or today.month
-    start = datetime(y, m, 1, tzinfo=timezone.utc)
-    end = datetime(y + (m // 12), (m % 12) + 1, 1, tzinfo=timezone.utc)
-    pipeline = [
-        {"$match": {"created_at": {"$gte": start, "$lt": end}, "deleted_at": None}},
-        {"$group": {"_id": None, "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
-    ]
-    agg = list(db[C.purchases].aggregate(pipeline))
-    return {"year": y, "month": m,
-            "total_purchases": agg[0]["total"] if agg else 0,
-            "invoices_count": agg[0]["count"] if agg else 0}
+    selected_year, selected_month = year or today.year, month or today.month
+
+    month_rows = []
+    for offset in range(months - 1, -1, -1):
+        y, m = _previous_month(today.year, today.month, offset)
+        start = _month_start(y, m)
+        end = _next_month(y, m)
+        rows = list(db[C.purchases].find({
+            "created_at": {"$gte": start, "$lt": end},
+            "deleted_at": None,
+        }))
+        invoices = [_purchase_report_row(db, purchase) for purchase in rows]
+        by_supplier = {}
+        for invoice in invoices:
+            supplier = by_supplier.setdefault(invoice["supplier_name"], {"name": invoice["supplier_name"], "total": 0.0, "count": 0})
+            supplier["total"] += invoice["total"]
+            supplier["count"] += 1
+        top_supplier = max(by_supplier.values(), key=lambda x: x["total"]) if by_supplier else None
+        month_rows.append({
+            "year": y,
+            "month": m,
+            "month_label": f"{y:04d}-{m:02d}",
+            "invoices_count": len(invoices),
+            "products_added": sum(len(invoice["items"]) for invoice in invoices),
+            "total": round(sum(invoice["total"] for invoice in invoices), 2),
+            "top_supplier": top_supplier,
+        })
+
+    selected_start = _month_start(selected_year, selected_month)
+    selected_end = _next_month(selected_year, selected_month)
+    selected_rows = list(db[C.purchases].find({
+        "created_at": {"$gte": selected_start, "$lt": selected_end},
+        "deleted_at": None,
+    }).sort("created_at", -1))
+    selected_invoices = [_purchase_report_row(db, purchase) for purchase in selected_rows]
+    daily_map = {}
+    for invoice in selected_invoices:
+        day = str(invoice["date"])[:10] if invoice["date"] else "غير محدد"
+        bucket = daily_map.setdefault(day, {"date": day, "invoices_count": 0, "total": 0.0})
+        bucket["invoices_count"] += 1
+        bucket["total"] += invoice["total"]
+    selected_summary = {
+        "year": selected_year,
+        "month": selected_month,
+        "invoices_count": len(selected_invoices),
+        "total": round(sum(invoice["total"] for invoice in selected_invoices), 2),
+        "paid_total": round(sum(invoice["paid_amount"] for invoice in selected_invoices), 2),
+        "remaining_total": round(sum(invoice["remaining"] for invoice in selected_invoices), 2),
+        "returns_total": 0.0,
+    }
+    return {
+        "year": selected_year,
+        "month": selected_month,
+        "months_requested": months,
+        "months": month_rows,
+        "grand_total": round(sum(row["total"] for row in month_rows), 2),
+        "grand_invoices_count": sum(row["invoices_count"] for row in month_rows),
+        "selected": selected_summary,
+        "invoices": selected_invoices,
+        "daily_totals": sorted(daily_map.values(), key=lambda x: x["date"], reverse=True),
+    }
 
 
 @router.get("/low-stock")

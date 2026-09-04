@@ -18,6 +18,11 @@ const Reports = () => {
   const [lowStock, setLowStock] = useState([]);
   const [purchasesDaily, setPurchasesDaily] = useState(null);
   const [purchasesMonthly, setPurchasesMonthly] = useState(null);
+  const today = new Date();
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
+  const [monthlyDetail, setMonthlyDetail] = useState(null);
+  const [monthlyDetailLoading, setMonthlyDetailLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('sales'); // sales | purchases-daily | purchases-monthly | low-stock
 
   useEffect(() => {
@@ -25,7 +30,24 @@ const Reports = () => {
     api.get('/reports/low-stock').then((r) => setLowStock(r.data)).catch(() => {});
     api.get('/reports/purchases-daily', { params: { days: 30 } }).then((r) => setPurchasesDaily(r.data)).catch(() => {});
     api.get('/reports/purchases-monthly', { params: { months: 12 } }).then((r) => setPurchasesMonthly(r.data)).catch(() => {});
+    api.get('/reports/purchases-monthly', {
+      params: { year: today.getFullYear(), month: today.getMonth() + 1, months: 12 },
+    }).then((r) => setMonthlyDetail(r.data)).catch(() => {});
   }, []);
+
+  const loadMonthlyDetail = async () => {
+    setMonthlyDetailLoading(true);
+    try {
+      const { data } = await api.get('/reports/purchases-monthly', {
+        params: { year: selectedYear, month: selectedMonth, months: 12 },
+      });
+      setMonthlyDetail(data);
+    } catch {
+      setMonthlyDetail(null);
+    } finally {
+      setMonthlyDetailLoading(false);
+    }
+  };
 
   const totalRevenue  = byDay.reduce((s, x) => s + x.total, 0);
   const totalReturns  = byDay.reduce((s, x) => s + (x.returns || 0), 0);
@@ -268,33 +290,172 @@ const Reports = () => {
 
       {/* PURCHASES MONTHLY */}
       {activeTab === 'purchases-monthly' && (
-        <>
-          <div className="flex justify-end mb-3">
-            <Button
-              onClick={() => exportDailyReportPDF({
-                title: 'تقرير المشتريات الشهرية',
-                dateLabel: `آخر ${purchasesMonthly?.months_requested || 12} شهر`,
-                kpis: [
-                  { label: 'إجمالي مشتريات الفترة', value: `${money(purchasesMonthly?.grand_total)} ر.ي`, color: 'purple' },
-                  { label: 'إجمالي فواتير', value: fmt(purchasesMonthly?.grand_invoices_count), color: 'blue' },
-                ],
-                columns: ['الشهر', 'عدد الفواتير', 'منتجات أُضيفت', 'أكثر تاجر', 'الإجمالي (ر.ي)'],
-                rows: (purchasesMonthly?.months || []).map((m) => [
-                  `${MONTH_NAMES_AR[m.month - 1]} ${m.year}`,
-                  fmt(m.invoices_count),
-                  fmt(m.products_added),
-                  m.top_supplier ? `${m.top_supplier.name} (${money(m.top_supplier.total)} ر.ي)` : '—',
-                  money(m.total),
-                ]),
-                grandRow: ['الإجمالي العام', fmt(purchasesMonthly?.grand_invoices_count), '', '', money(purchasesMonthly?.grand_total)],
-              })}
-              disabled={!purchasesMonthly?.months?.length}
-              className="bg-rose-500 hover:bg-rose-600 text-white"
-              data-testid="export-purchases-monthly-pdf-btn"
-            >
-              <FileDown className="w-4 h-4 ml-1" /> تصدير PDF
-            </Button>
+        <div className="space-y-6">
+          <Card className="border-2 border-purple-200 bg-purple-50/50" data-testid="monthly-purchase-filter">
+            <CardContent className="p-5">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-purple-600" /> كشف مشتريات شهر محدد
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1">
+                    اختر الشهر لعرض جميع الفواتير والأصناف والتجار والأسعار والمدفوعات بالتفصيل.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="text-sm font-medium text-slate-700">
+                    الشهر
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                      className="block mt-1 h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+                      data-testid="purchases-month-select"
+                    >
+                      {MONTH_NAMES_AR.map((name, index) => (
+                        <option key={name} value={index + 1}>{name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm font-medium text-slate-700">
+                    السنة
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(Number(e.target.value))}
+                      className="block mt-1 h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
+                      data-testid="purchases-year-select"
+                    >
+                      {Array.from({ length: 11 }, (_, index) => today.getFullYear() - index).map((year) => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button
+                    onClick={loadMonthlyDetail}
+                    disabled={monthlyDetailLoading}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    data-testid="load-purchases-month-btn"
+                  >
+                    <RefreshCw className={`w-4 h-4 ml-1 ${monthlyDetailLoading ? 'animate-spin' : ''}`} />
+                    {monthlyDetailLoading ? 'جارٍ التحميل…' : 'عرض الكشف'}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      const rows = (monthlyDetail?.invoices || []).flatMap((invoice) => (
+                        invoice.items?.length
+                          ? invoice.items.map((item, index) => [
+                              index === 0 ? invoice.date : '',
+                              index === 0 ? invoice.ref_no : '',
+                              index === 0 ? invoice.supplier_name : '',
+                              `${item.product_name} — ${fmt(item.quantity)} ${item.unit || ''}`,
+                              money(item.unit_cost),
+                              money(item.total),
+                              index === 0 ? money(invoice.total) : '',
+                              index === 0 ? money(invoice.paid_amount) : '',
+                              index === 0 ? money(invoice.remaining) : '',
+                            ])
+                          : [[invoice.date, invoice.ref_no, invoice.supplier_name, 'لا توجد أصناف', '', '', money(invoice.total), money(invoice.paid_amount), money(invoice.remaining)]]
+                      ));
+                      exportDailyReportPDF({
+                        title: 'كشف مشتريات شهري',
+                        dateLabel: `${MONTH_NAMES_AR[(monthlyDetail?.month || selectedMonth) - 1]} ${monthlyDetail?.year || selectedYear}`,
+                        kpis: [
+                          { label: 'إجمالي المشتريات', value: money(monthlyDetail?.selected?.total), color: 'purple' },
+                          { label: 'المدفوع', value: money(monthlyDetail?.selected?.paid_total), color: 'green' },
+                          { label: 'المتبقي', value: money(monthlyDetail?.selected?.remaining_total), color: 'rose' },
+                          { label: 'الفواتير', value: fmt(monthlyDetail?.selected?.invoices_count), color: 'blue' },
+                        ],
+                        columns: ['التاريخ', 'رقم الفاتورة', 'التاجر', 'الصنف والكمية', 'سعر الوحدة', 'إجمالي الصنف', 'إجمالي الفاتورة', 'المدفوع', 'المتبقي'],
+                        rows,
+                        grandRow: ['الإجمالي', '', '', '', '', '', money(monthlyDetail?.selected?.total), money(monthlyDetail?.selected?.paid_total), money(monthlyDetail?.selected?.remaining_total)],
+                      });
+                    }}
+                    disabled={!monthlyDetail?.invoices?.length}
+                    className="bg-rose-500 hover:bg-rose-600 text-white"
+                    data-testid="export-purchases-monthly-detail-pdf-btn"
+                  >
+                    <FileDown className="w-4 h-4 ml-1" /> طباعة كشف الشهر
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              ['إجمالي مشتريات الشهر', monthlyDetail?.selected?.total, 'text-purple-700', 'bg-purple-50 border-purple-200'],
+              ['المدفوع', monthlyDetail?.selected?.paid_total, 'text-emerald-700', 'bg-emerald-50 border-emerald-200'],
+              ['المتبقي', monthlyDetail?.selected?.remaining_total, 'text-rose-700', 'bg-rose-50 border-rose-200'],
+              ['عدد الفواتير', monthlyDetail?.selected?.invoices_count, 'text-blue-700', 'bg-blue-50 border-blue-200'],
+            ].map(([label, value, color, bg]) => (
+              <Card key={label} className={`border-2 ${bg}`}>
+                <CardContent className="p-4">
+                  <p className="text-xs text-slate-500 mb-1">{label}</p>
+                  <p className={`text-xl font-bold ${color}`}>
+                    {label === 'عدد الفواتير' ? fmt(value) : money(value)}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
+
+          <Card data-testid="panel-purchases-monthly-detail">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-600" />
+                تفاصيل مشتريات {MONTH_NAMES_AR[(monthlyDetail?.month || selectedMonth) - 1]} {monthlyDetail?.year || selectedYear}
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-700">
+                    <tr>
+                      <th className="px-3 py-2 text-right">التاريخ</th>
+                      <th className="px-3 py-2 text-right">رقم الفاتورة</th>
+                      <th className="px-3 py-2 text-right">التاجر</th>
+                      <th className="px-3 py-2 text-right">الصنف</th>
+                      <th className="px-3 py-2 text-right">الكمية</th>
+                      <th className="px-3 py-2 text-right">سعر الوحدة</th>
+                      <th className="px-3 py-2 text-right">إجمالي الصنف</th>
+                      <th className="px-3 py-2 text-right">إجمالي الفاتورة</th>
+                      <th className="px-3 py-2 text-right">المدفوع</th>
+                      <th className="px-3 py-2 text-right">المتبقي</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(!monthlyDetail?.invoices?.length) && (
+                      <tr><td colSpan="10" className="text-center py-8 text-slate-400">لا توجد مشتريات في هذا الشهر</td></tr>
+                    )}
+                    {monthlyDetail?.invoices?.flatMap((invoice) => (
+                      (invoice.items?.length ? invoice.items : [{ product_name: 'لا توجد أصناف', quantity: 0, unit: '', unit_cost: 0, total: 0 }]).map((item, index) => (
+                        <tr key={`${invoice.id}-${item.id || index}`} className="border-t hover:bg-purple-50/40">
+                          <td className="px-3 py-2 whitespace-nowrap">{index === 0 ? invoice.date : ''}</td>
+                          <td className="px-3 py-2 text-slate-500">{index === 0 ? invoice.ref_no : ''}</td>
+                          <td className="px-3 py-2 font-medium">{index === 0 ? invoice.supplier_name : ''}</td>
+                          <td className="px-3 py-2">{item.product_name}</td>
+                          <td className="px-3 py-2">{fmt(item.quantity)} {item.unit}</td>
+                          <td className="px-3 py-2">{money(item.unit_cost)}</td>
+                          <td className="px-3 py-2 font-medium">{money(item.total)}</td>
+                          <td className="px-3 py-2 font-bold text-purple-700">{index === 0 ? money(invoice.total) : ''}</td>
+                          <td className="px-3 py-2 text-emerald-700">{index === 0 ? money(invoice.paid_amount) : ''}</td>
+                          <td className="px-3 py-2 text-rose-700">{index === 0 ? money(invoice.remaining) : ''}</td>
+                        </tr>
+                      ))
+                    ))}
+                  </tbody>
+                  {monthlyDetail?.selected && (
+                    <tfoot className="bg-purple-50 font-bold border-t-2">
+                      <tr>
+                        <td className="px-3 py-3" colSpan="7">إجمالي مشتريات الشهر</td>
+                        <td className="px-3 py-3 text-purple-800">{money(monthlyDetail.selected.total)}</td>
+                        <td className="px-3 py-3 text-emerald-700">{money(monthlyDetail.selected.paid_total)}</td>
+                        <td className="px-3 py-3 text-rose-700">{money(monthlyDetail.selected.remaining_total)}</td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card data-testid="panel-purchases-monthly">
           <CardContent className="p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -351,7 +512,7 @@ const Reports = () => {
             </div>
           </CardContent>
         </Card>
-        </>
+        </div>
       )}
 
       {/* LOW STOCK */}
