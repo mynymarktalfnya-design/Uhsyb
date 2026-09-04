@@ -7,8 +7,8 @@ import { toast } from '../hooks/use-toast';
 import { STORE } from '../config/store';
 import './SupplierSummaryStatement.css';
 
-const money = (value) => new Intl.NumberFormat('ar-EG', {
-  minimumFractionDigits: 2,
+const money = (value) => new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 }).format(Number(value) || 0);
 
@@ -181,7 +181,7 @@ const SupplierSummaryStatement = () => {
                 <th>رقم الفاتورة</th>
                 <th>رقم الدفعة</th>
                 <th>المبلغ</th>
-                <th>الرصيد المستحق بعد الحركة</th>
+                <th>الرصيد</th>
               </tr>
             </thead>
             <tbody>
@@ -303,7 +303,7 @@ const MovementDetailsDialog = ({ movement, loading, onClose }) => {
               <div><span>رقم الدفعة</span><strong>{movement.payment_no || '—'}</strong></div>
               <div><span>طريقة الدفع</span><strong>{methodNames[movement.payment_method] || movement.payment_method || '—'}</strong></div>
               <div><span>المسجل بواسطة</span><strong>{movement.created_by_name || '—'}</strong></div>
-               <div><span>الرصيد المستحق بعد الحركة</span><strong>{money(movement.balance_after)} ريال</strong></div>
+               <div><span>الرصيد</span><strong>{money(movement.balance_after)} ريال</strong></div>
             </div>
             {movement.notes && <div className="supplier-summary-detail-note"><span>ملاحظات</span><p>{movement.notes}</p></div>}
             {purchase?.items?.length > 0 && (
