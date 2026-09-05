@@ -22,14 +22,18 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
-MONGO_URL = "mongodb+srv://admin:admin123@cluster0.9mqfj0f.mongodb.net/?appName=Cluster0"
 DB_NAME = "market_db"
 JWT_SECRET_KEY = "minimarket-super-secret-jwt-key-2026-secure"
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = "1440"
 CORS_ORIGINS = "*"
 SECRET_KEY = "minimarket-super-secret-jwt-key-2026-secure"
+
+[userenv.development]
 ALLOW_MONGOMOCK = "true"
+
+[userenv.production]
+ALLOW_MONGOMOCK = "false"
 
 [nix]
 channel = "stable-25_05"

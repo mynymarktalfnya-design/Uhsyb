@@ -1,11 +1,11 @@
 ---
 name: MiniMarket MongoDB setup
-description: MongoDB Atlas credentials are wrong; mongomock fallback gates dev/demo mode
+description: MongoDB Atlas must be reachable from Replit; mongomock fallback is dev-only
 ---
 
-The MONGO_URL env var points to an Atlas cluster with bad credentials (auth fails).
+The secure MONGO_URL secret now points to an Atlas cluster, but the current connection attempt fails during TLS negotiation; verify Atlas Network Access allows Replit before treating it as production-ready.
 `database.py` tries a real ping; if it fails and `ALLOW_MONGOMOCK=true` is set, it falls back to in-memory mongomock (data lost on restart).
 
 **Why:** ALLOW_MONGOMOCK must be explicit so production misconfigurations don't silently lose data.
 
-**How to apply:** `ALLOW_MONGOMOCK=true` is set in shared env vars for this dev/demo repl. To use a real Atlas cluster, fix MONGO_URL credentials and remove or set ALLOW_MONGOMOCK=false.
+**How to apply:** Keep `ALLOW_MONGOMOCK=true` only in development. Production is configured with `ALLOW_MONGOMOCK=false`; after Atlas Network Access and credentials are valid, `/api/health` must report `persistent=true`.
