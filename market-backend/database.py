@@ -14,6 +14,7 @@ from pymongo import ASCENDING, DESCENDING
 from pymongo.database import Database
 
 MONGO_URL = os.environ.get("MONGO_URL", "")
+NEON_DATABASE_URL = os.environ.get("NEON_DATABASE_URL", "")
 DB_NAME = os.environ.get("DB_NAME", "market_db")
 # Only fall back to in-memory mongomock when explicitly allowed (dev/demo mode).
 # In production, a bad MONGO_URL must fail fast rather than silently lose data.
@@ -22,6 +23,21 @@ _ALLOW_MONGOMOCK = os.environ.get("ALLOW_MONGOMOCK", "false").lower() in ("1", "
 _client = None
 db: Database = None
 USING_MOCK_MONGO = False
+USING_NEON_POSTGRES = False
+
+
+if NEON_DATABASE_URL:
+    from postgres_store import PostgresStore
+
+    try:
+        _client = PostgresStore(NEON_DATABASE_URL)
+        db = _client
+        USING_NEON_POSTGRES = True
+        logger.info("✅ Connected to Neon PostgreSQL")
+    except Exception as exc:
+        if not _ALLOW_MONGOMOCK:
+            raise
+        logger.warning(f"Neon PostgreSQL unavailable ({exc}), using in-memory mongomock")
 
 def _try_real_mongo():
     """Try to connect to the real MongoDB and ping it."""
@@ -66,22 +82,25 @@ def _use_mock_mongo():
     client = mongomock.MongoClient(uuidRepresentation="standard", tz_aware=True)
     return client
 
-try:
-    _client = _try_real_mongo()
-    logger.info("✅ Connected to real MongoDB")
-except Exception as exc:
-    if _ALLOW_MONGOMOCK:
-        logger.warning(f"Real MongoDB unavailable ({exc}), falling back to in-memory mongomock")
-        _client = _use_mock_mongo()
-    else:
-        logger.error(
-            f"MongoDB connection failed: {exc}. "
-            "Set ALLOW_MONGOMOCK=true to use in-memory fallback in dev/demo mode."
-        )
-        raise
+if not USING_NEON_POSTGRES:
+    try:
+        _client = _try_real_mongo()
+        logger.info("✅ Connected to real MongoDB")
+    except Exception as exc:
+        if _ALLOW_MONGOMOCK:
+            logger.warning(f"Real MongoDB unavailable ({exc}), falling back to in-memory mongomock")
+            _client = _use_mock_mongo()
+        else:
+            logger.error(
+                f"MongoDB connection failed: {exc}. "
+                "Set ALLOW_MONGOMOCK=true to use in-memory fallback in dev/demo mode."
+            )
+            raise
 
-db: Database = _client[DB_NAME]
-DB_BACKEND = "mongomock" if USING_MOCK_MONGO else "mongodb"
+if not USING_NEON_POSTGRES:
+    db = _client[DB_NAME]
+
+DB_BACKEND = "neon-postgres" if USING_NEON_POSTGRES else ("mongomock" if USING_MOCK_MONGO else "mongodb")
 
 
 def get_db() -> Database:

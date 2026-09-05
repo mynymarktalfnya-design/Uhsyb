@@ -1,11 +1,10 @@
 ---
-name: MiniMarket MongoDB setup
-description: MongoDB Atlas reachability is fixed; remaining failures are credential or URI mismatches
+name: MiniMarket database setup
+description: Neon PostgreSQL is the active persistent store; MongoDB is legacy fallback only
 ---
 
-Atlas Network Access now allows the connection, and the secure MONGO_URL secret is present with no shared-env override. The remaining failure is Atlas authentication, so verify the URI belongs to the active cluster and its username/password match the Atlas Database User.
-`database.py` tries a real ping; if it fails and `ALLOW_MONGOMOCK=true` is set, it falls back to in-memory mongomock (data lost on restart).
+Neon PostgreSQL is selected whenever the secure `NEON_DATABASE_URL` secret exists. The application keeps its existing document-shaped route API while persisting documents in a JSONB table; MongoDB and mongomock remain legacy fallback paths.
 
 **Why:** ALLOW_MONGOMOCK must be explicit so production misconfigurations don't silently lose data.
 
-**How to apply:** Keep `ALLOW_MONGOMOCK=true` only in development. Production is configured with `ALLOW_MONGOMOCK=false`; after Atlas Network Access and credentials are valid, `/api/health` must report `persistent=true`.
+**How to apply:** Keep `ALLOW_MONGOMOCK=true` only in development. Production is configured with `ALLOW_MONGOMOCK=false`; verify `/api/health` reports `db=neon-postgres` and `persistent=true` after deployment.
