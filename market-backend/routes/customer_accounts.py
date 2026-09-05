@@ -57,8 +57,17 @@ def customer_statement(
     dt_to = parse_boundary(date_to, end=True)
 
     def normalize_date(value):
+        """Normalize Mongo datetime values and legacy ISO strings alike."""
         if not value:
             return value
+        if isinstance(value, str):
+            raw = value.replace("Z", "+00:00")
+            try:
+                value = datetime.fromisoformat(raw)
+            except ValueError:
+                return None
+        if not isinstance(value, datetime):
+            return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=BUSINESS_TIMEZONE)
         return value.astimezone(timezone.utc)

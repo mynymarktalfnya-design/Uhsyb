@@ -81,10 +81,22 @@ def get_customer(customer_id: str, db = Depends(get_db), _u = Depends(get_curren
     if not c:
         raise HTTPException(status_code=404, detail="Customer not found")
     totals = customer_account_totals(db, customer_id)
-    # Last activity: max of last sale or payment date
+    # Last activity: normalize legacy ISO strings before comparing with Mongo
+    # datetimes; mixed datetime/string values otherwise raise TypeError.
     last_sale = db[C.sales].find_one({"customer_id": customer_id}, sort=[("created_at", -1)])
     last_pay = db[C.customer_payments].find_one({"customer_id": customer_id}, sort=[("created_at", -1)])
-    dates = [d.get("created_at") for d in [last_sale, last_pay] if d and d.get("created_at")]
+    dates = []
+    for row in (last_sale, last_pay):
+        value = row.get("created_at") if row else None
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                value = None
+        if value and value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        if value:
+            dates.append(value)
     last_activity = max(dates) if dates else None
     return {
         "id": c["_id"], "full_name": c["full_name"], "phone": c.get("phone"),
