@@ -127,10 +127,21 @@ export default function ManagerDashboard() {
           <Award className="w-5 h-5 text-amber-600" /> الأرباح (للمدير فقط)
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="ربح اليوم"   value={formatMoney(data.profits.today)} gradient="from-amber-500 to-orange-600" icon={ArrowUpRight} testid="kpi-profit-today" />
-          <KpiCard label="ربح الأسبوع" value={formatMoney(data.profits.week)}  gradient="from-amber-600 to-orange-700" icon={ArrowUpRight} testid="kpi-profit-week" />
-          <KpiCard label="ربح الشهر"  value={formatMoney(data.profits.month)} gradient="from-orange-600 to-red-600" icon={ArrowUpRight} testid="kpi-profit-month" />
-          <KpiCard label="ربح السنة"  value={formatMoney(data.profits.year)}  gradient="from-orange-700 to-red-700" icon={ArrowUpRight} testid="kpi-profit-year" />
+          <KpiCard label="إجمالي ربح المنتجات اليوم"   value={formatMoney(data.profits.today)} gradient="from-amber-500 to-orange-600" icon={ArrowUpRight} testid="kpi-profit-today" />
+          <KpiCard label="إجمالي ربح المنتجات الأسبوع" value={formatMoney(data.profits.week)}  gradient="from-amber-600 to-orange-700" icon={ArrowUpRight} testid="kpi-profit-week" />
+          <KpiCard label="إجمالي ربح المنتجات الشهر"  value={formatMoney(data.profits.month)} gradient="from-orange-600 to-red-600" icon={ArrowUpRight} testid="kpi-profit-month" />
+          <KpiCard label="إجمالي ربح المنتجات السنة"  value={formatMoney(data.profits.year)}  gradient="from-orange-700 to-red-700" icon={ArrowUpRight} testid="kpi-profit-year" />
+        </div>
+      </section>
+
+      {/* NET PROFITS AFTER OPERATING EXPENSES */}
+      <section>
+        <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+          <TrendingDown className="w-5 h-5 text-rose-600" /> صافي الأرباح بعد خصم المصروفات
+        </h2>
+        <div className="grid grid-cols-2 gap-4">
+          <KpiCard label="صافي الربح اليوم بعد المصروفات" value={formatMoney(data.net_profits?.today)} gradient="from-emerald-600 to-teal-700" icon={ArrowUpRight} testid="kpi-net-profit-today" />
+          <KpiCard label="صافي الربح الشهر بعد المصروفات" value={formatMoney(data.net_profits?.month)} gradient="from-emerald-700 to-cyan-700" icon={ArrowUpRight} testid="kpi-net-profit-month" />
         </div>
       </section>
 
