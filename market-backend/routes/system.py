@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, EmailStr
 
-from database import get_db, C
+from database import get_db, C, DB_BACKEND, USING_MOCK_MONGO
 from models import new_id
 from utils.deps import get_current_user, require_admin, require_manager
 from utils.security import hash_password, verify_password
@@ -95,6 +95,33 @@ def public_system_info(db = Depends(get_db)):
         "store_name": os.environ.get("STORE_NAME", "ميني ماركت الفنية"),
         "version": "1.0.0",
     }
+
+
+@router.get("/admin/system/database-status")
+def database_status(db=Depends(get_db), _u=Depends(require_admin)):
+    """Return a safe database connectivity summary without exposing credentials."""
+    try:
+        db.command("ping")
+        persistent = not USING_MOCK_MONGO
+        return {
+            "connected": True,
+            "persistent": persistent,
+            "backend": DB_BACKEND,
+            "status": "connected" if persistent else "temporary",
+            "message": (
+                "قاعدة البيانات مربوطة والحفظ دائم."
+                if persistent
+                else "الاتصال مؤقت — البيانات قد تضيع بعد إعادة تشغيل الخادم."
+            ),
+        }
+    except Exception as exc:
+        return {
+            "connected": False,
+            "persistent": False,
+            "backend": DB_BACKEND,
+            "status": "disconnected",
+            "message": f"تعذر الاتصال بقاعدة البيانات: {str(exc)[:160]}",
+        }
 
 
 # ─── Admin: mode ───

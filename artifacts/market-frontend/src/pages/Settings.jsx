@@ -5,7 +5,8 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import {
   Settings as SettingsIcon, Cloud, Shield, Bell, Database,
-  AlertTriangle, ShieldCheck, Power, Trash2, Loader2,
+  AlertTriangle, ShieldCheck, Power, Trash2, Loader2, Link2, RefreshCw,
+  CheckCircle2,
   PackageCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -473,6 +474,122 @@ const InventoryAlertSettingsCard = ({ canManage }) => {
   );
 };
 
+const DatabaseConnectionCard = () => {
+  const [status, setStatus] = useState(null);
+  const [checking, setChecking] = useState(false);
+
+  const checkConnection = async (showToast = true) => {
+    setChecking(true);
+    try {
+      const response = await api.get('/admin/system/database-status');
+      setStatus(response.data);
+      if (showToast) {
+        toast({
+          title: response.data.persistent ? 'تم الربط بنجاح' : 'الاتصال ما زال مؤقتاً',
+          description: response.data.message,
+          variant: response.data.persistent ? 'default' : 'destructive',
+        });
+      }
+    } catch (e) {
+      const message = e.response?.data?.detail || 'تعذر فحص اتصال قاعدة البيانات';
+      setStatus({ connected: false, persistent: false, status: 'disconnected', message });
+      if (showToast) toast({ title: 'فشل الربط', description: message, variant: 'destructive' });
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    checkConnection(false);
+  }, []);
+
+  const connected = status?.connected;
+  const persistent = status?.persistent;
+
+  return (
+    <Card
+      className={`border-2 ${
+        persistent ? 'border-emerald-300 bg-emerald-50/40' : 'border-amber-300 bg-amber-50/50'
+      }`}
+      data-testid="database-connection-card"
+    >
+      <CardContent className="p-6">
+        <div className="flex items-start gap-3">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+            persistent ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+          }`}>
+            {persistent ? <CheckCircle2 className="w-6 h-6" /> : <Database className="w-6 h-6" />}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">ربط قاعدة البيانات</h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  اربط MongoDB للحفظ الدائم للفواتير والحسابات والمنتجات.
+                </p>
+              </div>
+              <span className={`shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full ${
+                persistent
+                  ? 'bg-emerald-600 text-white'
+                  : connected
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-rose-600 text-white'
+              }`}>
+                {persistent ? 'مربوطة' : connected ? 'مؤقتة' : 'غير مربوطة'}
+              </span>
+            </div>
+
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white/80 p-3 text-sm">
+              {status ? (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">المحرك</span>
+                    <span className="font-semibold text-slate-800" dir="ltr">
+                      {status.backend || '—'}
+                    </span>
+                  </div>
+                  <p className={`mt-2 ${persistent ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {status.message}
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-500">جارٍ فحص الاتصال...</p>
+              )}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                onClick={() => checkConnection(true)}
+                disabled={checking}
+                className={persistent ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}
+                data-testid="connect-database-btn"
+              >
+                {checking ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Link2 className="w-4 h-4 ml-2" />}
+                {checking ? 'جاري الفحص...' : 'اربط الآن'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => checkConnection(true)}
+                disabled={checking}
+                data-testid="refresh-database-status-btn"
+              >
+                <RefreshCw className={`w-4 h-4 ml-2 ${checking ? 'animate-spin' : ''}`} />
+                تحديث الحالة
+              </Button>
+            </div>
+
+            {!persistent && (
+              <p className="text-xs text-slate-500 mt-3">
+                بعد إضافة بيانات MongoDB الصحيحة في إعدادات البيئة الآمنة، اضغط «اربط الآن» للتحقق من الحفظ الدائم.
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const Settings = () => {
   const { user, can } = useAuth();
   const [mode, setMode] = useState('test');
@@ -490,7 +607,7 @@ const Settings = () => {
   const sections = [
     { icon: Cloud, title: 'المزامنة', desc: 'وضع Offline-First مع طابور مزامنة سحابي', status: 'مُفعّل' },
     { icon: Shield, title: 'الأمان', desc: 'JWT + قفل الحساب بعد 5 محاولات + سجل تدقيق', status: 'مُفعّل' },
-    { icon: Database, title: 'قاعدة البيانات', desc: 'PostgreSQL مع Soft Delete + ACID Transactions', status: 'PostgreSQL 15' },
+    { icon: Database, title: 'قاعدة البيانات', desc: 'MongoDB مع نسخ احتياطي وحفظ حركات الحسابات', status: 'راجع بطاقة الربط' },
     { icon: Bell, title: 'الإشعارات', desc: 'تنبيهات المخزون المنخفض والمنتجات منتهية الصلاحية', status: 'قريباً' },
   ];
 
@@ -535,6 +652,7 @@ const Settings = () => {
         <div className="space-y-4 mb-6">
           <h2 className="text-xl font-bold text-slate-900">إدارة النظام (المالك فقط)</h2>
           <SystemModeCard mode={mode} onChanged={setMode} />
+          <DatabaseConnectionCard />
           <ActivateProductionCard mode={mode} onActivated={() => setMode('production')} />
           <ResetDemoDataCard />
         </div>
