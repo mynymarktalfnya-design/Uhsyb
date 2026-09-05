@@ -204,6 +204,13 @@ def _prepare_return(db, payload: SaleReturnCreate):
             "stock_quantity": stock_quantity,
             "unit_price": float(si.get("unit_price", 0) or 0),
             "total": line_total,
+            # Preserve the sold-line cost for profit reconciliation after a
+            # product price changes or the product is soft-deleted.
+            "cost_price": float(si.get("cost_price", 0) or 0),
+            "cost_total": (
+                float(si.get("cost_total", 0) or 0) * float(it.quantity) / sold_qty
+                if si.get("cost_total") is not None and sold_qty > 0 else None
+            ),
         })
     return sale, item_docs, round(subtotal, 2)
 

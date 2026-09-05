@@ -54,9 +54,8 @@ const ProtectedRoute = ({ children }) => {
 
 const CashierGuardOrDashboard = () => {
   const { user } = useAuth();
-  if (user?.role === 'cashier') return <Navigate to="/dashboard/pos" replace />;
   if (user?.role === 'admin')   return <ManagerDashboard />;  // Advanced financial dashboard for admin
-  return <Dashboard />;  // Manager (مشرف): basic dashboard (no profits)
+  return <Dashboard />;  // Manager and cashier daily operational dashboard
 };
 
 const DashboardLayout = ({ children }) => {

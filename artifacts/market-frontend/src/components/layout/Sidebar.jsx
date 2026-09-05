@@ -19,6 +19,7 @@ const menuItems = [
   { path: '/dashboard',              label: 'لوحة التحكم',   icon: LayoutDashboard, roles: ['admin', 'manager'] },
   { path: '/dashboard/pos',          label: 'نقطة البيع',     icon: ShoppingCart,    roles: ['admin', 'manager', 'cashier'] },
   { path: '/dashboard/sales',        label: 'المبيعات',       icon: TrendingUp,      roles: ['admin', 'manager', 'cashier'] },
+  { path: '/dashboard/sales/daily',  label: 'تقرير الكاشير اليومي', icon: FileText,    roles: ['admin', 'manager', 'cashier'] },
   { path: '/dashboard/customers',    label: 'العملاء',        icon: Users,           roles: ['admin', 'manager', 'cashier'] },
   { path: '/dashboard/products',      label: 'المنتجات',         icon: Package,         roles: ['admin'] },
   { path: '/dashboard/stock-alerts', label: 'تنبيهات المخزون', icon: AlertTriangle,   roles: ['manager', 'cashier'] },

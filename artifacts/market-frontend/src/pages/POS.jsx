@@ -125,7 +125,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
     }).catch(() => {}).finally(() => setLoading(false));
 
     const refreshOnFocus = () => refreshProducts();
-    const interval = window.setInterval(refreshProducts, 15000);
+    const interval = window.setInterval(refreshProducts, 5000);
     window.addEventListener('focus', refreshOnFocus);
     return () => {
       window.clearInterval(interval);
@@ -318,9 +318,79 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
     <div
       dir="rtl"
       data-testid="pos-page"
-      className="flex flex-col md:flex-row overflow-hidden bg-[#0d0d1a] text-white"
+      className="flex flex-col md:flex-row min-h-0 overflow-hidden bg-[#0d0d1a] text-white"
       style={{ height: 'calc(100vh - 60px)' }}
     >
+      {!sidebarOpen && (
+        <aside
+          className="order-2 md:order-none w-full md:w-[360px] lg:w-[390px] flex-shrink-0 border-t md:border-t-0 md:border-l border-amber-500/30 bg-[#101426] p-3"
+          data-testid="featured-products-panel"
+          aria-label="المنتجات المميزة"
+        >
+          <div className="flex h-full min-h-0 flex-col rounded-2xl border border-amber-500/50 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-2xl shadow-amber-950/20">
+            <div className="mb-3 flex flex-shrink-0 items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400">
+                  <Star className="h-5 w-5 fill-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-white">المنتجات المميزة</h2>
+                  <p className="text-[10px] text-slate-500">إضافة سريعة إلى السلة</p>
+                </div>
+              </div>
+              <Badge className="border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                {featuredProducts.length}
+              </Badge>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+              {featuredProducts.length === 0 ? (
+                <div className="flex h-full min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-700 px-5 text-center">
+                  <Star className="mb-2 h-9 w-9 text-slate-700" />
+                  <p className="text-sm font-bold text-slate-500">لا توجد منتجات مميزة</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                    فعّل «منتج مميز» من إدارة المنتجات ليظهر هنا تلقائياً
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5">
+                  {featuredProducts.map((p) => {
+                    const outOfStock = Number(p.current_stock || 0) <= 0;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        disabled={outOfStock}
+                        onClick={() => addToCart(p)}
+                        data-testid={`featured-product-${p.sku}`}
+                        className={`group relative flex min-h-[190px] flex-col overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/80 p-2 text-right transition-all ${
+                          outOfStock
+                            ? 'cursor-not-allowed opacity-45'
+                            : 'hover:-translate-y-0.5 hover:border-amber-400/70 hover:bg-slate-800 active:scale-[0.98]'
+                        }`}
+                      >
+                        <span className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500 text-slate-950 shadow-lg">
+                          <Star className="h-3.5 w-3.5 fill-current" />
+                        </span>
+                        <div className="mb-2 flex min-h-[58px] items-center rounded-lg bg-slate-800/70 px-2">
+                          <p className="line-clamp-3 text-xs font-bold leading-4 text-white">{p.name}</p>
+                        </div>
+                        <p className="mt-1 text-sm font-extrabold text-amber-400">{fmt(p.sale_price)} ر.ي</p>
+                        <p className={`mt-0.5 text-[10px] font-semibold ${outOfStock ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {outOfStock ? 'نفد المخزون' : `${fmt(p.current_stock)} متوفر`}
+                        </p>
+                        <span className="mt-auto flex items-center justify-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 py-1.5 text-xs font-extrabold text-amber-300">
+                          <Plus className="h-3.5 w-3.5" /> إضافة
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </aside>
+      )}
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden">
 
       {/* ══════ INFO CHIPS ════════════════════════════════════════════ */}
@@ -357,7 +427,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
 
       {/* ══════ SEARCH ═══════════════════════════════════════════════ */}
       <div className="flex-shrink-0 px-3 py-2 relative">
-        <div className="flex gap-2">
+        <div className="flex gap-2" dir="ltr">
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -372,7 +442,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="relative flex-1">
+          <div className="relative flex-1" dir="rtl">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
             <input
               ref={searchRef}
@@ -380,6 +450,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="ابحث بالاسم أو الباركود أو SKU"
               className="w-full h-11 pr-10 pl-3 bg-slate-800/80 border border-slate-700/60 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500/60"
+              dir="rtl"
               data-testid="pos-barcode-input"
               autoComplete="off"
             />
@@ -811,6 +882,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
           </button>
         </div>
       </div>
+      </section>
 
       {/* ══════ DIALOGS ═══════════════════════════════════════════════ */}
 

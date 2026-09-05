@@ -1,217 +1,157 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent } from '../components/ui/card';
-import { Calendar, TrendingUp, Receipt, DollarSign, RefreshCw, TrendingDown } from 'lucide-react';
+import {
+  Banknote, Building2, Calendar, CreditCard, Receipt, RefreshCw,
+  Smartphone, TrendingUp,
+} from 'lucide-react';
 import api from '../lib/api';
 
-const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(n || 0);
+const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(Number(n) || 0);
 const money = (n) => `${fmt(n)} ر.ي`;
-
 const PAYMENT_LABELS = {
-  cash: 'نقداً', jaib: 'جيب', fluusak: 'فلوسك', hasib: 'حاسب',
-  banki: 'بنكي', bank_transfer: 'تحويل', credit: 'آجل',
+  cash: 'نقداً', credit: 'آجل', jaib: 'جيب', fluusak: 'فلوسك',
+  hasib: 'حاسب', banki: 'بنكي', bank_transfer: 'تحويل بنكي',
+  transfer: 'تحويل بنكي', card: 'بطاقة',
 };
-const localDate = () => {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
+
+const businessToday = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Aden',
+}).format(new Date());
+
+const SummaryCard = ({ label, value, count, icon: Icon, color, testId }) => (
+  <Card className="overflow-hidden border-0 shadow-md">
+    <div className={`bg-gradient-to-br ${color} p-4 text-white`}>
+      <Icon className="mb-2 h-6 w-6 opacity-90" />
+      <p className="text-xs text-white/80">{label}</p>
+      <p className="text-xl font-extrabold" data-testid={testId}>{money(value)}</p>
+      {count !== undefined && <p className="mt-1 text-[10px] text-white/65">{fmt(count)} فاتورة</p>}
+    </div>
+  </Card>
+);
 
 const SalesDaily = () => {
-  const today = localDate();
-  const [sales, setSales] = useState([]);
-  const [returns, setReturns] = useState([]);
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(businessToday);
+  const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    const p1 = api.get('/sales', {
-      params: { date_from: date + 'T00:00:00', date_to: date + 'T23:59:59', limit: 500 },
-    }).then((r) => setSales(r.data)).catch(() => setSales([]));
-
-    const p2 = api.get('/sales-returns', {
-      params: { status: 'approved', date_from: `${date}T00:00:00+00:00`, date_to: `${date}T23:59:59.999+00:00`, limit: 500 },
-    }).then((r) => setReturns(Array.isArray(r.data) ? r.data : r.data?.items || []))
-      .catch(() => setReturns([]));
-
-    Promise.all([p1, p2]).finally(() => setLoading(false));
+    let alive = true;
+    const load = () => {
+      setLoading(true);
+      api.get('/dashboard/cashier-report', { params: { date } })
+        .then((r) => alive && setReport(r.data))
+        .catch(() => alive && setReport(null))
+        .finally(() => alive && setLoading(false));
+    };
+    load();
+    const refreshId = setInterval(load, 30000);
+    return () => { alive = false; clearInterval(refreshId); };
   }, [date]);
 
-  const grossTotal = sales.reduce((s, x) => s + Number(x.total || 0), 0);
-  const returnsTotal = returns.reduce((s, x) => s + Number(x.total || 0), 0);
-  const netTotal = grossTotal - returnsTotal;
-  const invoiceCount = sales.length;
-  const returnsCount = returns.length;
+  const sales = report?.sales || {};
+  const returns = report?.returns || {};
+  const invoices = report?.invoices || [];
+  const returnRows = report?.return_rows || [];
+  const cards = useMemo(() => [
+    { label: 'إجمالي المبيعات اليومية', value: sales.total, count: sales.invoice_count, icon: Receipt, color: 'from-emerald-500 to-teal-600', testId: 'cashier-total-sales' },
+    { label: 'المبيعات النقدية', value: sales.cash, count: sales.cash_invoices, icon: Banknote, color: 'from-blue-500 to-indigo-600', testId: 'cashier-cash-sales' },
+    { label: 'مبيعات الأجل', value: sales.credit, count: sales.credit_invoices, icon: TrendingUp, color: 'from-amber-500 to-orange-600', testId: 'cashier-credit-sales' },
+    { label: 'مبيعات المحافظ الإلكترونية', value: sales.wallet, count: sales.wallet_invoices, icon: Smartphone, color: 'from-violet-500 to-purple-600', testId: 'cashier-wallet-sales' },
+    { label: 'مبيعات التحويل البنكي', value: sales.bank_transfer, count: sales.bank_transfer_invoices, icon: Building2, color: 'from-indigo-500 to-indigo-700', testId: 'cashier-bank-sales' },
+    { label: 'مبيعات البطاقات', value: sales.card, count: sales.card_invoices, icon: CreditCard, color: 'from-slate-600 to-slate-800', testId: 'cashier-card-sales' },
+    { label: 'إجمالي المرتجعات اليومية', value: returns.total, count: returns.count, icon: RefreshCw, color: 'from-rose-500 to-pink-600', testId: 'cashier-returns' },
+    { label: 'صافي المبيعات اليومية', value: report?.net_sales, icon: TrendingUp, color: 'from-green-600 to-emerald-700', testId: 'cashier-net-sales' },
+  ], [report, sales, returns]);
 
   return (
-    <div className="p-6 lg:p-8" dir="rtl" data-testid="sales-daily-page">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+    <div className="space-y-6 p-6 lg:p-8" dir="rtl" data-testid="cashier-daily-report">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-1">المبيعات اليومية</h1>
-          <p className="text-slate-500">تفاصيل مبيعات وصافي اليوم</p>
+          <h1 className="text-3xl font-bold text-slate-900">تقرير الكاشير اليومي</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {report?.cashier?.name || '—'} — الأرقام من سجل الفواتير والمرتجعات المعتمدة
+          </p>
         </div>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="border rounded-md px-3 py-2"
-          data-testid="sales-daily-date-input"
-        />
+        <label className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm">
+          <Calendar className="h-4 w-4 text-slate-500" />
+          <span className="text-slate-500">تاريخ التقرير</span>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="font-semibold outline-none" data-testid="cashier-report-date" />
+        </label>
       </div>
 
-      {/* بطاقات الملخص المالي */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="overflow-hidden border-0 shadow-lg">
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-5 text-white">
-            <DollarSign className="w-7 h-7 mb-3 opacity-90" />
-            <p className="text-white/80 text-sm">إجمالي المبيعات</p>
-            <p className="text-2xl font-bold" data-testid="kpi-gross-sales">{loading ? '...' : money(grossTotal)}</p>
-            <p className="text-white/60 text-xs mt-1">{invoiceCount} فاتورة</p>
+      {loading && !report ? (
+        <div className="rounded-xl border border-dashed p-12 text-center text-slate-400">جاري تحميل التقرير...</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {cards.map((card) => <SummaryCard key={card.label} {...card} />)}
           </div>
-        </Card>
 
-        <Card className="overflow-hidden border-0 shadow-lg">
-          <div className="bg-gradient-to-br from-rose-500 to-pink-600 p-5 text-white">
-            <RefreshCw className="w-7 h-7 mb-3 opacity-90" />
-            <p className="text-white/80 text-sm">إجمالي المرتجعات</p>
-            <p className="text-2xl font-bold" data-testid="kpi-returns">{loading ? '...' : money(returnsTotal)}</p>
-            <p className="text-white/60 text-xs mt-1">{returnsCount} مرتجع</p>
-          </div>
-        </Card>
-
-        <Card className="overflow-hidden border-0 shadow-lg">
-          <div className={`bg-gradient-to-br p-5 text-white ${netTotal >= 0 ? 'from-green-600 to-emerald-700' : 'from-red-600 to-rose-700'}`}>
-            <TrendingUp className="w-7 h-7 mb-3 opacity-90" />
-            <p className="text-white/80 text-sm">صافي المبيعات</p>
-            <p className="text-2xl font-bold" data-testid="kpi-net-sales">{loading ? '...' : money(netTotal)}</p>
-            <p className="text-white/60 text-xs mt-1">= المبيعات - المرتجعات</p>
-          </div>
-        </Card>
-
-        <Card className="overflow-hidden border-0 shadow-lg">
-          <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-5 text-white">
-            <Receipt className="w-7 h-7 mb-3 opacity-90" />
-            <p className="text-white/80 text-sm">عدد الفواتير</p>
-            <p className="text-2xl font-bold">{loading ? '...' : invoiceCount}</p>
-            <p className="text-white/60 text-xs mt-1">{returnsCount > 0 ? `${returnsCount} مرتجع` : 'لا مرتجعات'}</p>
-          </div>
-        </Card>
-      </div>
-
-      {/* جدول المبيعات */}
-      <Card className="overflow-hidden mb-6">
-        <div className="p-4 border-b bg-slate-50 flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-emerald-600" />
-          <h2 className="font-bold text-slate-900">فواتير البيع</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-700">
-              <tr>
-                <th className="px-4 py-3 text-right">الوقت</th>
-                <th className="px-4 py-3 text-right">رقم الفاتورة</th>
-                <th className="px-4 py-3 text-right">الإجمالي</th>
-                <th className="px-4 py-3 text-right">طريقة الدفع</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.length === 0 && (
-                <tr><td colSpan="4" className="text-center py-12 text-slate-400">لا مبيعات في هذا اليوم</td></tr>
-              )}
-              {sales.map((s) => (
-                <tr key={s.id} className="border-t hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-600">{new Date(s.created_at).toLocaleTimeString('ar-EG')}</td>
-                  <td className="px-4 py-3 font-medium text-amber-700">{s.invoice_no}</td>
-                  <td className="px-4 py-3 font-bold text-emerald-600">{money(s.total)}</td>
-                  <td className="px-4 py-3 text-slate-600">{PAYMENT_LABELS[s.payment_method] || s.payment_method}</td>
-                </tr>
-              ))}
-            </tbody>
-            {sales.length > 0 && (
-              <tfoot className="bg-emerald-50 font-bold text-emerald-800 border-t-2 border-emerald-200">
-                <tr>
-                  <td className="px-4 py-3" colSpan="2">إجمالي المبيعات</td>
-                  <td className="px-4 py-3 text-emerald-700">{money(grossTotal)}</td>
-                  <td className="px-4 py-3"></td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </Card>
-
-      {/* جدول المرتجعات */}
-      {(returnsCount > 0 || !loading) && (
-        <Card className="overflow-hidden mb-6">
-          <div className="p-4 border-b bg-rose-50 flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-rose-600" />
-            <h2 className="font-bold text-rose-900">مرتجعات اليوم</h2>
-            {returnsCount > 0 && (
-              <span className="mr-auto bg-rose-200 text-rose-800 text-xs font-bold px-2 py-0.5 rounded-full">
-                {returnsCount} مرتجع
-              </span>
-            )}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-700">
-                <tr>
-                  <th className="px-4 py-3 text-right">الوقت</th>
-                  <th className="px-4 py-3 text-right">رقم المرتجع</th>
-                  <th className="px-4 py-3 text-right">قيمة المرتجع</th>
-                  <th className="px-4 py-3 text-right">نوع الإرجاع</th>
-                </tr>
-              </thead>
-              <tbody>
-                {returnsCount === 0 && (
-                  <tr><td colSpan="4" className="text-center py-8 text-slate-400">لا مرتجعات في هذا اليوم</td></tr>
-                )}
-                {returns.map((r) => (
-                  <tr key={r.id} className="border-t hover:bg-rose-50">
-                    <td className="px-4 py-3 text-slate-600">{new Date(r.created_at).toLocaleTimeString('ar-EG')}</td>
-                    <td className="px-4 py-3 font-medium text-rose-700">{r.return_no || r.id?.slice(-6)}</td>
-                    <td className="px-4 py-3 font-bold text-rose-600">- {money(r.total)}</td>
-                    <td className="px-4 py-3 text-slate-600">{PAYMENT_LABELS[r.return_type] || r.return_type || '—'}</td>
-                  </tr>
+          <Card className="border-2 border-slate-200">
+            <CardContent className="p-5">
+              <h2 className="mb-4 text-lg font-bold text-slate-900">ملخص عدد الفواتير</h2>
+              <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-5">
+                {[
+                  ['النقد', sales.cash_invoices],
+                  ['الآجل', sales.credit_invoices],
+                  ['المحافظ', sales.wallet_invoices],
+                  ['التحويل', sales.bank_transfer_invoices],
+                  ['البطاقات', sales.card_invoices],
+                ].map(([label, count]) => (
+                  <div key={label} className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs text-slate-500">{label}</p>
+                    <p className="mt-1 text-2xl font-extrabold text-slate-800">{fmt(count)}</p>
+                  </div>
                 ))}
-              </tbody>
-              {returnsCount > 0 && (
-                <tfoot className="bg-rose-50 font-bold text-rose-800 border-t-2 border-rose-200">
-                  <tr>
-                    <td className="px-4 py-3" colSpan="2">إجمالي المرتجعات</td>
-                    <td className="px-4 py-3 text-rose-700">- {money(returnsTotal)}</td>
-                    <td className="px-4 py-3"></td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </Card>
-      )}
+              </div>
+              <div className="mt-5 space-y-2 border-t pt-4 text-sm">
+                <div className="flex justify-between"><span>إجمالي المبيعات قبل المرتجعات</span><strong className="text-emerald-700">{money(sales.total)}</strong></div>
+                <div className="flex justify-between"><span>إجمالي المرتجعات المعتمدة</span><strong className="text-rose-600">− {money(returns.total)}</strong></div>
+                <div className="flex justify-between border-t pt-2 text-base"><strong>صافي المبيعات بعد المرتجعات</strong><strong className="text-green-700">{money(report?.net_sales)}</strong></div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* ملخص الصافي */}
-      {(grossTotal > 0 || returnsTotal > 0) && (
-        <Card className="border-2 border-green-200 bg-gradient-to-l from-green-50 to-emerald-50 shadow-md">
-          <CardContent className="p-5">
-            <h3 className="font-bold text-green-900 mb-4 text-lg">الملخص المحاسبي لليوم</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center pb-2 border-b border-green-200">
-                <span className="text-slate-600">إجمالي المبيعات</span>
-                <span className="font-bold text-emerald-700">{money(grossTotal)}</span>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <Card className="overflow-hidden">
+              <div className="border-b bg-slate-50 p-4"><h2 className="font-bold">فواتير البيع ({fmt(sales.invoice_count)})</h2></div>
+              <div className="max-h-96 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-right text-xs text-slate-500"><tr><th className="p-3">الفاتورة</th><th className="p-3">طريقة الدفع</th><th className="p-3">الإجمالي</th></tr></thead>
+                  <tbody>
+                    {invoices.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400">لا توجد فواتير في هذا اليوم</td></tr>}
+                    {invoices.map((invoice) => (
+                      <tr key={invoice.id} className="border-t">
+                        <td className="p-3 font-mono text-amber-700">{invoice.invoice_no}</td>
+                        <td className="p-3 text-slate-600">{PAYMENT_LABELS[invoice.payment_method] || invoice.payment_method}</td>
+                        <td className="p-3 font-bold text-emerald-700">{money(invoice.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="flex justify-between items-center pb-2 border-b border-green-200">
-                <span className="text-slate-600">إجمالي المرتجعات</span>
-                <span className="font-bold text-rose-600">- {money(returnsTotal)}</span>
+            </Card>
+
+            <Card className="overflow-hidden">
+              <div className="border-b bg-rose-50 p-4"><h2 className="font-bold text-rose-900">المرتجعات المعتمدة ({fmt(returns.count)})</h2></div>
+              <div className="max-h-96 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-rose-50/50 text-right text-xs text-slate-500"><tr><th className="p-3">المرتجع</th><th className="p-3">نوع الاسترداد</th><th className="p-3">القيمة</th></tr></thead>
+                  <tbody>
+                    {returnRows.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400">لا توجد مرتجعات معتمدة</td></tr>}
+                    {returnRows.map((item) => (
+                      <tr key={item.id} className="border-t">
+                        <td className="p-3 font-mono text-rose-700">{item.return_no || item.id}</td>
+                        <td className="p-3 text-slate-600">{PAYMENT_LABELS[item.return_type] || item.return_type || '—'}</td>
+                        <td className="p-3 font-bold text-rose-600">− {money(item.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="flex justify-between items-center pt-1">
-                <span className="font-bold text-slate-900 text-base">صافي المبيعات</span>
-                <span className={`text-2xl font-extrabold ${netTotal >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                  {money(netTotal)}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </Card>
+          </div>
+        </>
       )}
     </div>
   );

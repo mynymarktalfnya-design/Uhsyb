@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ShoppingCart, AlertTriangle, Users, DollarSign,
   TrendingUp, Receipt, Truck, Wallet, CalendarX,
-  Banknote, Clock, RefreshCw, Smartphone, Building2,
+  Banknote, Clock, RefreshCw, Smartphone, Building2, CreditCard,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import api from '../lib/api';
@@ -22,15 +22,19 @@ const Dashboard = () => {
   const isSupervisor = user?.role === 'manager';
 
   useEffect(() => {
-    api.get('/dashboard/summary')
-      .then((r) => setSummary(r.data))
-      .finally(() => setLoading(false));
+    let alive = true;
+    const load = () => api.get('/dashboard/summary')
+      .then((r) => alive && setSummary(r.data))
+      .finally(() => alive && setLoading(false));
+    load();
+    const refreshId = setInterval(load, 30000);
     if (!isCashier) {
       api.get('/products/expiry-report')
-        .then((r) => setExpiry(r.data))
+        .then((r) => alive && setExpiry(r.data))
         .catch(() => {});
     }
-  }, [user]);
+    return () => { alive = false; clearInterval(refreshId); };
+  }, [user, isCashier]);
 
   // ─── بطاقات الإحصاء الرئيسية ────────────────────────────────────────
   // صف 1: إجمالي المبيعات | المرتجعات | صافي المبيعات
@@ -96,6 +100,14 @@ const Dashboard = () => {
       sub: 'بنكي • تحويل',
     },
     {
+      label: 'بطاقات بنكية',
+      value: formatMoney(summary?.sales_today_card),
+      icon: CreditCard,
+      gradient: 'from-slate-600 to-slate-700',
+      testId: 'stat-sales-today-card',
+      sub: 'بطاقة بنكية',
+    },
+    {
       label: 'صافي مبيعات الشهر',
       value: formatMoney(summary?.net_sales_month),
       icon: TrendingUp,
@@ -136,9 +148,14 @@ const Dashboard = () => {
 
   return (
     <div className="p-6 lg:p-8" dir="rtl" data-testid="dashboard-page">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-900 mb-1">لوحة التحكم</h1>
-        <p className="text-slate-500">نظرة شاملة على أداء المبيعات اليوم</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-1">لوحة التحكم</h1>
+          <p className="text-slate-500">نظرة شاملة على أداء المبيعات اليوم</p>
+        </div>
+        <Link to="/dashboard/sales/daily" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+          تقرير الكاشير اليومي
+        </Link>
       </div>
 
       {/* ─── المعادلة المحاسبية — تظهر دائماً ─── */}

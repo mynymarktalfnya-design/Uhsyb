@@ -134,6 +134,67 @@ export default function ManagerDashboard() {
         </div>
       </section>
 
+      {/* Profit reconciliation: revenue − COGS, with approved returns removed */}
+      {data.profit_details && (
+        <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50/70 to-white">
+          <CardContent className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+              <div>
+                <h2 className="font-bold text-slate-900 flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-amber-600" /> تقرير الربح المحاسبي
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  الربح الحقيقي = صافي المبيعات − صافي تكلفة البضاعة المباعة
+                </p>
+              </div>
+              <Badge className="bg-amber-100 text-amber-800 border-amber-300">التكلفة من سجل الفاتورة</Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead className="bg-white/80 text-slate-500">
+                  <tr>
+                    <th className="p-3 text-right">الفترة</th>
+                    <th className="p-3 text-right">إجمالي المبيعات</th>
+                    <th className="p-3 text-right">تكلفة البضاعة</th>
+                    <th className="p-3 text-right">المرتجعات</th>
+                    <th className="p-3 text-right">صافي المبيعات</th>
+                    <th className="p-3 text-right">صافي التكلفة</th>
+                    <th className="p-3 text-right">صافي الربح</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ['اليوم', 'today'],
+                    ['الأسبوع', 'week'],
+                    ['الشهر', 'month'],
+                    ['السنة', 'year'],
+                  ].map(([label, key]) => {
+                    const p = data.profit_details[key] || {};
+                    return (
+                      <tr key={key} className="border-t border-amber-100">
+                        <td className="p-3 font-bold text-slate-800">{label}</td>
+                        <td className="p-3 text-emerald-700">{formatMoney(p.gross_sales)}</td>
+                        <td className="p-3 text-slate-700">{formatMoney(p.cogs)}</td>
+                        <td className="p-3 text-rose-600">− {formatMoney(p.returns)}</td>
+                        <td className="p-3 text-emerald-700">{formatMoney(p.net_sales)}</td>
+                        <td className="p-3 text-slate-700">{formatMoney(p.net_cogs)}</td>
+                        <td className="p-3 font-extrabold text-amber-700">{formatMoney(p.profit)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {data.profit_details.today?.cost_data_complete === false && (
+              <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-800">
+                تنبيه: توجد {data.profit_details.today.missing_cost_lines} بنود بيع بدون تكلفة شراء صالحة؛
+                يلزم إدخال Cost Price للمنتجات حتى تكون أرباحها دقيقة بالكامل.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* SALES BREAKDOWN — cash vs credit */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-xl border border-emerald-200">
@@ -346,6 +407,7 @@ export default function ManagerDashboard() {
           { key: 'hasib',         label: 'حاسب',        color: '#3b82f6' },
           { key: 'banki',         label: 'بنكي',        color: '#06b6d4' },
           { key: 'bank_transfer', label: 'تحويل بنكي',  color: '#6366f1' },
+           { key: 'card',          label: 'بطاقة',       color: '#475569' },
           { key: 'credit',        label: 'آجل',         color: '#f43f5e' },
         ];
         const grandTotal    = data.payment_methods.reduce((s, p) => s + Number(p.net_total ?? p.total ?? 0), 0);
