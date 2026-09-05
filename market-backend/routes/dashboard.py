@@ -4,7 +4,10 @@ from fastapi import APIRouter, Depends, Query
 from database import get_db, C
 from utils.deps import get_current_user, require_manager
 from utils.alert_settings import get_alert_settings
-from utils.time import business_now, business_today, day_range_utc, month_range_utc, year_range_utc
+from utils.time import (
+    BUSINESS_TIMEZONE, business_now, business_today, day_range_utc,
+    month_range_utc, year_range_utc,
+)
 from utils.accounting import customer_account_totals
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -659,44 +662,60 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
         "due_count": len(top_suppliers),
         "top_suppliers": top_suppliers,
     }
-    # Top selling / top profit / least selling for ManagerDashboard product lists
-    top_pipeline = [
-        {"$lookup": {"from": "sales", "localField": "sale_id",
-                      "foreignField": "_id", "as": "sale"}},
-        {"$unwind": "$sale"},
-        {"$match": {"sale.created_at": {"$gte": month_start, "$lt": month_end},
-                    "sale.status": "completed", "sale.deleted_at": None}},
-        {"$group": {"_id": "$product_id",
-                     "quantity": {"$sum": "$quantity"},
-                     "revenue": {"$sum": "$total"}}},
-    ]
-    sold = list(db[C.sale_items].aggregate(top_pipeline))
-    # Pre-fetch all products needed for sold-item resolution (avoids N+1)
-    sold_ids = [r["_id"] for r in sold]
-    prod_meta = {p["_id"]: p for p in db[C.products].find(
-        {"_id": {"$in": sold_ids}}, {"name": 1, "cost_price": 1, "sale_price": 1})}
+    # Top selling / top profit / least selling for ManagerDashboard product lists.
+    # Revenue and COGS come from immutable sale-line snapshots whenever present;
+    # the product's current cost is only a legacy fallback.
+    sold = {}
+    for item in db[C.sale_items].find({}):
+        sale = db[C.sales].find_one({
+            "_id": item.get("sale_id"),
+            "created_at": {"$gte": month_start, "$lt": month_end},
+            "status": "completed",
+            "deleted_at": None,
+        }, {"subtotal": 1, "total": 1})
+        if not sale:
+            continue
+        product_id = item.get("product_id")
+        if not product_id:
+            continue
+        product = db[C.products].find_one(
+            {"_id": product_id}, {"name": 1, "cost_price": 1}
+        ) or {}
+        qty = float(item.get("quantity", 0) or 0)
+        ppc = int(item.get("pieces_per_carton", 1) or 1) if item.get("sale_unit") == "carton" else 1
+        gross = float(item.get("total", 0) or 0)
+        subtotal = float(sale.get("subtotal", 0) or 0)
+        revenue = (
+            float(item.get("net_total") or 0)
+            if item.get("net_total") is not None
+            else (gross * float(sale.get("total", 0) or 0) / subtotal if subtotal > 0 else gross)
+        )
+        cost = (
+            float(item.get("cost_total") or 0)
+            if item.get("cost_total") is not None
+            else float(product.get("cost_price", 0) or 0) * qty * ppc
+        )
+        row = sold.setdefault(product_id, {
+            "_id": product_id, "name": product.get("name", "?"),
+            "quantity": 0.0, "revenue": 0.0, "cogs": 0.0,
+        })
+        row["quantity"] += qty
+        row["revenue"] += revenue
+        row["cogs"] += cost
+
+    sold = list(sold.values())
 
     def _resolve(rows, key, desc=True, limit=10):
         rows = sorted(rows, key=lambda r: r.get(key, 0) or 0, reverse=desc)[:limit]
-        out = []
-        for r in rows:
-            p = prod_meta.get(r["_id"], {})
-            profit = r.get("revenue", 0) - float(p.get("cost_price", 0) or 0) * float(r.get("quantity", 0))
-            out.append({
-                "id": r["_id"], "name": p.get("name", "?"),
-                "quantity": r.get("quantity", 0),
-                "revenue": r.get("revenue", 0), "profit": profit,
-            })
-        return out
+        return [{
+            "id": r["_id"], "name": r["name"],
+            "quantity": round(r["quantity"], 2),
+            "revenue": round(r["revenue"], 2),
+            "profit": round(r["revenue"] - r["cogs"], 2),
+        } for r in rows]
+
     top_selling = _resolve(sold, "quantity", desc=True)
-    # For top_profit we need to compute profit per row first, then sort by it.
-    sold_with_profit = []
-    for s in sold:
-        p = prod_meta.get(s["_id"], {})
-        profit = s.get("revenue", 0) - float(p.get("cost_price", 0) or 0) * float(s.get("quantity", 0))
-        sold_with_profit.append({**s, "profit": profit})
-    top_profit = _resolve(sold_with_profit, "profit", desc=True)
-    # Least selling = sold items with lowest qty (Phase B candidate: include never-sold)
+    top_profit = _resolve(sold, "profit", desc=True)
     least_selling = _resolve(sold, "quantity", desc=False)
     products = {
         "count": db[C.products].count_documents({"deleted_at": None, "is_active": True}),
@@ -755,39 +774,46 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
         "categories": exp_categories,
     }
 
-    # Sales chart — last 30 days (renamed to chart_30d to match frontend)
-    chart_pipeline = [
-        {"$match": {"created_at": {"$gte": now - timedelta(days=30), "$lte": now},
-                    "status": "completed", "deleted_at": None}},
-        {"$group": {
-            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
-            "sales": {"$sum": "$total"},
-        }},
-        {"$sort": {"_id": 1}},
+    # Sales chart — last 30 business days. Group in Python so the result is
+    # consistent on MongoDB and mongomock and always uses Asia/Aden days.
+    all_days = [
+        (today - timedelta(days=29 - offset)).isoformat()
+        for offset in range(30)
     ]
-    # Expenses chart — last 30 days
-    exp_chart_pipeline = [
-        {"$match": {"created_at": {"$gte": now - timedelta(days=30), "$lte": now},
-                    "deleted_at": None}},
-        {"$group": {
-            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
-            "expenses": {"$sum": "$amount"},
-        }},
-    ]
-    # Returns chart — last 30 days (approved only)
-    ret_chart_pipeline = [
-        {"$match": {"created_at": {"$gte": now - timedelta(days=30), "$lte": now},
-                    "status": "approved", "deleted_at": None}},
-        {"$group": {
-            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
-            "returns": {"$sum": "$total"},
-        }},
-    ]
-    sales_by_day   = {r["_id"]: float(r["sales"])   for r in db[C.sales].aggregate(chart_pipeline)}
-    exp_by_day     = {r["_id"]: float(r["expenses"]) for r in db[C.expenses].aggregate(exp_chart_pipeline)}
-    ret_by_day     = {r["_id"]: float(r["returns"])  for r in db[C.sale_returns].aggregate(ret_chart_pipeline)}
-    # Build a complete 30-day series
-    all_days = sorted(set(list(sales_by_day.keys()) + list(exp_by_day.keys()) + list(ret_by_day.keys())))
+    sales_by_day = {day: 0.0 for day in all_days}
+    exp_by_day = {day: 0.0 for day in all_days}
+    ret_by_day = {day: 0.0 for day in all_days}
+    chart_start, chart_end = day_range_utc(today - timedelta(days=29))[0], day_range_utc(today)[1]
+
+    def business_day_key(value):
+        if not value:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=BUSINESS_TIMEZONE)
+        return value.astimezone(BUSINESS_TIMEZONE).date().isoformat()
+
+    for sale in db[C.sales].find({
+        "created_at": {"$gte": chart_start, "$lt": chart_end},
+        "status": "completed", "deleted_at": None,
+    }, {"created_at": 1, "total": 1}):
+        day = business_day_key(sale.get("created_at"))
+        if day in sales_by_day:
+            sales_by_day[day] += float(sale.get("total", 0) or 0)
+    for expense in db[C.expenses].find({
+        "created_at": {"$gte": chart_start, "$lt": chart_end},
+        "deleted_at": None,
+    }, {"created_at": 1, "amount": 1}):
+        day = business_day_key(expense.get("created_at"))
+        if day in exp_by_day:
+            exp_by_day[day] += float(expense.get("amount", 0) or 0)
+    for ret in db[C.sale_returns].find({
+        "created_at": {"$gte": chart_start, "$lt": chart_end},
+        "status": "approved", "deleted_at": None,
+    }, {"created_at": 1, "total": 1}):
+        day = business_day_key(ret.get("created_at"))
+        if day in ret_by_day:
+            ret_by_day[day] += float(ret.get("total", 0) or 0)
+
     chart_30d = []
     for d in all_days:
         s = float(sales_by_day.get(d, 0))

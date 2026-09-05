@@ -56,6 +56,13 @@ def customer_statement(
     dt_from = parse_boundary(date_from)
     dt_to = parse_boundary(date_to, end=True)
 
+    def normalize_date(value):
+        if not value:
+            return value
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=BUSINESS_TIMEZONE)
+        return value.astimezone(timezone.utc)
+
     entries = []
 
     # Credit sales
@@ -83,7 +90,7 @@ def customer_statement(
             })
         entries.append({
             "type": "sale",
-            "date": s.get("created_at"),
+            "date": normalize_date(s.get("created_at")),
             "op_no": s.get("invoice_no") or s.get("sale_number") or s["_id"],
             "description": "فاتورة آجل",
             "debit": float(s.get("total", 0)),
@@ -99,7 +106,7 @@ def customer_statement(
     for p in db[C.customer_payments].find(pay_filt).sort("created_at", 1):
         entries.append({
             "type": "payment",
-            "date": p.get("created_at"),
+            "date": normalize_date(p.get("created_at")),
             "op_no": p.get("receipt_no") or p["_id"],
             "description": "سند قبض",
             "debit": 0.0,
@@ -111,7 +118,6 @@ def customer_statement(
 
     # Customer sale returns (مرتجعات معتمدة فقط — approved only)
     ret_filt = {
-        "customer_id": customer_id,
         "sale_id": {"$in": credit_sale_ids},
         "status": "approved",
         "deleted_at": None,
@@ -119,7 +125,7 @@ def customer_statement(
     for r in db[C.sale_returns].find(ret_filt).sort("created_at", 1):
         entries.append({
             "type": "return",
-            "date": r.get("created_at"),
+            "date": normalize_date(r.get("created_at")),
             "op_no": r.get("return_no") or r["_id"],
             "description": "مرتجع معتمد",
             "debit": 0.0,

@@ -33,7 +33,6 @@ def customer_account_totals(db: Any, customer_id: str) -> dict:
         float(ret.get("total", 0) or 0)
         for ret in db[C.sale_returns].find({
             "sale_id": {"$in": sale_ids},
-            "customer_id": customer_id,
             "status": "approved",
             "deleted_at": None,
         }, {"total": 1})
