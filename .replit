@@ -31,7 +31,7 @@ SECRET_KEY = "minimarket-super-secret-jwt-key-2026-secure"
 "Model API Key" = "al-Pf1ea92Yrj_0dohJlk9kED6U-TnF-NhbAFw2QZzitJh"
 
 [userenv.development]
-ALLOW_MONGOMOCK = "true"
+ALLOW_MONGOMOCK = "false"
 
 [userenv.production]
 ALLOW_MONGOMOCK = "false"
