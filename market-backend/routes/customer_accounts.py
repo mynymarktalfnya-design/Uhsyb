@@ -1,5 +1,5 @@
 """Customer accounts: statement, payments, and detail endpoints. MongoDB."""
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date as _date
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -8,6 +8,8 @@ from database import get_db, C
 from models import new_id
 from utils.deps import get_current_user, require_manager
 from utils.audit import log_action
+from utils.accounting import customer_account_totals
+from utils.time import BUSINESS_TIMEZONE, day_range_utc
 
 router = APIRouter(prefix="/api", tags=["customer-accounts"])
 
@@ -37,19 +39,35 @@ def customer_statement(
     if not c:
         raise HTTPException(404, "Customer not found")
 
-    # Parse date range
-    dt_from = datetime.fromisoformat(date_from) if date_from else None
-    dt_to = datetime.fromisoformat(date_to) if date_to else None
+    def parse_boundary(value: Optional[str], end: bool = False):
+        if not value:
+            return None
+        raw = value.replace("Z", "+00:00")
+        if "T" not in raw:
+            day = _date.fromisoformat(raw)
+            return day_range_utc(day)[1 if end else 0]
+        parsed = datetime.fromisoformat(raw)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=BUSINESS_TIMEZONE)
+        return parsed.astimezone(timezone.utc)
+
+    # Date-only filters represent complete business days and use a half-open
+    # interval, so entries at 23:59:59.500 are not accidentally omitted.
+    dt_from = parse_boundary(date_from)
+    dt_to = parse_boundary(date_to, end=True)
 
     entries = []
 
     # Credit sales
-    sale_filt = {"customer_id": customer_id, "payment_method": "credit", "status": {"$ne": "voided"}}
-    if dt_from:
-        sale_filt["created_at"] = {"$gte": dt_from}
-    if dt_to:
-        sale_filt.setdefault("created_at", {})["$lte"] = dt_to
-    for s in db[C.sales].find(sale_filt).sort("created_at", 1):
+    sale_filt = {
+        "customer_id": customer_id,
+        "payment_method": "credit",
+        "status": "completed",
+        "deleted_at": None,
+    }
+    credit_sales = list(db[C.sales].find(sale_filt).sort("created_at", 1))
+    credit_sale_ids = [s["_id"] for s in credit_sales]
+    for s in credit_sales:
         sale_items = []
         for item in db[C.sale_items].find({"sale_id": s["_id"]}):
             product = db[C.products].find_one(
@@ -77,11 +95,7 @@ def customer_statement(
         })
 
     # Customer payments
-    pay_filt = {"customer_id": customer_id}
-    if dt_from:
-        pay_filt["created_at"] = {"$gte": dt_from}
-    if dt_to:
-        pay_filt.setdefault("created_at", {})["$lte"] = dt_to
+    pay_filt = {"customer_id": customer_id, "deleted_at": None}
     for p in db[C.customer_payments].find(pay_filt).sort("created_at", 1):
         entries.append({
             "type": "payment",
@@ -96,11 +110,12 @@ def customer_statement(
         })
 
     # Customer sale returns (مرتجعات معتمدة فقط — approved only)
-    ret_filt = {"customer_id": customer_id, "status": "approved", "deleted_at": None}
-    if dt_from:
-        ret_filt["created_at"] = {"$gte": dt_from}
-    if dt_to:
-        ret_filt.setdefault("created_at", {})["$lte"] = dt_to
+    ret_filt = {
+        "customer_id": customer_id,
+        "sale_id": {"$in": credit_sale_ids},
+        "status": "approved",
+        "deleted_at": None,
+    }
     for r in db[C.sale_returns].find(ret_filt).sort("created_at", 1):
         entries.append({
             "type": "return",
@@ -116,21 +131,45 @@ def customer_statement(
 
     entries.sort(key=lambda e: e["date"] or datetime.min.replace(tzinfo=timezone.utc))
 
-    balance = 0.0
-    for e in entries:
-        balance += e["debit"] - e["credit"]
+    def in_period(entry):
+        when = entry.get("date")
+        if not when:
+            return False
+        if dt_from and when < dt_from:
+            return False
+        if dt_to and when >= dt_to:
+            return False
+        return True
+
+    opening_balance = round(sum(
+        e["debit"] - e["credit"]
+        for e in entries
+        if dt_from and e.get("date") and e["date"] < dt_from
+    ), 2) if dt_from else 0.0
+    period_entries = [e for e in entries if in_period(e)]
+    balance = opening_balance
+    for e in period_entries:
+        balance = round(balance + e["debit"] - e["credit"], 2)
         e["balance"] = balance
+    totals = customer_account_totals(db, customer_id)
 
     now = datetime.now(timezone.utc)
     return {
-        "opening_balance": 0,
+        "customer": {
+            "id": c["_id"],
+            "full_name": c.get("full_name"),
+            "phone": c.get("phone"),
+        },
+        "opening_balance": opening_balance,
         "closing_balance": balance,
+        "current_balance": totals["balance"],
         "period": {
             "from": date_from[:10] if date_from else None,
             "to": date_to[:10] if date_to else None,
         },
         "generated_at": now,
-        "entries": entries,
+        "entries": period_entries,
+        "payment_count": totals["payment_count"],
     }
 
 
@@ -149,6 +188,7 @@ def list_customer_payments(customer_id: str, db=Depends(get_db), _u=Depends(get_
             "notes": p.get("notes"),
             "created_by_name": _user_name(db, p.get("received_by") or p.get("created_by", "")),
             "created_at": p.get("created_at"),
+            "customer_id": p.get("customer_id"),
         })
     return out
 
@@ -184,12 +224,16 @@ def record_payment(customer_id: str, payload: CustomerPaymentIn, request: Reques
         "created_at": now,
     })
     db[C.customers].update_one({"_id": customer_id},
-                               {"$inc": {"balance": -float(payload.amount)},
-                                "$set": {"updated_at": now}})
+                               {"$set": {
+                                   "balance": customer_account_totals(db, customer_id)["balance"],
+                                   "updated_at": now,
+                               }})
     log_action(db, current["_id"], "customer_payment_received", "customer_payments", pid,
                after={"amount": str(payload.amount), "receipt_no": receipt_no}, request=request)
     return {
         "id": pid, "receipt_no": receipt_no,
+        "customer_id": customer_id,
+        "customer_name": c.get("full_name"),
         "amount": payload.amount,
         "payment_method": payload.payment_method,
         "notes": payload.notes,
@@ -236,8 +280,12 @@ def get_customer_payment(payment_id: str, db=Depends(get_db), _u=Depends(get_cur
     p = db[C.customer_payments].find_one({"_id": payment_id})
     if not p:
         raise HTTPException(404, "Payment not found")
+    customer = db[C.customers].find_one({"_id": p.get("customer_id")}, {"full_name": 1, "phone": 1})
     return {
         "id": p["_id"],
+        "customer_id": p.get("customer_id"),
+        "customer_name": customer.get("full_name") if customer else None,
+        "customer_phone": customer.get("phone") if customer else None,
         "receipt_no": p.get("receipt_no") or p["_id"],
         "amount": p.get("amount", 0),
         "payment_method": p.get("payment_method") or p.get("method", "cash"),
@@ -254,7 +302,8 @@ def list_customer_accounts(db=Depends(get_db), _u=Depends(get_current_user)):
     rows = list(db[C.customers].find({"deleted_at": None}).sort("full_name", 1))
     return [{
         "id": c["_id"], "full_name": c["full_name"], "phone": c.get("phone"),
-        "balance": c.get("balance", 0), "credit_limit": c.get("credit_limit", 0),
+        "balance": customer_account_totals(db, c["_id"])["balance"],
+        "credit_limit": c.get("credit_limit", 0),
     } for c in rows]
 
 

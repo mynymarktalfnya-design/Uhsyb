@@ -5,6 +5,7 @@ from database import get_db, C
 from utils.deps import get_current_user, require_manager
 from utils.alert_settings import get_alert_settings
 from utils.time import business_now, business_today, day_range_utc, month_range_utc, year_range_utc
+from utils.accounting import customer_account_totals
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -578,10 +579,11 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
     # Alerts
     over_credit = []
     for c in db[C.customers].find({"deleted_at": None,
-                                    "credit_limit": {"$gt": 0}}, {"_id": 1, "full_name": 1, "balance": 1, "credit_limit": 1}):
-        if float(c.get("balance", 0)) > float(c.get("credit_limit", 0)):
+                                    "credit_limit": {"$gt": 0}}, {"_id": 1, "full_name": 1, "credit_limit": 1}):
+        balance = customer_account_totals(db, c["_id"])["balance"]
+        if balance > float(c.get("credit_limit", 0)):
             over_credit.append({"id": c["_id"], "full_name": c["full_name"],
-                                 "balance": c.get("balance", 0),
+                                 "balance": balance,
                                  "credit_limit": c.get("credit_limit", 0)})
     suppliers_overdue = []
     for s in db[C.suppliers].find({"deleted_at": None, "balance": {"$gt": 0}},
@@ -622,13 +624,18 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
                                "expiry_date": ed_d.isoformat()})
 
     # Counts + top
+    customer_balances = []
+    for c in db[C.customers].find({"deleted_at": None}, {"_id": 1, "full_name": 1}):
+        balance = customer_account_totals(db, c["_id"])["balance"]
+        if balance > 0:
+            customer_balances.append({
+                "id": c["_id"], "full_name": c["full_name"], "balance": balance,
+            })
     top_debtors = sorted(
-        [{"id": c["_id"], "full_name": c["full_name"], "balance": float(c.get("balance", 0))}
-         for c in db[C.customers].find({"deleted_at": None, "balance": {"$gt": 0}},
-                                        {"_id": 1, "full_name": 1, "balance": 1})],
+        customer_balances,
         key=lambda x: x["balance"], reverse=True,
     )[:10]
-    customers_total_debt = round(sum(c["balance"] for c in top_debtors), 2)
+    customers_total_debt = round(sum(c["balance"] for c in customer_balances), 2)
     customers = {
         "count": db[C.customers].count_documents({"deleted_at": None}),
         "balance_total": customers_total_debt,

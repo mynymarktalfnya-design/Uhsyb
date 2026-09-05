@@ -20,6 +20,7 @@ from database import get_db, C
 from models import new_id, MovementType
 from utils.deps import require_cashier, require_manager
 from utils.audit import log_action
+from utils.accounting import customer_account_totals
 
 router = APIRouter(prefix="/api", tags=["sales-returns"])
 
@@ -299,9 +300,10 @@ def instant_return(
     # Reduce customer balance if the original sale was آجل (credit)
     # This applies regardless of how the refund is given back (cash or credit note)
     if sale.get("payment_method") == "credit" and sale.get("customer_id"):
+        computed_balance = customer_account_totals(db, sale["customer_id"])["balance"]
         db[C.customers].update_one(
             {"_id": sale["customer_id"]},
-            {"$inc": {"balance": -subtotal}, "$set": {"updated_at": now}},
+            {"$set": {"balance": computed_balance, "updated_at": now}},
         )
 
     log_action(db, current["_id"], "sale_return_instant", "sale_returns", rid,
@@ -401,10 +403,10 @@ def approve_return(
     # The debt must always be cleared when goods are returned.
     orig_sale = db[C.sales].find_one({"_id": ret.get("sale_id")}, {"payment_method": 1, "customer_id": 1})
     if orig_sale and orig_sale.get("payment_method") == "credit" and ret.get("customer_id"):
+        computed_balance = customer_account_totals(db, ret["customer_id"])["balance"]
         db[C.customers].update_one(
             {"_id": ret["customer_id"]},
-            {"$inc": {"balance": -float(ret.get("total", 0))},
-             "$set": {"updated_at": now}},
+            {"$set": {"balance": computed_balance, "updated_at": now}},
         )
 
     log_action(db, current["_id"], "sale_return_approved", "sale_returns", return_id)

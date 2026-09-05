@@ -80,8 +80,9 @@ const CustomerDetail = () => {
   const loadStatement = useCallback(async () => {
     const range = buildRange(preset, customFrom, customTo);
     const params = {};
-    if (range.from) params.date_from = range.from + 'T00:00:00';
-    if (range.to)   params.date_to   = range.to   + 'T23:59:59';
+    // The API interprets date-only values as complete Asia/Aden business days.
+    if (range.from) params.date_from = range.from;
+    if (range.to)   params.date_to   = range.to;
     try { const r = await api.get(`/customers/${id}/statement`, { params }); setStatement(r.data); }
     catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' }); }
   }, [id, preset, customFrom, customTo]);
@@ -184,10 +185,11 @@ const CustomerDetail = () => {
               opening: statement?.opening_balance || 0,
               closing: statement?.closing_balance || detail.balance,
               entries,
+              dateFrom: statement?.period?.from,
+              dateTo: statement?.period?.to,
               totalInvoices: Number(detail.total_credit_purchases || 0),
               totalPaid: Number(detail.total_paid || 0),
               totalReturns: Number(detail.total_returns || 0),
-              skipValidation: true,
             }).catch((err) => console.error('Statement PDF failed:', err));
           }}
             className="bg-rose-500 hover:bg-rose-600 text-white" data-testid="export-pdf-btn">

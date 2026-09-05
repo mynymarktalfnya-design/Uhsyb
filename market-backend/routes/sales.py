@@ -13,6 +13,7 @@ from schemas.sales import (
 from utils.deps import get_current_user, require_cashier, require_manager, require_admin
 from utils.audit import log_action
 from utils.time import business_now, business_today, day_range_utc
+from utils.accounting import customer_account_totals
 
 router = APIRouter(prefix="/api", tags=["sales"])
 
@@ -160,7 +161,7 @@ def create_sale(payload: SaleCreate, request: Request,
         if not customer:
             raise HTTPException(status_code=404, detail="العميل غير موجود أو غير نشط")
         credit_limit = Decimal(str(customer.get("credit_limit", 0) or 0))
-        current_balance = Decimal(str(customer.get("balance", 0) or 0))
+        current_balance = Decimal(str(customer_account_totals(db, payload.customer_id)["balance"]))
         if credit_limit > 0 and current_balance + total > credit_limit:
             raise HTTPException(
                 status_code=400,
@@ -217,9 +218,10 @@ def create_sale(payload: SaleCreate, request: Request,
         })
 
     if payload.payment_method == "credit":
+        computed_balance = customer_account_totals(db, payload.customer_id)["balance"]
         db[C.customers].update_one(
             {"_id": payload.customer_id},
-            {"$inc": {"balance": float(total)}, "$set": {"updated_at": now}},
+            {"$set": {"balance": computed_balance, "updated_at": now}},
         )
 
     if payload.payment_method != "credit":

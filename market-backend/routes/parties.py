@@ -11,18 +11,19 @@ from schemas.parties import (
 )
 from utils.deps import get_current_user, require_manager
 from utils.audit import log_action
+from utils.accounting import customer_account_totals
 
 router = APIRouter(prefix="/api", tags=["parties"])
 
 
 def _cust_out(c, db=None) -> dict:
-    has_credit_history = bool(db and db[C.sales].find_one({
-        "customer_id": c["_id"], "payment_method": "credit", "deleted_at": None,
-    }, {"_id": 1}))
+    totals = customer_account_totals(db, c["_id"]) if db else {}
+    has_credit_history = bool(totals.get("invoice_count", 0))
     return {
         "id": c["_id"], "code": c.get("code"), "full_name": c["full_name"],
         "phone": c.get("phone"), "email": c.get("email"), "address": c.get("address"),
-        "credit_limit": c.get("credit_limit", 0), "balance": c.get("balance", 0),
+        "credit_limit": c.get("credit_limit", 0),
+        "balance": totals.get("balance", c.get("balance", 0)),
         "loyalty_points": c.get("loyalty_points", 0),
         "is_active": c.get("is_active", True), "created_at": c.get("created_at"),
         "has_credit_history": has_credit_history,
@@ -79,14 +80,7 @@ def get_customer(customer_id: str, db = Depends(get_db), _u = Depends(get_curren
     c = db[C.customers].find_one({"_id": customer_id, "deleted_at": None})
     if not c:
         raise HTTPException(status_code=404, detail="Customer not found")
-    credit_sales = list(db[C.sales].find({"customer_id": customer_id, "payment_method": "credit", "status": {"$ne": "voided"}}))
-    total_credit_purchases = sum(float(s.get("total", 0)) for s in credit_sales)
-    invoice_count = len(credit_sales)
-    total_paid = sum(float(p.get("amount", 0)) for p in db[C.customer_payments].find({"customer_id": customer_id}))
-    # Approved returns for this customer (reduces their effective debt)
-    total_returns = sum(float(r.get("total", 0)) for r in db[C.sale_returns].find({
-        "customer_id": customer_id, "status": "approved", "deleted_at": None,
-    }))
+    totals = customer_account_totals(db, customer_id)
     # Last activity: max of last sale or payment date
     last_sale = db[C.sales].find_one({"customer_id": customer_id}, sort=[("created_at", -1)])
     last_pay = db[C.customer_payments].find_one({"customer_id": customer_id}, sort=[("created_at", -1)])
@@ -95,14 +89,15 @@ def get_customer(customer_id: str, db = Depends(get_db), _u = Depends(get_curren
     return {
         "id": c["_id"], "full_name": c["full_name"], "phone": c.get("phone"),
         "email": c.get("email"), "address": c.get("address"),
-        "balance": c.get("balance", 0),
+        "balance": totals["balance"],
         "credit_limit": c.get("credit_limit", 0),
         "loyalty_points": c.get("loyalty_points", 0),
-        "total_credit_purchases": round(total_credit_purchases, 2),
-        "total_paid": round(total_paid, 2),
-        "total_returns": round(total_returns, 2),
-        "net_credit_balance": round(total_credit_purchases - total_paid - total_returns, 2),
-        "invoice_count": invoice_count,
+        "total_credit_purchases": totals["total_credit_purchases"],
+        "total_paid": totals["total_paid"],
+        "total_returns": totals["total_returns"],
+        "payment_count": totals["payment_count"],
+        "net_credit_balance": totals["balance"],
+        "invoice_count": totals["invoice_count"],
         "last_activity_at": last_activity,
         "created_at": c.get("created_at"),
     }
@@ -122,7 +117,7 @@ def update_customer(customer_id: str, payload: CustomerUpdate, request: Request,
     db[C.customers].update_one({"_id": customer_id}, {"$set": data})
     log_action(db, current["_id"], "customer_updated", "customers", customer_id, request=request)
     c = db[C.customers].find_one({"_id": customer_id})
-    return CustomerOut.model_validate(_cust_out(c))
+    return CustomerOut.model_validate(_cust_out(c, db))
 
 
 @router.delete("/customers/{customer_id}", status_code=204)
