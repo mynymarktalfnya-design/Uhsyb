@@ -6,6 +6,7 @@ so the app works for development/demo without an external database.
 """
 import os
 import logging
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,30 @@ def _try_real_mongo():
     if not MONGO_URL:
         raise ValueError("MONGO_URL not set")
     from pymongo import MongoClient
-    client = MongoClient(MONGO_URL, uuidRepresentation="standard", tz_aware=True,
+
+    # Atlas SCRAM users authenticate against the admin database by default.
+    # If a generated URI includes the application database in its path but
+    # omits authSource, PyMongo may otherwise try to authenticate against that
+    # application database and return a misleading "bad auth" error.
+    mongo_url = MONGO_URL
+    parsed = urlsplit(mongo_url)
+    if (
+        parsed.scheme == "mongodb+srv"
+        and parsed.hostname
+        and parsed.hostname.endswith("mongodb.net")
+    ):
+        options = parse_qsl(parsed.query, keep_blank_values=True)
+        if not any(key.lower() == "authsource" for key, _ in options):
+            options.append(("authSource", "admin"))
+            mongo_url = urlunsplit((
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                urlencode(options),
+                parsed.fragment,
+            ))
+
+    client = MongoClient(mongo_url, uuidRepresentation="standard", tz_aware=True,
                          serverSelectionTimeoutMS=5000, connectTimeoutMS=5000)
     # Force a real connection attempt
     client[DB_NAME].command("ping")
