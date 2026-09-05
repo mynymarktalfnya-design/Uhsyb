@@ -1,6 +1,6 @@
 """Dashboard summary endpoints — MongoDB."""
 from datetime import datetime, timezone, timedelta, date as _date
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from database import get_db, C
 from utils.deps import get_current_user, require_manager
 from utils.alert_settings import get_alert_settings
@@ -18,36 +18,192 @@ def _month_range():
     return month_range_utc(today.year, today.month)
 
 
-def _sum_sales(db, start, end):
+def _sum_sales(db, start, end, cashier_id=None):
+    match = {"created_at": {"$gte": start, "$lt": end},
+             "status": "completed", "deleted_at": None}
+    if cashier_id:
+        match["cashier_id"] = cashier_id
     pipeline = [
-        {"$match": {"created_at": {"$gte": start, "$lte": end},
-                    "status": "completed", "deleted_at": None}},
+        {"$match": match},
         {"$group": {"_id": None, "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
     ]
     a = list(db[C.sales].aggregate(pipeline))
     return (a[0]["total"], a[0]["count"]) if a else (0, 0)
 
 
-def _sum_returns(db, start, end):
+def _sum_returns(db, start, end, sale_ids=None):
     """Sum approved returns in a date range. Returns (total, count)."""
+    match = {"created_at": {"$gte": start, "$lt": end},
+             "status": "approved", "deleted_at": None}
+    if sale_ids is not None:
+        match["sale_id"] = {"$in": sale_ids}
     pipeline = [
-        {"$match": {"created_at": {"$gte": start, "$lte": end},
-                    "status": "approved", "deleted_at": None}},
+        {"$match": match},
         {"$group": {"_id": None, "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
     ]
     a = list(db[C.sale_returns].aggregate(pipeline))
     return (float(a[0]["total"]), int(a[0]["count"])) if a else (0.0, 0)
 
 
-def _sum_returns_by_type(db, start, end):
+def _sum_returns_by_type(db, start, end, sale_ids=None):
     """Sum approved returns grouped by return_type (cash / credit / etc.)."""
+    match = {"created_at": {"$gte": start, "$lt": end},
+             "status": "approved", "deleted_at": None}
+    if sale_ids is not None:
+        match["sale_id"] = {"$in": sale_ids}
     pipeline = [
-        {"$match": {"created_at": {"$gte": start, "$lte": end},
-                    "status": "approved", "deleted_at": None}},
+        {"$match": match},
         {"$group": {"_id": "$return_type", "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
     ]
     return {r["_id"]: {"total": float(r["total"]), "count": int(r["count"])}
             for r in db[C.sale_returns].aggregate(pipeline)}
+
+
+def _sales_method_breakdown(db, start, end, cashier_id=None):
+    """Gross completed sales grouped by the payment method on the invoice."""
+    match = {"created_at": {"$gte": start, "$lt": end},
+             "status": "completed", "deleted_at": None}
+    if cashier_id:
+        match["cashier_id"] = cashier_id
+    return list(db[C.sales].aggregate([
+        {"$match": match},
+        {"$group": {"_id": {"$ifNull": ["$payment_method", "cash"]},
+                    "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
+    ]))
+
+
+def _return_payment_breakdown(db, start, end, sale_ids=None):
+    """Approved returns grouped by the original sale payment method.
+
+    Return type describes how the refund was settled (cash/credit), not how
+    the invoice was paid. For payment-method sales cards we must follow the
+    original sale_id instead of subtracting return_type from an unrelated
+    method.
+    """
+    match = {"created_at": {"$gte": start, "$lt": end},
+             "status": "approved", "deleted_at": None}
+    if sale_ids is not None:
+        match["sale_id"] = {"$in": sale_ids}
+    rows = []
+    for ret in db[C.sale_returns].find(match, {"sale_id": 1, "total": 1}):
+        sale = db[C.sales].find_one(
+            {"_id": ret.get("sale_id")},
+            {"payment_method": 1},
+        )
+        method = (sale or {}).get("payment_method") or "cash"
+        rows.append((method, float(ret.get("total", 0) or 0)))
+    totals = {}
+    for method, total in rows:
+        totals[method] = totals.get(method, 0.0) + total
+    return totals
+
+
+def _profit_breakdown(db, start, end, cashier_id=None):
+    """Return the accounting profit breakdown for a UTC date range.
+
+    New sale lines carry cost_price/cost_total/net_total snapshots. Legacy
+    lines are supported with a product-cost fallback so the report remains
+    useful, while missing/zero cost data is explicitly counted.
+    """
+    sale_match = {"created_at": {"$gte": start, "$lt": end},
+                  "status": "completed", "deleted_at": None}
+    if cashier_id:
+        sale_match["cashier_id"] = cashier_id
+    sales = list(db[C.sales].find(sale_match, {
+        "_id": 1, "subtotal": 1, "total": 1,
+    }))
+    sale_ids = [s["_id"] for s in sales]
+    items = list(db[C.sale_items].find({"sale_id": {"$in": sale_ids}})) if sale_ids else []
+    product_ids = list({i.get("product_id") for i in items if i.get("product_id")})
+    products = {
+        p["_id"]: p for p in db[C.products].find(
+            {"_id": {"$in": product_ids}}, {"cost_price": 1, "pieces_per_carton": 1}
+        )
+    }
+    sales_map = {s["_id"]: s for s in sales}
+
+    gross_sales = 0.0
+    cogs = 0.0
+    missing_cost_lines = 0
+    for item in items:
+        sale = sales_map.get(item.get("sale_id"), {})
+        gross = float(item.get("total", 0) or 0)
+        subtotal = float(sale.get("subtotal", 0) or 0)
+        # net_total is exact for new invoices; proportional allocation keeps
+        # invoice-level discounts correct for historical lines.
+        if item.get("net_total") is not None:
+            revenue = float(item.get("net_total") or 0)
+        elif subtotal > 0:
+            revenue = gross * (float(sale.get("total", 0) or 0) / subtotal)
+        else:
+            revenue = gross
+        gross_sales += revenue
+
+        product = products.get(item.get("product_id"), {})
+        qty = float(item.get("quantity", 0) or 0)
+        ppc = int(item.get("pieces_per_carton", 1) or 1) if item.get("sale_unit") == "carton" else 1
+        if item.get("cost_total") is not None:
+            line_cost = float(item.get("cost_total") or 0)
+            has_cost = line_cost > 0
+        else:
+            raw_cost = item.get("cost_price")
+            if raw_cost is None:
+                raw_cost = product.get("cost_price")
+            line_cost = float(raw_cost or 0) * qty * ppc
+            has_cost = float(raw_cost or 0) > 0
+        if not has_cost:
+            missing_cost_lines += 1
+        cogs += line_cost
+
+    # A return removes the refunded revenue and the corresponding COGS. That
+    # is the same as subtracting the returned margin, not the full refund.
+    return_match = {"created_at": {"$gte": start, "$lt": end},
+                    "status": "approved", "deleted_at": None}
+    if sale_ids:
+        return_match["sale_id"] = {"$in": sale_ids}
+    elif cashier_id:
+        return_match["sale_id"] = {"$in": []}
+    returns_total = 0.0
+    returned_cogs = 0.0
+    return_count = 0
+    for ret in db[C.sale_returns].find(return_match, {"_id": 1, "total": 1}):
+        returns_total += float(ret.get("total", 0) or 0)
+        return_count += 1
+        for returned in db[C.sale_return_items].find(
+            {"return_id": ret["_id"]},
+            {"sale_item_id": 1, "quantity": 1, "product_id": 1},
+        ):
+            original = db[C.sale_items].find_one(
+                {"_id": returned.get("sale_item_id")}
+            ) or {}
+            sold_qty = float(original.get("quantity", 0) or 0)
+            returned_qty = float(returned.get("quantity", 0) or 0)
+            if sold_qty <= 0:
+                continue
+            if original.get("cost_total") is not None:
+                returned_cogs += float(original.get("cost_total") or 0) * returned_qty / sold_qty
+            else:
+                product = products.get(original.get("product_id")) or db[C.products].find_one(
+                    {"_id": original.get("product_id")}, {"cost_price": 1}
+                ) or {}
+                ppc = int(original.get("pieces_per_carton", 1) or 1) if original.get("sale_unit") == "carton" else 1
+                returned_cogs += float(product.get("cost_price", 0) or 0) * returned_qty * ppc
+
+    net_sales = gross_sales - returns_total
+    net_cogs = cogs - returned_cogs
+    return {
+        "gross_sales": round(gross_sales, 2),
+        "cogs": round(cogs, 2),
+        "returns": round(returns_total, 2),
+        "returned_cogs": round(returned_cogs, 2),
+        "net_sales": round(net_sales, 2),
+        "net_cogs": round(net_cogs, 2),
+        "profit": round(net_sales - net_cogs, 2),
+        "invoice_count": len(sales),
+        "return_count": return_count,
+        "missing_cost_lines": missing_cost_lines,
+        "cost_data_complete": missing_cost_lines == 0,
+    }
 
 
 def _sum_purchases(db, start, end):
@@ -72,32 +228,29 @@ def _sum_expenses(db, start, end):
 def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user)):
     today_start, today_end = _today_range()
     month_start, month_end = _month_range()
+    cashier_id = current["_id"] if getattr(current, "role", None) == "cashier" else None
 
-    sales_today, invoices_today = _sum_sales(db, today_start, today_end)
-    sales_month, invoices_month = _sum_sales(db, month_start, month_end)
+    sales_today, invoices_today = _sum_sales(db, today_start, today_end, cashier_id)
+    sales_month, invoices_month = _sum_sales(db, month_start, month_end, cashier_id)
     purchases_today, _ = _sum_purchases(db, today_start, today_end + timedelta(microseconds=1))
     purchases_month, _ = _sum_purchases(db, month_start, month_end)
     expenses_month = _sum_expenses(db, month_start, month_end)
 
     # Returns (approved only)
-    returns_today, returns_today_count = _sum_returns(db, today_start, today_end)
-    returns_month, returns_month_count = _sum_returns(db, month_start, month_end)
-    returns_by_type_today = _sum_returns_by_type(db, today_start, today_end)
-    cash_returns_today = returns_by_type_today.get("cash", {}).get("total", 0.0)
-    credit_returns_today = returns_by_type_today.get("credit", {}).get("total", 0.0)
+    scoped_sale_ids = None
+    if cashier_id:
+        scoped_sale_ids = [s["_id"] for s in db[C.sales].find(
+            {"cashier_id": cashier_id, "status": "completed", "deleted_at": None},
+            {"_id": 1},
+        )]
+    returns_today, returns_today_count = _sum_returns(db, today_start, today_end, scoped_sale_ids)
+    returns_month, returns_month_count = _sum_returns(db, month_start, month_end, scoped_sale_ids)
 
-    # Sales breakdown: cash (all non-credit methods) vs credit (آجل) — net of returns
-    by_method_today = list(db[C.sales].aggregate([
-        {"$match": {"created_at": {"$gte": today_start, "$lte": today_end},
-                    "status": "completed", "deleted_at": None}},
-        {"$group": {"_id": "$payment_method",
-                    "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
-    ]))
-    gross_today_cash   = sum(float(x["total"]) for x in by_method_today if x["_id"] != "credit")
+    # Payment cards are gross completed invoice values. Returns are displayed
+    # separately and only reduce net sales, so each card reconciles to invoices.
+    by_method_today = _sales_method_breakdown(db, today_start, today_end, cashier_id)
+    gross_today_cash = sum(float(x["total"]) for x in by_method_today if x["_id"] == "cash")
     gross_today_credit = sum(float(x["total"]) for x in by_method_today if x["_id"] == "credit")
-    # Net = gross − returns by type
-    sales_today_cash   = max(0.0, gross_today_cash - cash_returns_today)
-    sales_today_credit = max(0.0, gross_today_credit - credit_returns_today)
 
     # Payment-method constants
     WALLET_METHODS = {"jaib", "fluusak", "hasib"}
@@ -105,10 +258,7 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
 
     gross_today_wallets = sum(float(x["total"]) for x in by_method_today if x["_id"] in WALLET_METHODS)
     gross_today_banks   = sum(float(x["total"]) for x in by_method_today if x["_id"] in BANK_METHODS)
-    wallet_returns_today = sum(returns_by_type_today.get(m, {}).get("total", 0.0) for m in WALLET_METHODS)
-    bank_returns_today   = sum(returns_by_type_today.get(m, {}).get("total", 0.0) for m in BANK_METHODS)
-    sales_today_wallets  = max(0.0, gross_today_wallets - wallet_returns_today)
-    sales_today_banks    = max(0.0, gross_today_banks - bank_returns_today)
+    gross_today_card = sum(float(x["total"]) for x in by_method_today if x["_id"] == "card")
 
     products_count = db[C.products].count_documents({"deleted_at": None, "is_active": True})
     customers_count = db[C.customers].count_documents({"deleted_at": None})
@@ -138,6 +288,7 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
         "sales_today_credit": round(sales_today_credit, 2),
         "sales_today_wallets": round(sales_today_wallets, 2),
         "sales_today_banks": round(sales_today_banks, 2),
+        "sales_today_card": round(gross_today_card, 2),
         "sales_month": sales_month, "invoices_month": invoices_month,
         # Returns (approved)
         "returns_today": round(returns_today, 2),
@@ -147,6 +298,10 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
         # Net sales = gross − returns
         "net_sales_today": round(sales_today - returns_today, 2),
         "net_sales_month": round(sales_month - returns_month, 2),
+        "profit_month": (
+            _profit_breakdown(db, month_start, month_end, cashier_id)["profit"]
+            if getattr(current, "role", None) == "admin" else None
+        ),
         # Purchases / expenses
         "purchases_today": purchases_today, "purchases_month": purchases_month,
         "expenses_month": expenses_month,

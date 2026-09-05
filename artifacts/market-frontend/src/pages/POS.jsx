@@ -4,7 +4,7 @@ import {
   CreditCard, Wallet, Building2, Smartphone, ArrowLeftRight, Clock,
   UserPlus, RotateCcw, Trash2, CheckCircle2, PauseCircle, PlayCircle,
   Bell, Wifi, Menu, ScanLine, Package, Droplets, Tag, Milk,
-  Sparkles, Coffee, Beef, Apple, ChevronRight, Receipt, User,
+  Sparkles, Coffee, Beef, Apple, ChevronRight, Receipt, User, Star,
   Hash, MoreHorizontal, ShoppingBasket, Boxes,
 } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
@@ -53,7 +53,7 @@ function saveHeld(l) { try { localStorage.setItem(HELD_KEY, JSON.stringify(l)); 
 /* ══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════════════════════════════════════ */
-export default function POS() {
+export default function POS({ sidebarOpen = true, onToggleSidebar }) {
   const { user } = useAuth();
 
   /* products & categories */
@@ -103,6 +103,15 @@ export default function POS() {
     return () => clearInterval(t);
   }, []);
 
+  const refreshProducts = useCallback(async () => {
+    try {
+      const response = await api.get('/pos/products', { params: { limit: 500 } });
+      setAllProducts(response.data || []);
+    } catch {
+      // Keep the last known catalog visible if a background refresh is unavailable.
+    }
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     Promise.all([
@@ -110,11 +119,19 @@ export default function POS() {
       api.get('/categories'),
       api.get('/pos/settings'),
     ]).then(([pr, cr, sr]) => {
-      setAllProducts(pr.data);
+      setAllProducts(pr.data || []);
       setCategories(cr.data || []);
       setCartonDiscountPercent(Number(sr.data.carton_discount_percent) || 0);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+
+    const refreshOnFocus = () => refreshProducts();
+    const interval = window.setInterval(refreshProducts, 15000);
+    window.addEventListener('focus', refreshOnFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
+  }, [refreshProducts]);
 
   useEffect(() => {
     if (custDialog) {
@@ -142,6 +159,16 @@ export default function POS() {
     }
     return list;
   }, [allProducts, query, selectedCat]);
+
+  const featuredProducts = useMemo(
+    () => allProducts
+      .filter((product) => product.is_featured && product.is_active !== false)
+      .sort((a, b) => (
+        Number(a.featured_order || 0) - Number(b.featured_order || 0) ||
+        String(a.name || '').localeCompare(String(b.name || ''), 'ar')
+      )),
+    [allProducts],
+  );
 
   /* ── cart helpers ───────────────────────────────────────────────────── */
   const addToCart = useCallback((p) => {
@@ -291,9 +318,10 @@ export default function POS() {
     <div
       dir="rtl"
       data-testid="pos-page"
-      className="flex flex-col overflow-hidden bg-[#0d0d1a] text-white"
+      className="flex flex-col md:flex-row overflow-hidden bg-[#0d0d1a] text-white"
       style={{ height: 'calc(100vh - 60px)' }}
     >
+      <section className="min-w-0 flex-1 flex flex-col overflow-hidden">
 
       {/* ══════ INFO CHIPS ════════════════════════════════════════════ */}
       <div className="flex-shrink-0 flex gap-2 px-3 py-2 border-b border-slate-800/60">
@@ -330,6 +358,20 @@ export default function POS() {
       {/* ══════ SEARCH ═══════════════════════════════════════════════ */}
       <div className="flex-shrink-0 px-3 py-2 relative">
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            data-testid="pos-sidebar-toggle"
+            aria-label={sidebarOpen ? 'إخفاء القائمة الجانبية' : 'إظهار القائمة الجانبية'}
+            title={sidebarOpen ? 'إخفاء القائمة الجانبية' : 'إظهار القائمة الجانبية'}
+            className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 border transition-all active:scale-95 ${
+              sidebarOpen
+                ? 'bg-slate-800/80 border-slate-700/60 text-slate-300 hover:border-amber-500/60 hover:text-amber-300'
+                : 'bg-amber-500 border-amber-400 text-slate-950 shadow-lg shadow-amber-900/30'
+            }`}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           <div className="relative flex-1">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
             <input

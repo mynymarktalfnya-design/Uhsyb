@@ -115,12 +115,18 @@ def create_sale(payload: SaleCreate, request: Request,
         ppc = int(p.get("pieces_per_carton", 1) or 1) if it.sale_unit == "carton" else 1
         effective_unit_price = Decimal(str(p.get("sale_price", it.unit_price)))
         line_total = Decimal(str(it.quantity)) * effective_unit_price * Decimal(str(ppc))
+        stock_quantity = Decimal(str(it.quantity)) * Decimal(str(ppc))
+        cost_price = Decimal(str(p.get("cost_price", 0) or 0))
         subtotal += line_total
         item_docs.append({
             "_id": new_id(), "sale_id": sale_id,
             "product_id": it.product_id,
             "quantity": float(it.quantity), "unit_price": float(effective_unit_price),
             "discount": 0.0, "tax": 0.0, "total": float(line_total),
+            # Keep accounting inputs on the immutable sale line. Product prices
+            # can change later and deleted products must not erase historical COGS.
+            "cost_price": float(cost_price),
+            "cost_total": float(cost_price * stock_quantity),
             "sale_unit": it.sale_unit, "pieces_per_carton": ppc if it.sale_unit == "carton" else None,
             "created_at": now,
         })
@@ -135,6 +141,15 @@ def create_sale(payload: SaleCreate, request: Request,
     )
     discount_amount = (carton_subtotal * carton_discount_percent / Decimal("100")).quantize(Decimal("0.01"))
     total = max(Decimal("0"), subtotal - discount_amount)
+    # Carton discounts apply only to carton lines. Store each line's realized
+    # revenue so profit reports do not accidentally use pre-discount totals.
+    for item in item_docs:
+        gross_line = Decimal(str(item["total"]))
+        line_discount = (
+            (discount_amount * gross_line / carton_subtotal).quantize(Decimal("0.01"))
+            if item.get("sale_unit") == "carton" and carton_subtotal > 0 else Decimal("0")
+        )
+        item["net_total"] = float(gross_line - line_discount)
     customer = None
     if payload.payment_method == "credit":
         customer = db[C.customers].find_one({
