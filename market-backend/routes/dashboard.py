@@ -505,8 +505,10 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
         "net_today_credit": round(max(0.0, today_credit_total - credit_ret_today), 2),
     }
 
-    # Profit = net sales - net COGS. Each period has a full reconciliation
-    # payload so the UI can show sales, cost, returns and actual profit.
+    # Gross product profit = net sales - net COGS. Each period has a full
+    # reconciliation payload so the UI can show sales, cost, returns and
+    # product profit. Operating expenses are kept separate and subtracted
+    # below to expose the daily/monthly net profit requested by the manager.
     profit_details = {
         "today": _profit_breakdown(db, today_start, today_end),
         "week": _profit_breakdown(db, week_start, today_end),
@@ -514,6 +516,18 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
         "year": _profit_breakdown(db, year_start, year_end),
     }
     profits = {period: detail["profit"] for period, detail in profit_details.items()}
+    net_profits = {}
+    for period, detail in profit_details.items():
+        period_ranges = {
+            "today": (today_start, today_end),
+            "week": (week_start, today_end),
+            "month": (month_start, month_end),
+            "year": (year_start, year_end),
+        }
+        expenses_total = float(sum_expenses(*period_ranges[period]) or 0)
+        detail["operating_expenses"] = round(expenses_total, 2)
+        detail["net_profit_after_expenses"] = round(detail["profit"] - expenses_total, 2)
+        net_profits[period] = detail["net_profit_after_expenses"]
 
     purchases = {
         "today_total": sum_purchases(today_start, today_end + timedelta(microseconds=1)),
@@ -851,7 +865,8 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
             "out_of_stock": out_of_stock,
             "expiring_soon": expiring_soon,
         },
-        "sales": sales, "profits": profits, "profit_details": profit_details,
+        "sales": sales, "profits": profits, "net_profits": net_profits,
+        "profit_details": profit_details,
         "purchases": purchases,
         "cash_box": cash_box,
         "customers": customers, "suppliers": suppliers, "products": products,
