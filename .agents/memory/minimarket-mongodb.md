@@ -3,7 +3,7 @@ name: MiniMarket MongoDB setup
 description: MongoDB Atlas must be reachable from Replit; mongomock fallback is dev-only
 ---
 
-The secure MONGO_URL secret now points to an Atlas cluster, but the current connection attempt fails during TLS negotiation; verify Atlas Network Access allows Replit before treating it as production-ready.
+Atlas Network Access now allows the connection, but the current secure MONGO_URL value is rejected with an authentication failure; verify its database username/password match the Atlas Database User before treating it as production-ready.
 `database.py` tries a real ping; if it fails and `ALLOW_MONGOMOCK=true` is set, it falls back to in-memory mongomock (data lost on restart).
 
 **Why:** ALLOW_MONGOMOCK must be explicit so production misconfigurations don't silently lose data.
