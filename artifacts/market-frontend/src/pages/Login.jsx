@@ -85,6 +85,7 @@ const Login = () => {
             onSubmit={handleSubmit}
             className="space-y-5"
             data-testid="login-form"
+            data-login-fix="retry-v2"
             autoComplete="off"
           >
             {/* Hidden honeypot to deter browser autofill */}
