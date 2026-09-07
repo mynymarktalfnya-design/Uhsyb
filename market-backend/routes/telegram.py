@@ -45,7 +45,11 @@ def _token() -> str:
 
 
 def _chat_id() -> str:
-    return os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    # Support the canonical name and the legacy project setting name.
+    return (
+        os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+        or os.environ.get("TELEGRAMCHATID", "").strip()
+    )
 
 
 def _api(method: str, **kwargs: Any) -> dict:
