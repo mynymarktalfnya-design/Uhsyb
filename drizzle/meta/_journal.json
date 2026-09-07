@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1788639196721,
+      "tag": "0000_yellow_jackal",
+      "breakpoints": true
+    }
+  ]
 }
