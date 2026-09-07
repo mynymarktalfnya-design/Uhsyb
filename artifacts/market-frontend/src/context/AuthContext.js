@@ -41,18 +41,25 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (identifier, password) => {
-    try {
-      const { data } = await api.post('/auth/login', {
-        email_or_username: identifier,
-        password,
-      });
-      localStorage.setItem('mm_token', data.access_token);
-      localStorage.setItem('mm_user', JSON.stringify(data.user));
-      setUser(data.user);
-      return { success: true };
-    } catch (err) {
-      return { success: false, message: formatApiError(err) };
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const { data } = await api.post('/auth/login', {
+          email_or_username: identifier,
+          password,
+        });
+        localStorage.setItem('mm_token', data.access_token);
+        localStorage.setItem('mm_user', JSON.stringify(data.user));
+        setUser(data.user);
+        return { success: true };
+      } catch (err) {
+        lastError = err;
+        const status = err?.response?.status;
+        if (![502, 503, 504].includes(status) || attempt === 2) break;
+        await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+      }
     }
+    return { success: false, message: formatApiError(lastError) };
   };
 
   const logout = async () => {

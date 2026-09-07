@@ -155,9 +155,9 @@ const Login = () => {
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { l: 'مدير', id: 'admin@market.com', pw: 'Admin@2026' },
-                    { l: 'مشرف', id: 'manager@market.com', pw: 'Manager@2026' },
-                    { l: 'كاشير', id: 'cashier@market.com', pw: 'Cashier@2026' },
+                    { l: 'مدير', id: 'admin', pw: '' },
+                    { l: 'مشرف', id: 'manager', pw: 'Manager@2026' },
+                    { l: 'كاشير', id: 'cashier', pw: 'Cashier@2026' },
                   ].map((a) => (
                     <button
                       key={a.id}
