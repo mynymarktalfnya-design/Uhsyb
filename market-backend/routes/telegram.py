@@ -368,9 +368,11 @@ async def webhook(request: Request):
             return {"ok": True, "ignored": "unauthorized_chat"}
         try:
             _handle_text(str(chat["id"]), str(text))
-        except Exception:
+            return {"ok": True, "processed": True, "delivery_ok": True}
+        except Exception as exc:
             logger.exception("Telegram update failed")
-    return {"ok": True}
+            return {"ok": True, "processed": True, "delivery_ok": False, "error": str(exc)[:160]}
+    return {"ok": True, "processed": False}
 
 
 def _daily_report_endpoint():
