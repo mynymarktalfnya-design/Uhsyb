@@ -8,7 +8,7 @@ const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const STATIC_ROOT = resolve(ROOT, "artifacts/market-frontend/dist/public");
 const BACKEND_ROOT = resolve(ROOT, "market-backend");
 const PORT = Number(process.env.PORT || 3000);
-const BACKEND_PORT = Number(process.env.PYTHON_BACKEND_PORT || 8080);
+const BACKEND_PORT = Number(process.env.PYTHON_BACKEND_PORT || (8000 + (process.pid % 1000)));
 const isProduction = process.env.NODE_ENV === "production";
 const localPython = join(ROOT, ".venv", "bin", "python");
 const pythonBin = process.env.PYTHON_BIN || (existsSync(localPython) ? localPython : "python3");
