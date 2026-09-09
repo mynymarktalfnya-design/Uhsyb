@@ -93,11 +93,13 @@ def send_message(text: str, chat_id: str | None = None, with_menu: bool = False)
 
 
 def send_document(content: bytes, filename: str, caption: str, chat_id: str) -> dict:
-    return _api(
+    result = _api(
         "sendDocument",
         data={"chat_id": chat_id, "caption": caption},
         files={"document": (filename, io.BytesIO(content), "application/pdf")},
     )
+    logger.info("Telegram PDF sent successfully: %s", filename)
+    return result
 
 
 def _period(period: str) -> tuple[datetime, datetime, str]:
@@ -157,8 +159,8 @@ def _inventory_rows(low_only: bool = False) -> list[dict]:
     products = list(db[C.products].find({"deleted_at": None}))
     rows = []
     for product in products:
-        quantity = float(product.get("stock", product.get("quantity", 0)) or 0)
-        minimum = float(product.get("min_stock", product.get("reorder_level", 0)) or 0)
+        quantity = float(product.get("current_stock", product.get("stock", product.get("quantity", 0))) or 0)
+        minimum = float(product.get("min_stock_level", product.get("min_stock", product.get("reorder_level", 0))) or 0)
         if low_only and quantity > minimum:
             continue
         rows.append({"name": str(product.get("name") or "-"), "quantity": quantity, "minimum": minimum})
@@ -219,6 +221,92 @@ def _pdf(title: str, lines: list[str]) -> bytes:
     return stream.getvalue()
 
 
+def _rtl(value: str) -> str:
+    """Shape Arabic text for ReportLab's left-to-right drawing engine."""
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        return get_display(arabic_reshaper.reshape(str(value)))
+    except Exception:
+        return str(value)
+
+
+def _inventory_pdf() -> bytes:
+    """Create a structured Arabic inventory valuation table."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    font_path = os.environ.get("TELEGRAM_PDF_FONT", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+    font = "Helvetica"
+    if Path(font_path).exists():
+        try:
+            pdfmetrics.registerFont(TTFont("UhsybFont", font_path))
+            font = "UhsybFont"
+        except Exception:
+            pass
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("InventoryTitle", parent=styles["Title"], fontName=font, fontSize=16, leading=20, alignment=TA_RIGHT)
+    cell_style = ParagraphStyle("InventoryCell", parent=styles["Normal"], fontName=font, fontSize=7.5, leading=9, alignment=TA_RIGHT)
+    header_style = ParagraphStyle("InventoryHeader", parent=cell_style, fontSize=7, leading=8, alignment=TA_CENTER, textColor=colors.white)
+
+    def cell(value, style=cell_style):
+        return Paragraph(_rtl(str(value)), style)
+
+    rows = list(db[C.products].find({"deleted_at": None}).sort("name", 1))
+    table_rows = [[
+        cell("كود المنتج", header_style), cell("اسم المنتج", header_style),
+        cell("السعر الأصلي", header_style), cell("السعر مع العمولة", header_style),
+        cell("الكمية", header_style), cell("قيمة المخزون بدون أرباح", header_style),
+        cell("قيمة المخزون مع الأرباح", header_style), cell("الربح", header_style),
+    ]]
+    total_cost = total_sale = total_profit = total_qty = 0.0
+    for product in rows:
+        qty = float(product.get("current_stock", 0) or 0)
+        original = float(product.get("cost_price", 0) or 0)
+        with_commission = float(product.get("sale_price", 0) or 0)
+        stock_cost = qty * original
+        stock_sale = qty * with_commission
+        profit = stock_sale - stock_cost
+        total_qty += qty
+        total_cost += stock_cost
+        total_sale += stock_sale
+        total_profit += profit
+        table_rows.append([
+            cell(product.get("sku") or "-"), cell(product.get("name") or "-"),
+            cell(_money(original)), cell(_money(with_commission)), cell(f"{qty:g}"),
+            cell(_money(stock_cost)), cell(_money(stock_sale)), cell(_money(profit)),
+        ])
+    table_rows.append([
+        cell("الإجمالي", header_style), cell(f"عدد المنتجات: {len(rows)}", header_style),
+        cell("-", header_style), cell("-", header_style), cell(f"{total_qty:g}", header_style),
+        cell(_money(total_cost), header_style), cell(_money(total_sale), header_style), cell(_money(total_profit), header_style),
+    ])
+
+    stream = io.BytesIO()
+    doc = SimpleDocTemplate(stream, pagesize=landscape(A4), rightMargin=10 * mm, leftMargin=10 * mm, topMargin=10 * mm, bottomMargin=10 * mm)
+    table = Table(table_rows, repeatRows=1, colWidths=[20*mm, 48*mm, 25*mm, 27*mm, 20*mm, 38*mm, 38*mm, 25*mm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#17324d")),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#d9edf7")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#9aaabd")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f4f7fa")]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story = [Paragraph(_rtl("جرد المخزون وتقييم الأرباح"), title_style), Spacer(1, 5 * mm), table]
+    doc.build(story)
+    return stream.getvalue()
+
+
 def _send_requested_report(chat_id: str, kind: str, period: str, as_pdf: bool = False):
     text = _text_report(kind, period)
     if not as_pdf:
@@ -234,9 +322,9 @@ def _handle_text(chat_id: str, text: str):
     if normalized in ("/start", "/menu", BUTTONS["home"]):
         send_message("مرحبًا بك في بوت إدارة ميني ماركت الفنية 🏪\nاختر التقرير المطلوب من القائمة:", chat_id, with_menu=True)
     elif normalized in (BUTTONS["sales_today"], "/sales_today"):
-        _send_requested_report(chat_id, "sales", "today")
+        _send_requested_report(chat_id, "sales", "today", as_pdf=True)
     elif normalized in (BUTTONS["sales_month"], "/sales_month"):
-        _send_requested_report(chat_id, "sales", "month")
+        _send_requested_report(chat_id, "sales", "month", as_pdf=True)
     elif normalized in (BUTTONS["purchases_today"], "/purchases_today"):
         _send_requested_report(chat_id, "purchases", "today", as_pdf=True)
     elif normalized in (BUTTONS["purchases_month"], "/purchases_month"):
@@ -246,9 +334,8 @@ def _handle_text(chat_id: str, text: str):
     elif normalized in (BUTTONS["expenses_month"], "/expenses_month"):
         _send_requested_report(chat_id, "expenses", "month", as_pdf=True)
     elif normalized in (BUTTONS["inventory"], "/inventory"):
-        rows = _inventory_rows()
-        lines = [f"{row['name']}: {row['quantity']:g}" for row in rows] or ["لا توجد منتجات"]
-        send_document(_pdf("Inventory Report", lines), f"uhsyb_inventory_{datetime.now(timezone.utc):%Y%m%d_%H%M}.pdf", "📊 تقرير جرد المخزون الكامل", chat_id)
+        filename = f"uhsyb_inventory_{datetime.now(timezone.utc):%Y%m%d_%H%M}.pdf"
+        send_document(_inventory_pdf(), filename, "📊 تقرير جرد المخزون التفصيلي", chat_id)
     elif normalized in (BUTTONS["low_stock"], "/low_stock"):
         rows = _inventory_rows(low_only=True)
         text = "📦 المخزون المنخفض\n\n" + ("\n".join(f"{row['name']}: {row['quantity']:g} (الحد الأدنى {row['minimum']:g})" for row in rows) or "لا توجد منتجات منخفضة المخزون")
