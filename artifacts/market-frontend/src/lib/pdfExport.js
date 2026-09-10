@@ -638,6 +638,61 @@ export async function exportStatementPDF(opts) {
   }
 }
 
+// ====================== SUPPLIER SUMMARY STATEMENT PDF ======================
+export async function exportSupplierSummaryPDF(opts) {
+  const supplier = opts.supplier || {};
+  const summary = opts.summary || {};
+  const movements = opts.movements || [];
+  const period = opts.period || {};
+  const periodLabel = `من ${period.from || 'البداية'} إلى ${period.to || 'حتى الآن'}`;
+  const rowsHtml = movements.length ? movements.map((movement, index) => `
+    <tr style="background:${index % 2 ? '#fafafa' : '#ffffff'};">
+      <td style="padding:8px;text-align:center;">${arabicDate(movement.date)}</td>
+      <td style="padding:8px;text-align:center;font-weight:700;color:${movement.movement_type === 'دفعة للتاجر' ? BRAND.green : BRAND.red};">${movement.movement_type || '—'}</td>
+      <td style="padding:8px;text-align:center;font-family:monospace;">${movement.invoice_no || '—'}</td>
+      <td style="padding:8px;text-align:center;font-family:monospace;">${movement.payment_no || '—'}</td>
+      <td style="padding:8px;text-align:center;font-weight:800;">${money(movement.amount)} ر.ي</td>
+      <td style="padding:8px;text-align:center;font-weight:800;color:${Number(movement.balance_after) < 0 ? BRAND.red : BRAND.dark};">${money(movement.balance_after)} ر.ي</td>
+    </tr>`).join('') : `<tr><td colspan="6" style="padding:30px;text-align:center;color:#94a3b8;">لا توجد حركات في الفترة المحددة</td></tr>`;
+  const kpis = [
+    ['إجمالي فواتير الشراء', summary.total_invoices, BRAND.red],
+    ['إجمالي الدفعات للتاجر', summary.total_payments, BRAND.green],
+    ['المستحق للتاجر', summary.balance, '#7c3aed'],
+  ].map(([label, value, color]) => `<div style="flex:1;background:linear-gradient(135deg,${color},${BRAND.dark});color:#fff;padding:12px;border-radius:10px;text-align:center;"><div style="font-size:10px;opacity:.85;">${label}</div><div style="font-size:18px;font-weight:900;margin-top:3px;">${money(value)} <span style="font-size:11px;">ريال</span></div></div>`).join('');
+  const html = `
+    <div style="background:#fff;padding-bottom:18px;direction:rtl;">
+      ${brandHeaderHtml({ title: 'ملخص كشف حساب تاجر', voucherNo: opts.reportNo || '', dateLabel: periodLabel })}
+      <div style="padding:18px 24px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        ${infoRow('اسم التاجر', supplier.name || '—')}
+        ${infoRow('العنوان', supplier.address || '—')}
+        ${infoRow('رقم الجوال', supplier.phone || '—')}
+        ${infoRow('رقم الكشف', opts.reportNo || '—')}
+        ${infoRow('تاريخ الإصدار', arabicDate(opts.issuedAt))}
+        ${infoRow('الفترة', periodLabel)}
+      </div>
+      <div style="padding:0 24px 14px;display:flex;gap:8px;">${kpis}</div>
+      <div style="margin:0 24px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead><tr style="background:${BRAND.dark};color:#fff;"><th style="padding:9px;">تاريخ الحركة</th><th style="padding:9px;">نوع الحركة</th><th style="padding:9px;">رقم الفاتورة</th><th style="padding:9px;">رقم الدفعة</th><th style="padding:9px;">المبلغ</th><th style="padding:9px;">الرصيد</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div style="margin:14px 24px;padding:14px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;font-size:12px;line-height:1.9;">
+        <strong>الملخص النهائي</strong><br>
+        إجمالي عدد الفواتير: <strong>${summary.invoice_count || 0}</strong> — إجمالي قيمة فواتير الشراء: <strong>${money(summary.total_invoices)} ريال</strong><br>
+        إجمالي عدد الدفعات: <strong>${summary.payment_count || 0}</strong> — إجمالي الدفعات للتاجر: <strong>${money(summary.total_payments)} ريال</strong><br>
+        المستحق للتاجر: <strong>${money(summary.balance)} ريال</strong>
+      </div>
+      ${footerHtml()}
+    </div>`;
+  const el = mountOffscreen(html, 297);
+  try {
+    await htmlToPdfDownload(el, `supplier_summary_${(supplier.name || 'supplier').replace(/\\s+/g, '_')}.pdf`, { orientation: 'l', format: 'a4' });
+  } finally {
+    document.body.removeChild(el);
+  }
+}
+
 // ====================== DAILY/MONTHLY REPORT PDF ======================
 export async function exportDailyReportPDF(opts) {
   const qr = await qrDataUrl(`RPT|${opts.title}|${opts.dateLabel}`);

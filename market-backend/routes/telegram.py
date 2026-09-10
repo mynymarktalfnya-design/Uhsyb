@@ -322,9 +322,9 @@ def _handle_text(chat_id: str, text: str):
     if normalized in ("/start", "/menu", BUTTONS["home"]):
         send_message("مرحبًا بك في بوت إدارة ميني ماركت الفنية 🏪\nاختر التقرير المطلوب من القائمة:", chat_id, with_menu=True)
     elif normalized in (BUTTONS["sales_today"], "/sales_today"):
-        _send_requested_report(chat_id, "sales", "today", as_pdf=True)
+        _send_requested_report(chat_id, "sales", "today", as_pdf=False)
     elif normalized in (BUTTONS["sales_month"], "/sales_month"):
-        _send_requested_report(chat_id, "sales", "month", as_pdf=True)
+        _send_requested_report(chat_id, "sales", "month", as_pdf=False)
     elif normalized in (BUTTONS["purchases_today"], "/purchases_today"):
         _send_requested_report(chat_id, "purchases", "today", as_pdf=True)
     elif normalized in (BUTTONS["purchases_month"], "/purchases_month"):
@@ -341,7 +341,7 @@ def _handle_text(chat_id: str, text: str):
         text = "📦 المخزون المنخفض\n\n" + ("\n".join(f"{row['name']}: {row['quantity']:g} (الحد الأدنى {row['minimum']:g})" for row in rows) or "لا توجد منتجات منخفضة المخزون")
         send_message(text, chat_id, with_menu=True)
     elif normalized in (BUTTONS["help"], "/help"):
-        send_message("استخدم الأزرار لاختيار التقرير. التقارير المالية والمخزون التفصيلي تُرسل كملفات PDF.", chat_id, with_menu=True)
+        send_message("استخدم الأزرار لاختيار التقرير. المبيعات تُرسل كنص، والمشتريات والمصروفات وجرد المخزون التفصيلي تُرسل كملفات PDF. كشوف العملاء والموردين تُطبع من صفحات الكشوف داخل النظام.", chat_id, with_menu=True)
     else:
         send_message("لم أفهم الطلب. استخدم أزرار القائمة الرئيسية.", chat_id, with_menu=True)
 
@@ -368,11 +368,11 @@ async def webhook(request: Request):
             return {"ok": True, "ignored": "unauthorized_chat"}
         try:
             _handle_text(str(chat["id"]), str(text))
-            return {"ok": True, "processed": True, "delivery_ok": True, "reports_version": "telegram_reports_v3"}
+            return {"ok": True, "processed": True, "delivery_ok": True, "reports_version": "telegram_reports_v4"}
         except Exception as exc:
             logger.exception("Telegram update failed")
-            return {"ok": True, "processed": True, "delivery_ok": False, "error": str(exc)[:160], "reports_version": "telegram_reports_v3"}
-    return {"ok": True, "processed": False, "reports_version": "telegram_reports_v3"}
+            return {"ok": True, "processed": True, "delivery_ok": False, "error": str(exc)[:160], "reports_version": "telegram_reports_v4"}
+    return {"ok": True, "processed": False, "reports_version": "telegram_reports_v4"}
 
 
 def _daily_report_endpoint():

@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button';
 import api, { formatApiError } from '../lib/api';
 import { toast } from '../hooks/use-toast';
 import { STORE } from '../config/store';
+import { exportSupplierSummaryPDF } from '../lib/pdfExport';
 import './SupplierSummaryStatement.css';
 
 const money = (value) => new Intl.NumberFormat('en-US', {
@@ -113,8 +114,18 @@ const SupplierSummaryStatement = () => {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => window.print()} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="print-supplier-summary-btn">
-            <Printer className="w-4 h-4 ml-1" /> طباعة / PDF
+          <Button onClick={() => exportSupplierSummaryPDF({
+            supplier,
+            summary,
+            movements: data.movements || [],
+            period: data.period,
+            reportNo: data.report_no,
+            issuedAt: data.issued_at,
+          }).catch((error) => toast({ title: 'تعذر إنشاء PDF', description: error.message, variant: 'destructive' }))} className="bg-slate-900 hover:bg-slate-800 text-white" data-testid="export-supplier-summary-pdf-btn">
+            <Printer className="w-4 h-4 ml-1" /> تصدير PDF
+          </Button>
+          <Button onClick={() => window.print()} variant="outline" data-testid="print-supplier-summary-btn">
+            <Printer className="w-4 h-4 ml-1" /> طباعة
           </Button>
         </div>
       </div>
