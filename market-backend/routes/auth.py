@@ -26,13 +26,29 @@ def _user_dict(u) -> dict:
     }
 
 
+
+def _find_login_user(db, identifier: str):
+    """Resolve login identifiers deterministically after restores or imports.
+
+    The configured admin email is authoritative for the short ``admin`` login;
+    this prevents a stale duplicate username row from shadowing the real admin.
+    """
+    active_filter = {"deleted_at": None}
+    configured_email = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+    if identifier == "admin" and configured_email:
+        user = db[C.users].find_one({**active_filter, "email": configured_email})
+        if user:
+            return user
+    user = db[C.users].find_one({**active_filter, "email": identifier})
+    if user:
+        return user
+    return db[C.users].find_one({**active_filter, "username": identifier})
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, request: Request, response: Response, db = Depends(get_db)):
     identifier = payload.email_or_username.strip().lower()
-    u = db[C.users].find_one({
-        "$or": [{"email": identifier}, {"username": identifier}],
-        "deleted_at": None,
-    })
+    u = _find_login_user(db, identifier)
 
     now = datetime.now(timezone.utc)
     if not u:
