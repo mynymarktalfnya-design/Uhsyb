@@ -36,6 +36,7 @@ BACKUP_DIR   = _DEFAULT_DIR or Path(__file__).resolve().parent.parent / "data" /
 SETTINGS_FILE = Path(__file__).resolve().parent.parent / "data" / "backup_settings.json"
 RESTORE_MARKER = Path(__file__).resolve().parent.parent / "data" / "last_restore.json"
 CONNECTIVITY_STATE = Path(__file__).resolve().parent.parent / "data" / "connectivity_state.json"
+TELEGRAM_SETTINGS_FILE = Path(__file__).resolve().parent.parent / "data" / "telegram_settings.json"
 
 DEFAULT_SETTINGS: dict = {
     "local_interval_hours": 2,
@@ -117,8 +118,14 @@ def _drive_files(service, folder_id: str = ""):
 
 def _telegram_send(text: str) -> bool:
     """Send a short notification without logging or exposing the bot token."""
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    try:
+        saved = json.loads(TELEGRAM_SETTINGS_FILE.read_text()) if TELEGRAM_SETTINGS_FILE.exists() else {}
+    except Exception:
+        saved = {}
+    token = (saved.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")).strip()
+    chat_id = (saved.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "")).strip()
+    if saved.get("enabled") is False:
+        return False
     if not token or not chat_id:
         return False
     try:
@@ -130,6 +137,67 @@ def _telegram_send(text: str) -> bool:
     except Exception as exc:
         logger.warning("Telegram notification failed: %s", str(exc)[:160])
         return False
+
+
+def _telegram_config() -> dict:
+    try:
+        saved = json.loads(TELEGRAM_SETTINGS_FILE.read_text()) if TELEGRAM_SETTINGS_FILE.exists() else {}
+    except Exception:
+        saved = {}
+    token = (saved.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")).strip()
+    chat_id = (saved.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "")).strip()
+    return {"enabled": saved.get("enabled", bool(token and chat_id)),
+            "configured": bool(token and chat_id),
+            "chat_id": chat_id,
+            "masked_token": f"••••{token[-4:]}" if token else ""}
+
+
+class TelegramSettingsIn(BaseModel):
+    bot_token: str = Field("", max_length=300)
+    chat_id: str = Field("", max_length=100)
+    enabled: bool = True
+
+
+@router.get("/telegram")
+def get_telegram_settings(_u=Depends(require_admin)):
+    return _telegram_config()
+
+
+@router.put("/telegram")
+def update_telegram_settings(payload: TelegramSettingsIn, request: Request,
+                             db=Depends(get_db), current=Depends(require_admin)):
+    old = _telegram_config()
+    try:
+        saved = json.loads(TELEGRAM_SETTINGS_FILE.read_text()) if TELEGRAM_SETTINGS_FILE.exists() else {}
+    except Exception:
+        saved = {}
+    token = payload.bot_token.strip() or saved.get("bot_token", "")
+    chat_id = payload.chat_id.strip()
+    if payload.enabled and (not token or not chat_id):
+        raise HTTPException(400, "أدخل Token و Chat ID قبل التفعيل")
+    TELEGRAM_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    TELEGRAM_SETTINGS_FILE.write_text(json.dumps({"bot_token": token, "chat_id": chat_id,
+                                                   "enabled": payload.enabled}, ensure_ascii=False, indent=2))
+    try:
+        os.chmod(TELEGRAM_SETTINGS_FILE, 0o600)
+    except OSError:
+        pass
+    log_action(db, current["_id"], "telegram_settings_updated", "settings", None,
+               before={"configured": old["configured"]},
+               after={"configured": bool(token and chat_id), "enabled": payload.enabled}, request=request)
+    return _telegram_config()
+
+
+@router.post("/telegram/test")
+def test_telegram(request: Request, db=Depends(get_db), current=Depends(require_admin)):
+    cfg = _telegram_config()
+    if not cfg["configured"] or not cfg["enabled"]:
+        raise HTTPException(400, "إعدادات Telegram غير مكتملة أو معطّلة")
+    if not _telegram_send("✅ اختبار ناجح — إشعارات ميني ماركت الفنية عبر Telegram تعمل الآن."):
+        raise HTTPException(502, "تعذر إرسال رسالة الاختبار إلى Telegram")
+    log_action(db, current["_id"], "telegram_test_sent", "settings", None,
+               after={"chat_id": cfg["chat_id"]}, request=request)
+    return {"detail": "تم إرسال رسالة الاختبار بنجاح"}
 
 
 def _internet_available() -> bool:

@@ -590,6 +590,68 @@ const DatabaseConnectionCard = () => {
   );
 };
 
+const TelegramBotSettingsCard = () => {
+  const [form, setForm] = useState({ bot_token: '', chat_id: '', enabled: true });
+  const [configured, setConfigured] = useState(false);
+  const [maskedToken, setMaskedToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    api.get('/admin/backups/telegram').then(({ data }) => {
+      setForm((current) => ({ ...current, chat_id: data.chat_id || '', enabled: data.enabled !== false }));
+      setConfigured(Boolean(data.configured));
+      setMaskedToken(data.masked_token || '');
+    }).catch(() => {});
+  }, []);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.put('/admin/backups/telegram', form);
+      setConfigured(Boolean(data.configured));
+      setMaskedToken(data.masked_token || '');
+      setForm((current) => ({ ...current, bot_token: '' }));
+      toast({ title: '✅ تم حفظ إعدادات Telegram', description: 'يمكنك الآن الضغط على اختبار الإشعار.' });
+    } catch (e) {
+      toast({ title: 'فشل حفظ إعدادات Telegram', description: e.response?.data?.detail || 'خطأ', variant: 'destructive' });
+    } finally { setBusy(false); }
+  };
+
+  const test = async () => {
+    setTesting(true);
+    try {
+      const { data } = await api.post('/admin/backups/telegram/test');
+      toast({ title: '✅ تم إرسال إشعار الاختبار', description: data.detail });
+    } catch (e) {
+      toast({ title: 'فشل اختبار Telegram', description: e.response?.data?.detail || 'تحقق من الرمز وChat ID', variant: 'destructive' });
+    } finally { setTesting(false); }
+  };
+
+  return (
+    <Card className="border-2 border-sky-200" data-testid="telegram-settings-card">
+      <CardContent className="p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center"><Bell className="w-6 h-6" /></div>
+          <div className="flex-1">
+            <h3 className="font-bold text-slate-900 text-lg">إعدادات بوت Telegram</h3>
+            <p className="text-sm text-slate-500 mt-1">يستقبل إشعار عودة الإنترنت ونتيجة مزامنة Google Drive. لا يظهر الـ Token بعد حفظه.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+              <div><Label>Bot Token</Label><Input type="password" value={form.bot_token} placeholder={maskedToken || 'أدخل Token جديدًا'} onChange={(e) => setForm({ ...form, bot_token: e.target.value })} dir="ltr" autoComplete="new-password" /></div>
+              <div><Label>Chat ID</Label><Input value={form.chat_id} placeholder="8227840392" onChange={(e) => setForm({ ...form, chat_id: e.target.value })} dir="ltr" /></div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              <Button onClick={save} disabled={busy} className="bg-sky-600 hover:bg-sky-700 text-white">{busy ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-1" />} حفظ الإعدادات</Button>
+              <Button onClick={test} disabled={testing || !configured} variant="outline" className="border-sky-300 text-sky-700">{testing ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Bell className="w-4 h-4 ml-1" />} اختبار الإشعار</Button>
+              <span className={`text-xs px-2 py-1 rounded ${configured ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{configured ? 'مُعدّ' : 'غير مُعدّ'}</span>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const Settings = () => {
   const { user, can } = useAuth();
   const [mode, setMode] = useState('test');
@@ -647,6 +709,7 @@ const Settings = () => {
 
       <CartonSalesCard canManage={can('manager')} />
       <InventoryAlertSettingsCard canManage={can('manager')} />
+      {isAdmin && <TelegramBotSettingsCard />}
 
       {isAdmin && !loadingMode && (
         <div className="space-y-4 mb-6">
