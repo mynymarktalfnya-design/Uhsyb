@@ -32,6 +32,7 @@ const menuItems = [
   { path: '/dashboard/day-close',    label: 'إقفال اليوم',     icon: Lock,            roles: ['admin'] },
   { path: '/dashboard/audit-logs',   label: 'سجل العمليات',   icon: ScrollText,      roles: ['admin'] },
   { path: '/dashboard/backups',      label: 'النسخ الاحتياطية', icon: Database,      roles: ['admin'] },
+  { path: '/dashboard/sync-conflicts', label: 'تعارضات المزامنة', icon: AlertTriangle, roles: ['admin'] },
   { path: '/dashboard/employees',    label: 'الموظفون',       icon: UserCircle,      roles: ['admin'] },
   { path: '/dashboard/settings',     label: 'الإعدادات',      icon: Settings,        roles: ['admin'] },
 ];

@@ -207,6 +207,7 @@ class C:
     notifications = "notifications"
     devices = "devices"
     sync_queue = "sync_queue"
+    sync_conflicts = "sync_conflicts"
     product_change_requests = "product_change_requests"
     day_closes = "day_closes"
 

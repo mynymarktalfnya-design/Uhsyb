@@ -29,6 +29,7 @@ import DayClose from './pages/DayClose';
 import Backups from './pages/Backups';
 import StockAlerts from './pages/StockAlerts';
 import Wallets from './pages/Wallets';
+import SyncConflicts from './pages/SyncConflicts';
 
 // Layout
 import Sidebar from './components/layout/Sidebar';
@@ -293,6 +294,8 @@ function App() {
             element={<ProtectedRoute><DashboardLayout><DayClose /></DashboardLayout></ProtectedRoute>} />
           <Route path="/dashboard/backups"
             element={<ProtectedRoute><DashboardLayout><Backups /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/dashboard/sync-conflicts"
+            element={<ProtectedRoute><DashboardLayout><SyncConflicts /></DashboardLayout></ProtectedRoute>} />
           
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
