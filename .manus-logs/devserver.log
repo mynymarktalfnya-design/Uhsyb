@@ -1,0 +1,183 @@
+[2026-09-13T02:42:04.298Z] 2:42:04 AM [vite] changed tsconfig file detected: /home/ubuntu/minimarket-permanent/tsconfig.json - Clearing cache and forcing full-reload to ensure TypeScript is compiled with updated config values.
+[2026-09-13T02:42:04.307Z] 2:42:04 AM [vite] (client) page reload index.html
+[2026-09-13T02:42:04.307Z] 2:42:04 AM [vite] (client) page reload public/.gitkeep
+[2026-09-13T02:42:04.308Z] 2:42:04 AM [vite] (client) page reload public/__manus__/debug-collector.js
+[2026-09-13T02:42:04.308Z] 2:42:04 AM [vite] (client) page reload src/App.tsx
+[2026-09-13T02:42:04.308Z] 2:42:04 AM [vite] (client) page reload src/_core/hooks/useAuth.ts
+[2026-09-13T02:42:04.308Z] 2:42:04 AM [vite] (client) page reload src/components/AIChatBox.tsx
+[2026-09-13T02:42:04.308Z] 2:42:04 AM [vite] (client) page reload src/components/DashboardLayout.tsx
+[2026-09-13T02:42:04.308Z] 2:42:04 AM [vite] (client) page reload src/components/DashboardLayoutSkeleton.tsx
+[2026-09-13T02:42:04.308Z] 2:42:04 AM [vite] (client) page reload src/components/ErrorBoundary.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ManusDialog.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/Map.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/accordion.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/alert-dialog.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/alert.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/aspect-ratio.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/avatar.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/badge.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/breadcrumb.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/button-group.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/button.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/calendar.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/card.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/carousel.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/chart.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/checkbox.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/collapsible.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/command.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/context-menu.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/dialog.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/drawer.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/dropdown-menu.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/empty.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/field.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/form.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/hover-card.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/input-group.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/input-otp.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/input.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/item.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/kbd.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/label.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/menubar.tsx
+[2026-09-13T02:42:04.309Z] 2:42:04 AM [vite] (client) page reload src/components/ui/navigation-menu.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/pagination.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/popover.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/progress.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/radio-group.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/resizable.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/scroll-area.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/select.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/separator.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/sheet.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/sidebar.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/skeleton.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/slider.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/sonner.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/spinner.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/switch.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/table.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/tabs.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/textarea.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/toggle-group.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/toggle.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/components/ui/tooltip.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/const.ts
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/contexts/ThemeContext.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/hooks/useComposition.ts
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/hooks/useMobile.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/hooks/usePersistFn.ts
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) hmr update /src/index.css
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/lib/trpc.ts
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/lib/utils.ts
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/main.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/pages/ComponentShowcase.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/pages/Home.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload src/pages/NotFound.tsx
+[2026-09-13T02:42:04.310Z] 2:42:04 AM [vite] (client) page reload /home/ubuntu/minimarket-permanent/shared/const.ts
+[2026-09-13T02:42:04.389Z] 2:42:04 AM [tsx] unlink in ./vite.config.ts Restarting...
+[2026-09-13T02:42:04.674Z] c
+[2026-09-13T02:42:04.674Z] node:internal/modules/run_main:122
+[2026-09-13T02:42:04.674Z] triggerUncaughtException(
+[2026-09-13T02:42:04.674Z] ^
+[2026-09-13T02:42:04.675Z] Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/ubuntu/minimarket-permanent/server/_core/index.ts' imported from /home/ubuntu/minimarket-permanent/
+[2026-09-13T02:42:04.675Z] at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+[2026-09-13T02:42:04.675Z] at moduleResolve (node:internal/modules/esm/resolve:932:10)
+[2026-09-13T02:42:04.675Z] at defaultResolve (node:internal/modules/esm/resolve:1056:11)
+[2026-09-13T02:42:04.675Z] at nextResolve (node:internal/modules/esm/hooks:748:28)
+[2026-09-13T02:42:04.675Z] at resolveBase (file:///home/ubuntu/minimarket-permanent/node_modules/.pnpm/tsx@4.20.6/node_modules/tsx/dist/esm/index.mjs?1789267324536:2:3744)
+[2026-09-13T02:42:04.675Z] at resolveDirectory (file:///home/ubuntu/minimarket-permanent/node_modules/.pnpm/tsx@4.20.6/node_modules/tsx/dist/esm/index.mjs?1789267324536:2:4243)
+[2026-09-13T02:42:04.675Z] at resolveTsPaths (file:///home/ubuntu/minimarket-permanent/node_modules/.pnpm/tsx@4.20.6/node_modules/tsx/dist/esm/index.mjs?1789267324536:2:4984)
+[2026-09-13T02:42:04.675Z] at resolve (file:///home/ubuntu/minimarket-permanent/node_modules/.pnpm/tsx@4.20.6/node_modules/tsx/dist/esm/index.mjs?1789267324536:2:5361)
+[2026-09-13T02:42:04.675Z] at nextResolve (node:internal/modules/esm/hooks:748:28)
+[2026-09-13T02:42:04.675Z] at Hooks.resolve (node:internal/modules/esm/hooks:240:30) {
+[2026-09-13T02:42:04.675Z] code: 'ERR_MODULE_NOT_FOUND',
+[2026-09-13T02:42:04.675Z] url: 'file:///home/ubuntu/minimarket-permanent/server/_core/index.ts'
+[2026-09-13T02:42:04.675Z] }
+[2026-09-13T02:42:04.675Z] Node.js v22.13.0
+[2026-09-13T02:42:09.419Z] Dev server exited with code 0
+[2026-09-13T02:45:24.172Z] Starting dev server with command: pnpm run dev
+[2026-09-13T02:45:24.540Z] > workspace@0.0.0 dev /home/ubuntu/minimarket-permanent
+[2026-09-13T02:45:24.540Z] > sh -c 'exec uvicorn deploy_server:app --host 0.0.0.0 --port ${PORT:-3000} --reload'
+[2026-09-13T02:45:24.763Z] INFO:     Will watch for changes in these directories: ['/home/ubuntu/minimarket-permanent']
+[2026-09-13T02:45:24.764Z] INFO:     Uvicorn running on http://0.0.0.0:3000 (Press CTRL+C to quit)
+[2026-09-13T02:45:24.764Z] INFO:     Started reloader process [7157] using StatReload
+[2026-09-13T02:45:25.869Z] Process SpawnProcess-1:
+[2026-09-13T02:45:25.875Z] Traceback (most recent call last):
+[2026-09-13T02:45:25.876Z] File "/usr/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+[2026-09-13T02:45:25.876Z] self.run()
+[2026-09-13T02:45:25.876Z] File "/usr/lib/python3.12/multiprocessing/process.py", line 108, in run
+[2026-09-13T02:45:25.876Z] self._target(*self._args, **self._kwargs)
+[2026-09-13T02:45:25.876Z] File "/usr/local/lib/python3.12/dist-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+[2026-09-13T02:45:25.876Z] target(sockets=sockets)
+[2026-09-13T02:45:25.876Z] File "/usr/local/lib/python3.12/dist-packages/uvicorn/server.py", line 77, in run
+[2026-09-13T02:45:25.876Z] return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+[2026-09-13T02:45:25.876Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T02:45:25.876Z] File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+[2026-09-13T02:45:25.876Z] return runner.run(main)
+[2026-09-13T02:45:25.876Z] ^^^^^^^^^^^^^^^^
+[2026-09-13T02:45:25.876Z] File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+[2026-09-13T02:45:25.876Z] return self._loop.run_until_complete(task)
+[2026-09-13T02:45:25.876Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T02:45:25.876Z] File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+[2026-09-13T02:45:25.876Z] return future.result()
+[2026-09-13T02:45:25.876Z] ^^^^^^^^^^^^^^^
+[2026-09-13T02:45:25.876Z] File "/usr/local/lib/python3.12/dist-packages/uvicorn/server.py", line 81, in serve
+[2026-09-13T02:45:25.876Z] await self._serve(sockets)
+[2026-09-13T02:45:25.876Z] File "/usr/local/lib/python3.12/dist-packages/uvicorn/server.py", line 88, in _serve
+[2026-09-13T02:45:25.876Z] config.load()
+[2026-09-13T02:45:25.876Z] File "/usr/local/lib/python3.12/dist-packages/uvicorn/config.py", line 494, in load
+[2026-09-13T02:45:25.876Z] self.loaded_app = self.load_app()
+[2026-09-13T02:45:25.876Z] ^^^^^^^^^^^^^^^
+[2026-09-13T02:45:25.876Z] File "/usr/local/lib/python3.12/dist-packages/uvicorn/config.py", line 428, in load_app
+[2026-09-13T02:45:25.876Z] return import_from_string(self.app)
+[2026-09-13T02:45:25.876Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T02:45:25.876Z] File "/usr/local/lib/python3.12/dist-packages/uvicorn/importer.py", line 22, in import_from_string
+[2026-09-13T02:45:25.876Z] raise exc from None
+[2026-09-13T02:45:25.876Z] File "/usr/local/lib/python3.12/dist-packages/uvicorn/importer.py", line 19, in import_from_string
+[2026-09-13T02:45:25.876Z] module = importlib.import_module(module_str)
+[2026-09-13T02:45:25.876Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T02:45:25.876Z] File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+[2026-09-13T02:45:25.876Z] return _bootstrap._gcd_import(name[level:], package, level)
+[2026-09-13T02:45:25.876Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T02:45:25.876Z] File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+[2026-09-13T02:45:25.876Z] File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+[2026-09-13T02:45:25.876Z] File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+[2026-09-13T02:45:25.876Z] File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+[2026-09-13T02:45:25.876Z] File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+[2026-09-13T02:45:25.876Z] File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+[2026-09-13T02:45:25.876Z] File "/home/ubuntu/minimarket-permanent/deploy_server.py", line 13, in <module>
+[2026-09-13T02:45:25.876Z] from server import app  # noqa: E402
+[2026-09-13T02:45:25.876Z] ^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T02:45:25.876Z] File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 6, in <module>
+[2026-09-13T02:45:25.876Z] from dotenv import load_dotenv
+[2026-09-13T02:45:25.876Z] ModuleNotFoundError: No module named 'dotenv'
+[2026-09-13T02:55:52.071Z] INFO:     Stopping reloader process [7157]
+[2026-09-13T02:55:52.074Z] ELIFECYCLE  Command failed.
+[2026-09-13T02:55:52.083Z] Terminated
+[2026-09-13T02:55:52.107Z] Dev server exited with code 143
+[2026-09-13T02:56:01.336Z] Starting dev server with command: pnpm run dev
+[2026-09-13T02:56:02.066Z] $ sh -c 'exec uv run --with-requirements requirements.deploy.txt uvicorn deploy_server:app --host 0.0.0.0 --port ${PORT:-3000} --reload'
+[2026-09-13T02:56:02.106Z] Using CPython 3.12.3 interpreter at: /usr/bin/python3
+[2026-09-13T02:56:02.107Z] Creating virtual environment at: .venv
+[2026-09-13T02:56:02.166Z] Installed 35 packages in 29ms
+[2026-09-13T02:56:02.268Z] Installed 35 packages in 11ms
+[2026-09-13T02:56:02.582Z] INFO:     Will watch for changes in these directories: ['/home/ubuntu/minimarket-permanent']
+[2026-09-13T02:56:02.582Z] INFO:     Uvicorn running on http://0.0.0.0:3000 (Press CTRL+C to quit)
+[2026-09-13T02:56:02.582Z] INFO:     Started reloader process [8024] using StatReload
+[2026-09-13T02:56:04.871Z] INFO:     Started server process [8026]
+[2026-09-13T02:56:04.871Z] INFO:     Waiting for application startup.
+[2026-09-13T02:56:05.005Z] 2026-09-13 02:56:05,004 - server - INFO - Seeding complete (mode=test)
+[2026-09-13T02:56:05.006Z] 2026-09-13 02:56:05,006 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-09-13T02:56:05.006Z] 2026-09-13 02:56:05,006 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-09-13T02:56:05.006Z] 2026-09-13 02:56:05,006 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-09-13T02:56:05.007Z] 2026-09-13 02:56:05,007 - apscheduler.scheduler - INFO - Added job "_auto_backup_job" to job store "default"
+[2026-09-13T02:56:05.007Z] 2026-09-13 02:56:05,007 - apscheduler.scheduler - INFO - Added job "_auto_backup_job" to job store "default"
+[2026-09-13T02:56:05.007Z] 2026-09-13 02:56:05,007 - apscheduler.scheduler - INFO - Added job "_drive_sync_job" to job store "default"
+[2026-09-13T02:56:05.007Z] 2026-09-13 02:56:05,007 - apscheduler.scheduler - INFO - Scheduler started
+[2026-09-13T02:56:05.007Z] 2026-09-13 02:56:05,007 - routes.backups - INFO - Backup scheduler started — interval=1h midnight=True
+[2026-09-13T02:56:05.007Z] INFO:     Application startup complete.
+[2026-09-13T02:56:16.471Z] INFO:     10.217.45.1:59690 - "GET / HTTP/1.1" 200 OK
+[2026-09-13T02:56:16.583Z] INFO:     10.217.45.1:59700 - "GET /api/health HTTP/1.1" 200 OK
+[2026-09-13T02:56:26.399Z] INFO:     10.217.45.1:58518 - "GET /api/health HTTP/1.1" 200 OK

@@ -1,0 +1,689 @@
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import {
+  Settings as SettingsIcon, Cloud, Shield, Bell, Database,
+  AlertTriangle, ShieldCheck, Power, Trash2, Loader2, Link2, RefreshCw,
+  CheckCircle2,
+  PackageCheck,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { toast } from '../hooks/use-toast';
+import api from '../lib/api';
+
+const SystemModeCard = ({ mode, onChanged }) => {
+  const [saving, setSaving] = useState(false);
+
+  const flip = async (next) => {
+    if (next === mode) return;
+    if (next === 'production') {
+      toast({
+        title: 'استخدم "تفعيل التشغيل الحقيقي"',
+        description: 'الانتقال للإنتاج يتطلب تأكيد كلمة المرور وإعدادات إضافية بالأسفل',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSaving(true);
+    try {
+      const r = await api.patch('/admin/system/mode', { mode: next });
+      toast({ title: 'تم التحديث', description: `الوضع الحالي: ${r.data.mode}` });
+      onChanged(r.data.mode);
+    } catch (e) {
+      toast({ title: 'فشل', description: e.response?.data?.detail || 'خطأ', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card data-testid="system-mode-card" className={mode === 'production' ? 'border-emerald-500 border-2' : 'border-amber-400 border'}>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+              mode === 'production' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+            }`}>
+              <Power className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-lg">وضع النظام</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                {mode === 'production'
+                  ? 'النظام يعمل في وضع التشغيل الحقيقي — الحسابات التجريبية مخفية والبيانات الوهمية ممنوعة.'
+                  : 'النظام في وضع الاختبار — تظهر الحسابات التجريبية على شاشة الدخول. استخدم زر "تفعيل التشغيل الحقيقي" بالأسفل للانتقال.'}
+              </p>
+              <span className={`inline-block mt-2 px-2.5 py-0.5 text-xs font-semibold rounded ${
+                mode === 'production' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+              }`} data-testid="current-mode-badge">
+                {mode === 'production' ? '🟢 تشغيل حقيقي' : '🟡 اختبار'}
+              </span>
+            </div>
+          </div>
+          {mode === 'production' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => flip('test')}
+              disabled={saving}
+              data-testid="switch-to-test-btn"
+            >
+              عودة لوضع الاختبار
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const ResetDemoDataCard = () => {
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    if (confirm !== 'DELETE_ALL_DEMO_DATA') {
+      toast({ title: 'عبارة التأكيد غير صحيحة', variant: 'destructive' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await api.post('/admin/system/reset-demo-data', { confirm });
+      toast({
+        title: '✅ تم المسح',
+        description: `نسخة احتياطية: ${r.data.backup_created || '—'} | جداول: ${r.data.tables_truncated}`,
+      });
+      setOpen(false);
+      setConfirm('');
+    } catch (e) {
+      toast({ title: 'فشل', description: e.response?.data?.detail || 'خطأ', variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="border-rose-300 border-2" data-testid="reset-demo-card">
+      <CardContent className="p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
+            <Trash2 className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-slate-900 text-lg">مسح البيانات التجريبية</h3>
+            <p className="text-sm text-slate-500 mt-1">
+              يحذف جميع: المنتجات، العملاء، التجار، الفواتير، المبيعات، المرتجعات، المصروفات، حركات المخزون، السجلات.
+              <br/>
+              <span className="font-semibold text-emerald-700">يتم إنشاء نسخة احتياطية تلقائياً قبل المسح.</span>
+              <br/>
+              <span className="text-rose-700">لا يحذف: المستخدمين، تصنيفات المصروفات، إعدادات النظام.</span>
+            </p>
+            {!open ? (
+              <Button
+                variant="destructive"
+                className="mt-3"
+                onClick={() => setOpen(true)}
+                data-testid="open-reset-demo-btn"
+              >
+                <Trash2 className="w-4 h-4 ml-2" /> بدء المسح
+              </Button>
+            ) : (
+              <div className="mt-3 space-y-2 p-3 bg-rose-50 rounded-lg border border-rose-200">
+                <Label className="text-sm font-medium text-rose-900">
+                  للتأكيد، اكتب: <code className="bg-white px-2 py-0.5 rounded font-mono">DELETE_ALL_DEMO_DATA</code>
+                </Label>
+                <Input
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="DELETE_ALL_DEMO_DATA"
+                  data-testid="reset-confirm-input"
+                  dir="ltr"
+                  className="text-left font-mono"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={run}
+                    disabled={busy || confirm !== 'DELETE_ALL_DEMO_DATA'}
+                    data-testid="confirm-reset-btn"
+                  >
+                    {busy ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Trash2 className="w-4 h-4 ml-2" />}
+                    مسح نهائياً
+                  </Button>
+                  <Button variant="outline" onClick={() => { setOpen(false); setConfirm(''); }}>
+                    إلغاء
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const ActivateProductionCard = ({ mode, onActivated }) => {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({
+    current_password: '',
+    new_username: '',
+    new_email: '',
+    new_full_name: '',
+    new_password: '',
+    new_password_confirm: '',
+    wipe_business_data: true,
+    remove_demo_accounts: true,
+  });
+
+  const submit = async () => {
+    if (form.new_password !== form.new_password_confirm) {
+      toast({ title: 'كلمتا المرور غير متطابقتين', variant: 'destructive' });
+      return;
+    }
+    if (form.new_password.length < 8) {
+      toast({ title: 'كلمة المرور قصيرة جداً (8 على الأقل)', variant: 'destructive' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await api.post('/admin/system/activate-production', {
+        current_password: form.current_password,
+        new_username: form.new_username.trim(),
+        new_email: form.new_email.trim(),
+        new_full_name: form.new_full_name.trim(),
+        new_password: form.new_password,
+        wipe_business_data: form.wipe_business_data,
+        remove_demo_accounts: form.remove_demo_accounts,
+      });
+      toast({
+        title: '🎉 تم تفعيل التشغيل الحقيقي',
+        description: `المالك: ${r.data.owner_username} | نسخة احتياطية: ${r.data.backup_created}`,
+      });
+      onActivated();
+      setOpen(false);
+      // Force re-login since credentials changed
+      setTimeout(() => {
+        localStorage.removeItem('mm_token');
+        localStorage.removeItem('mm_user');
+        window.location.href = '/';
+      }, 1800);
+    } catch (e) {
+      toast({ title: 'فشل', description: e.response?.data?.detail || 'خطأ', variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (mode === 'production') {
+    return (
+      <Card className="border-emerald-300 bg-emerald-50/40" data-testid="production-active-card">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="w-8 h-8 text-emerald-600" />
+            <div>
+              <h3 className="font-bold text-slate-900">وضع التشغيل الحقيقي مُفعّل</h3>
+              <p className="text-sm text-slate-600">الحسابات التجريبية مخفية والبيانات الوهمية ممنوعة.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-indigo-300 border-2" data-testid="activate-prod-card">
+      <CardContent className="p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+            <Power className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-slate-900 text-lg">تفعيل وضع التشغيل الحقيقي</h3>
+            <p className="text-sm text-slate-500 mt-1">
+              يقوم بـ: (1) نسخة احتياطية كاملة، (2) مسح البيانات التجريبية، (3) حذف حسابات (مدير/مشرف/كاشير) الافتراضية،
+              (4) تحويل حسابك الحالي إلى بيانات المالك الجديدة، (5) إخفاء الحسابات التجريبية من شاشة الدخول.
+            </p>
+            {!open ? (
+              <Button
+                className="mt-4 bg-indigo-600 hover:bg-indigo-700"
+                onClick={() => setOpen(true)}
+                data-testid="open-activate-prod-btn"
+              >
+                <Power className="w-4 h-4 ml-2" /> ابدأ التفعيل
+              </Button>
+            ) : (
+              <div className="mt-4 p-4 bg-indigo-50/60 rounded-lg border border-indigo-200 space-y-3">
+                <div className="flex items-start gap-2 text-amber-900 bg-amber-50 p-2 rounded text-sm border border-amber-300">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>سيتم تسجيل خروجك تلقائياً بعد التفعيل لإعادة الدخول ببيانات المالك الجديدة. احتفظ بها في مكان آمن!</span>
+                </div>
+
+                <div>
+                  <Label>كلمة المرور الحالية للتأكيد</Label>
+                  <Input type="password" autoComplete="new-password" value={form.current_password}
+                         onChange={(e) => setForm({ ...form, current_password: e.target.value })}
+                         data-testid="prod-current-pw" dir="ltr" />
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-bold text-slate-800 mb-2">بيانات المالك الجديدة:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label>اسم المستخدم الجديد</Label>
+                      <Input value={form.new_username} placeholder="owner"
+                             onChange={(e) => setForm({ ...form, new_username: e.target.value })}
+                             data-testid="prod-new-username" dir="ltr" />
+                    </div>
+                    <div>
+                      <Label>البريد الإلكتروني</Label>
+                      <Input type="email" value={form.new_email} placeholder="owner@market.com"
+                             onChange={(e) => setForm({ ...form, new_email: e.target.value })}
+                             data-testid="prod-new-email" dir="ltr" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label>الاسم الكامل</Label>
+                      <Input value={form.new_full_name} placeholder="اسم المالك"
+                             onChange={(e) => setForm({ ...form, new_full_name: e.target.value })}
+                             data-testid="prod-new-fullname" />
+                    </div>
+                    <div>
+                      <Label>كلمة المرور الجديدة (8+)</Label>
+                      <Input type="password" autoComplete="new-password" value={form.new_password}
+                             onChange={(e) => setForm({ ...form, new_password: e.target.value })}
+                             data-testid="prod-new-password" dir="ltr" />
+                    </div>
+                    <div>
+                      <Label>تأكيد كلمة المرور</Label>
+                      <Input type="password" autoComplete="new-password" value={form.new_password_confirm}
+                             onChange={(e) => setForm({ ...form, new_password_confirm: e.target.value })}
+                             data-testid="prod-new-password-confirm" dir="ltr" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-3 space-y-2">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={form.wipe_business_data}
+                           onChange={(e) => setForm({ ...form, wipe_business_data: e.target.checked })}
+                           data-testid="prod-wipe-data" />
+                    مسح جميع البيانات التجريبية (موصى به)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={form.remove_demo_accounts}
+                           onChange={(e) => setForm({ ...form, remove_demo_accounts: e.target.checked })}
+                           data-testid="prod-remove-accounts" />
+                    حذف حسابات (مشرف / كاشير) الافتراضية
+                  </label>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button onClick={submit} disabled={busy} className="bg-indigo-600 hover:bg-indigo-700"
+                          data-testid="confirm-activate-prod-btn">
+                    {busy ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Power className="w-4 h-4 ml-2" />}
+                    تفعيل وضع التشغيل الحقيقي
+                  </Button>
+                  <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>إلغاء</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const CartonSalesCard = ({ canManage }) => {
+  const [percent, setPercent] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/pos/settings')
+      .then((r) => setPercent(Number(r.data.carton_discount_percent) || 0))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    const value = Math.max(0, Math.min(100, Number(percent) || 0));
+    setSaving(true);
+    try {
+      await api.patch('/admin/pos-settings', { discount_percent: value });
+      setPercent(value);
+      toast({ title: 'تم حفظ خصم الكرتون', description: `الخصم التلقائي: ${value}%` });
+    } catch (e) {
+      toast({ title: 'فشل الحفظ', description: e.response?.data?.detail || 'خطأ', variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Card className="border-amber-300 border-2 mb-6" data-testid="carton-sales-settings-card">
+      <CardContent className="p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+            <PackageCheck className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold text-slate-900">إعدادات البيع بالكرتون</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              عند اختيار بيع بالكرتون في نقطة البيع، يُطبّق هذا الخصم تلقائياً على قيمة الكرتون.
+              المدير والمشرف المصرّح له فقط يستطيعان تعديل النسبة.
+            </p>
+            <div className="flex items-end gap-3 mt-4 max-w-sm">
+              <div className="flex-1">
+                <Label>خصم الكرتون (%)</Label>
+                <Input type="number" min="0" max="100" step="0.1" value={percent}
+                  onChange={(e) => setPercent(e.target.value)} disabled={loading || !canManage}
+                  data-testid="carton-discount-input" />
+              </div>
+              {canManage && (
+                <Button onClick={save} disabled={loading || saving} className="bg-amber-500 hover:bg-amber-600 text-white">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'حفظ الخصم'}
+                </Button>
+              )}
+            </div>
+            {!canManage && <p className="text-xs text-slate-400 mt-2">ليس لديك صلاحية تعديل إعدادات البيع بالكرتون.</p>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const InventoryAlertSettingsCard = ({ canManage }) => {
+  const [form, setForm] = useState({ expiry_alert_days: 30, low_stock_threshold: 0 });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/alert-settings')
+      .then((r) => setForm({
+        expiry_alert_days: Number(r.data.expiry_alert_days) || 30,
+        low_stock_threshold: Number(r.data.low_stock_threshold) || 0,
+      }))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    const payload = {
+      expiry_alert_days: Math.max(1, Math.min(365, Number(form.expiry_alert_days) || 30)),
+      low_stock_threshold: Math.max(0, Math.min(100000, Number(form.low_stock_threshold) || 0)),
+    };
+    setSaving(true);
+    try {
+      const { data } = await api.patch('/admin/alert-settings', payload);
+      setForm(data);
+      toast({ title: 'تم حفظ إعدادات التنبيهات' });
+    } catch (e) {
+      toast({ title: 'فشل الحفظ', description: e.response?.data?.detail || 'خطأ', variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Card className="border-sky-300 border-2 mb-6" data-testid="inventory-alert-settings-card">
+      <CardContent className="p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center">
+            <Bell className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold text-slate-900">إعدادات تنبيهات المخزون والصلاحية</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              حدد متى تظهر التنبيهات في لوحات التحكم. حد المخزون هنا يطبق على جميع المنتجات،
+              مع احترام الحد الأعلى المحدد داخل المنتج.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 max-w-2xl">
+              <div>
+                <Label>تنبيه انتهاء الصلاحية قبل (يوم)</Label>
+                <Input
+                  type="number" min="1" max="365" step="1"
+                  value={form.expiry_alert_days}
+                  onChange={(e) => setForm({ ...form, expiry_alert_days: e.target.value })}
+                  disabled={loading || !canManage}
+                  data-testid="expiry-alert-days-input"
+                />
+              </div>
+              <div>
+                <Label>تنبيه انخفاض المخزون عند (وحدة)</Label>
+                <Input
+                  type="number" min="0" max="100000" step="1"
+                  value={form.low_stock_threshold}
+                  onChange={(e) => setForm({ ...form, low_stock_threshold: e.target.value })}
+                  disabled={loading || !canManage}
+                  data-testid="low-stock-threshold-input"
+                />
+              </div>
+            </div>
+            {canManage && (
+              <Button onClick={save} disabled={loading || saving} className="mt-4 bg-sky-600 hover:bg-sky-700 text-white">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'حفظ إعدادات التنبيهات'}
+              </Button>
+            )}
+            {!canManage && <p className="text-xs text-slate-400 mt-2">ليس لديك صلاحية تعديل إعدادات التنبيهات.</p>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const DatabaseConnectionCard = () => {
+  const [status, setStatus] = useState(null);
+  const [checking, setChecking] = useState(false);
+
+  const checkConnection = async (showToast = true) => {
+    setChecking(true);
+    try {
+      const response = await api.get('/admin/system/database-status');
+      setStatus(response.data);
+      if (showToast) {
+        toast({
+          title: response.data.persistent ? 'تم الربط بنجاح' : 'الاتصال ما زال مؤقتاً',
+          description: response.data.message,
+          variant: response.data.persistent ? 'default' : 'destructive',
+        });
+      }
+    } catch (e) {
+      const message = e.response?.data?.detail || 'تعذر فحص اتصال قاعدة البيانات';
+      setStatus({ connected: false, persistent: false, status: 'disconnected', message });
+      if (showToast) toast({ title: 'فشل الربط', description: message, variant: 'destructive' });
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    checkConnection(false);
+  }, []);
+
+  const connected = status?.connected;
+  const persistent = status?.persistent;
+
+  return (
+    <Card
+      className={`border-2 ${
+        persistent ? 'border-emerald-300 bg-emerald-50/40' : 'border-amber-300 bg-amber-50/50'
+      }`}
+      data-testid="database-connection-card"
+    >
+      <CardContent className="p-6">
+        <div className="flex items-start gap-3">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+            persistent ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+          }`}>
+            {persistent ? <CheckCircle2 className="w-6 h-6" /> : <Database className="w-6 h-6" />}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">ربط قاعدة البيانات</h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  اربط MongoDB للحفظ الدائم للفواتير والحسابات والمنتجات.
+                </p>
+              </div>
+              <span className={`shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full ${
+                persistent
+                  ? 'bg-emerald-600 text-white'
+                  : connected
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-rose-600 text-white'
+              }`}>
+                {persistent ? 'مربوطة' : connected ? 'مؤقتة' : 'غير مربوطة'}
+              </span>
+            </div>
+
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white/80 p-3 text-sm">
+              {status ? (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">المحرك</span>
+                    <span className="font-semibold text-slate-800" dir="ltr">
+                      {status.backend || '—'}
+                    </span>
+                  </div>
+                  <p className={`mt-2 ${persistent ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {status.message}
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-500">جارٍ فحص الاتصال...</p>
+              )}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                onClick={() => checkConnection(true)}
+                disabled={checking}
+                className={persistent ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}
+                data-testid="connect-database-btn"
+              >
+                {checking ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Link2 className="w-4 h-4 ml-2" />}
+                {checking ? 'جاري الفحص...' : 'اربط الآن'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => checkConnection(true)}
+                disabled={checking}
+                data-testid="refresh-database-status-btn"
+              >
+                <RefreshCw className={`w-4 h-4 ml-2 ${checking ? 'animate-spin' : ''}`} />
+                تحديث الحالة
+              </Button>
+            </div>
+
+            {!persistent && (
+              <p className="text-xs text-slate-500 mt-3">
+                بعد إضافة بيانات MongoDB الصحيحة في إعدادات البيئة الآمنة، اضغط «اربط الآن» للتحقق من الحفظ الدائم.
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const Settings = () => {
+  const { user, can } = useAuth();
+  const [mode, setMode] = useState('test');
+  const [loadingMode, setLoadingMode] = useState(true);
+  const isAdmin = user?.role === 'admin';
+
+  useEffect(() => {
+    if (!isAdmin) { setLoadingMode(false); return; }
+    api.get('/admin/system/mode')
+      .then((r) => setMode(r.data.mode))
+      .catch(() => {})
+      .finally(() => setLoadingMode(false));
+  }, [isAdmin]);
+
+  const sections = [
+    { icon: Cloud, title: 'المزامنة', desc: 'وضع Offline-First مع طابور مزامنة سحابي', status: 'مُفعّل' },
+    { icon: Shield, title: 'الأمان', desc: 'JWT + قفل الحساب بعد 5 محاولات + سجل تدقيق', status: 'مُفعّل' },
+    { icon: Database, title: 'قاعدة البيانات', desc: 'MongoDB مع نسخ احتياطي وحفظ حركات الحسابات', status: 'راجع بطاقة الربط' },
+    { icon: Bell, title: 'الإشعارات', desc: 'تنبيهات المخزون المنخفض والمنتجات منتهية الصلاحية', status: 'قريباً' },
+  ];
+
+  return (
+    <div className="p-6 lg:p-8" dir="rtl" data-testid="settings-page">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-slate-900 mb-1 flex items-center gap-2">
+          <SettingsIcon className="w-7 h-7 text-amber-600" />
+          الإعدادات
+        </h1>
+        <p className="text-slate-500">إعدادات النظام والحساب ووضع التشغيل</p>
+      </div>
+
+      <Card className="mb-6">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">معلومات الحساب</h2>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-slate-500 mb-1">الاسم</p>
+              <p className="font-medium" data-testid="account-fullname">{user?.full_name}</p>
+            </div>
+            <div>
+              <p className="text-slate-500 mb-1">البريد</p>
+              <p className="font-medium" data-testid="account-email">{user?.email}</p>
+            </div>
+            <div>
+              <p className="text-slate-500 mb-1">اسم المستخدم</p>
+              <p className="font-medium" data-testid="account-username">{user?.username}</p>
+            </div>
+            <div>
+              <p className="text-slate-500 mb-1">الدور</p>
+              <p className="font-medium">{user?.role}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <CartonSalesCard canManage={can('manager')} />
+      <InventoryAlertSettingsCard canManage={can('manager')} />
+
+      {isAdmin && !loadingMode && (
+        <div className="space-y-4 mb-6">
+          <h2 className="text-xl font-bold text-slate-900">إدارة النظام (المالك فقط)</h2>
+          <SystemModeCard mode={mode} onChanged={setMode} />
+          <DatabaseConnectionCard />
+          <ActivateProductionCard mode={mode} onActivated={() => setMode('production')} />
+          <ResetDemoDataCard />
+        </div>
+      )}
+
+      <h2 className="text-xl font-bold text-slate-900 mb-3">حالة الخدمات</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {sections.map((s) => {
+          const Icon = s.icon;
+          return (
+            <Card key={s.title}>
+              <CardContent className="p-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-slate-900">{s.title}</h3>
+                    <p className="text-sm text-slate-500 mb-2">{s.desc}</p>
+                    <span className="inline-block px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 rounded">
+                      {s.status}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default Settings;

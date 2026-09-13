@@ -1,0 +1,726 @@
+"""Supplier accounts, purchases, payments, and returns. MongoDB."""
+from datetime import date, datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
+from typing import List, Optional
+
+from database import get_db, C
+from models import new_id, MovementType
+from utils.deps import get_current_user, require_manager
+from utils.audit import log_action
+from utils.time import business_today, day_range_utc
+
+router = APIRouter(prefix="/api", tags=["supplier-accounts"])
+
+
+# ─── Helpers ────────────────────────────────────────────────────────────────
+
+def _user_name(db, user_id: str) -> Optional[str]:
+    if not user_id:
+        return None
+    u = db[C.users].find_one({"_id": user_id}, {"username": 1, "full_name": 1})
+    if not u:
+        return None
+    return u.get("full_name") or u.get("username")
+
+
+# ─── Supplier statement + sub-lists ─────────────────────────────────────────
+
+@router.get("/suppliers/{supplier_id}/statement")
+def supplier_statement(supplier_id: str, db=Depends(get_db), _u=Depends(require_manager)):
+    s = db[C.suppliers].find_one({"_id": supplier_id, "deleted_at": None})
+    if not s:
+        raise HTTPException(404, "Supplier not found")
+
+    entries = []
+
+    # فاتورة توريد → دائن في حساب المورد
+    # نقداً/تحويل بنكي: يُدرج الدفع الفوري أيضاً (صافي = صفر على الرصيد)
+    # آجل: يُضاف الدين فقط
+    for p in db[C.purchases].find({"supplier_id": supplier_id, "deleted_at": None}).sort("created_at", 1):
+        pm = p.get("payment_method", "credit")
+        total_p = float(p.get("total", 0))
+        # المبلغ الفعلي المدفوع عند إنشاء الفاتورة
+        # نقدي/بنكي بدون paid_amount صريح → مسدّد كاملاً
+        # آجل بدون paid_amount → صفر
+        # أي فاتورة بـ paid_amount > 0 → استخدم القيمة المخزّنة
+        pa = float(p.get("paid_amount") or 0)
+        paid_now = pa if (pa > 0 or pm == "credit") else total_p
+        op_no = p.get("ref_no") or p.get("invoice_no") or p["_id"]
+        purchase_items = []
+        for pi in db[C.purchase_items].find({"purchase_id": p["_id"]}):
+            product = db[C.products].find_one({"_id": pi.get("product_id")}, {"name": 1, "unit": 1})
+            purchase_items.append({
+                "id": pi["_id"],
+                "product_id": pi.get("product_id"),
+                "product_name": product.get("name") if product else pi.get("product_id"),
+                "unit": pi.get("unit") or (product.get("unit") if product else "piece"),
+                "quantity": float(pi.get("quantity", 0) or 0),
+                "cartons": float(pi["cartons"]) if pi.get("cartons") is not None else None,
+                "pieces_per_carton": float(pi["pieces_per_carton"]) if pi.get("pieces_per_carton") is not None else None,
+                "unit_cost": float(pi.get("unit_cost", 0) or 0),
+                "carton_cost": float(pi["carton_cost"]) if pi.get("carton_cost") is not None else None,
+                "total": float(pi.get("total", 0) or 0),
+            })
+        entries.append({
+            "type": "purchase",
+            "date": p.get("created_at"),
+            "op_no": op_no,
+            "description": f"فاتورة توريد — {'آجل' if pm == 'credit' else 'مدفوع'}",
+            "supplier_invoice_no": p.get("supplier_invoice_no"),
+            "created_by_name": _user_name(db, p.get("created_by", "")),
+            "debit": paid_now,          # الجزء المدفوع فوراً
+            "credit": total_p,          # قيمة الفاتورة كاملاً
+            "payment_method": pm,
+            "paid_amount": paid_now,
+            "remaining": max(0.0, total_p - paid_now),
+            "notes": p.get("notes"),
+            "items": purchase_items,
+            "ref_id": p["_id"],
+        })
+
+    # سند صرف → مدين في حساب المورد (تخفيض الدين على المورد)
+    for p in db[C.supplier_payments].find({"supplier_id": supplier_id}).sort("created_at", 1):
+        entries.append({
+            "type": "payment", "date": p.get("created_at"),
+            "op_no": p.get("voucher_no") or p["_id"],
+            "description": "سداد للتاجر",
+            "debit": float(p.get("amount", 0)), "credit": 0.0,
+            "payment_method": p.get("payment_method") or p.get("method", "cash"),
+            "notes": p.get("notes"),
+            "created_by_name": _user_name(db, p.get("paid_by") or p.get("created_by", "")),
+            "ref_id": p["_id"],
+        })
+
+    # مرتجع للتاجر → مدين في حساب المورد (المورد يُلزَم برد المبلغ)
+    for r in db[C.supplier_returns].find({"supplier_id": supplier_id}).sort("created_at", 1):
+        purchase = db[C.purchases].find_one({"_id": r.get("purchase_id")})
+        entries.append({
+            "type": "return", "date": r.get("created_at"),
+            "op_no": r.get("voucher_no") or r["_id"],
+            "description": "مرتجع / استبدال للتاجر",
+            "debit": float(r.get("total", 0)), "credit": 0.0,
+            "purchase_ref": (purchase.get("ref_no") or purchase.get("invoice_no")) if purchase else None,
+            "reason": r.get("reason"),
+            "items": r.get("items", []),
+            "created_by_name": _user_name(db, r.get("created_by", "")),
+            "ref_id": r["_id"],
+        })
+
+    entries.sort(key=lambda e: e["date"] or datetime.min.replace(tzinfo=timezone.utc))
+
+    # الرصيد = دائن تراكمي - مدين تراكمي
+    # موجب → الشركة مدينة للمورد (فواتير أكثر من المدفوع) = متبقي للتاجر
+    # سالب → دفعنا أكثر من الفواتير (نادر)
+    balance = 0.0
+    for e in entries:
+        balance += e["credit"] - e["debit"]
+        e["balance"] = balance
+
+    total_invoices = sum(e["credit"] for e in entries if e["type"] == "purchase")
+    paid_on_invoices = sum(e["debit"] for e in entries if e["type"] == "purchase")
+    later_payments = sum(e["debit"] for e in entries if e["type"] == "payment")
+    total_returns = sum(e["debit"] for e in entries if e["type"] == "return")
+    return {
+        "opening_balance": 0,
+        "closing_balance": balance,
+        "summary": {
+            "total_invoices": total_invoices,
+            "paid_on_invoices": paid_on_invoices,
+            "later_payments": later_payments,
+            "total_paid": paid_on_invoices + later_payments,
+            "total_returns": total_returns,
+            "invoice_credit_remaining": max(0.0, total_invoices - paid_on_invoices),
+        },
+        "generated_at": datetime.now(timezone.utc),
+        "entries": entries,
+    }
+
+
+@router.get("/suppliers/{supplier_id}/summary-statement")
+def supplier_summary_statement(
+    supplier_id: str,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db=Depends(get_db),
+    _u=Depends(require_manager),
+):
+    """Compact supplier statement; intentionally separate from the detailed statement."""
+    supplier = db[C.suppliers].find_one({"_id": supplier_id, "deleted_at": None})
+    if not supplier:
+        raise HTTPException(404, "Supplier not found")
+
+    def date_filter(field="created_at"):
+        filt = {"supplier_id": supplier_id}
+        if date_from:
+            filt[field] = {"$gte": day_range_utc(date.fromisoformat(date_from))[0]}
+        if date_to:
+            upper = day_range_utc(date.fromisoformat(date_to))[1]
+            filt.setdefault(field, {})["$lte"] = upper
+        return filt
+
+    invoices = list(
+        db[C.purchases]
+        .find({**date_filter(), "deleted_at": None})
+        .sort("created_at", 1)
+    )
+    payments = list(
+        db[C.supplier_payments]
+        .find(date_filter())
+        .sort("created_at", 1)
+    )
+
+    total_amount = sum(float(p.get("total", 0) or 0) for p in invoices)
+    total_paid = sum(float(p.get("amount", 0) or 0) for p in payments)
+
+    movements = []
+    for invoice in invoices:
+        invoice_no = (
+            invoice.get("supplier_invoice_no")
+            or invoice.get("ref_no")
+            or invoice.get("invoice_no")
+            or invoice["_id"]
+        )
+        movements.append({
+            "date": invoice.get("created_at"),
+            "movement_type": "فاتورة شراء",
+            "invoice_no": invoice_no,
+            "payment_no": None,
+            "amount": float(invoice.get("total", 0) or 0),
+            "invoice_id": invoice["_id"],
+            "payment_id": None,
+            "payment_method": invoice.get("payment_method"),
+            "notes": invoice.get("notes"),
+            "created_by_name": _user_name(db, invoice.get("created_by", "")),
+        })
+
+    for payment in payments:
+        movements.append({
+            "date": payment.get("created_at"),
+            "movement_type": "دفعة للتاجر",
+            "invoice_no": None,
+            "payment_no": payment.get("voucher_no") or payment.get("_id"),
+            "amount": float(payment.get("amount", 0) or 0),
+            "invoice_id": None,
+            "payment_id": payment["_id"],
+            "payment_method": payment.get("payment_method") or payment.get("method", "cash"),
+            "notes": payment.get("notes"),
+            "created_by_name": _user_name(db, payment.get("paid_by") or payment.get("created_by", "")),
+        })
+
+    # الرصيد التراكمي يُحسب من أقدم حركة إلى أحدث حركة حتى يوضح أثر كل عملية.
+    # هذا يجعل قيمة balance_after في كل صف قابلة للمراجعة بشكل مستقل.
+    movements.sort(key=lambda movement: movement["date"] or datetime.min.replace(tzinfo=timezone.utc))
+    running_balance = 0.0
+    for movement in movements:
+        if movement["movement_type"] == "فاتورة شراء":
+            running_balance += movement["amount"]
+        else:
+            running_balance -= movement["amount"]
+        movement["balance_after"] = running_balance
+
+    today = business_today()
+    return {
+        "supplier": {
+            "id": supplier["_id"],
+            "name": supplier.get("name") or "—",
+            "address": supplier.get("address") or "",
+            "phone": supplier.get("phone") or "",
+        },
+        "report_no": f"TR-{today.strftime('%Y%m%d')}-{supplier_id[:6].upper()}",
+        "issued_at": today.isoformat(),
+        "period": {"from": date_from, "to": date_to},
+        "movements": movements,
+        "summary": {
+            "invoice_count": len(invoices),
+            "total_invoices": total_amount,
+            "payment_count": len(payments),
+            "total_payments": total_paid,
+            "balance": total_amount - total_paid,
+        },
+    }
+
+
+@router.get("/suppliers/{supplier_id}/purchases")
+def supplier_purchases(supplier_id: str, db=Depends(get_db), _u=Depends(require_manager)):
+    rows = list(db[C.purchases].find({"supplier_id": supplier_id, "deleted_at": None}).sort("created_at", -1).limit(200))
+    out = []
+    for p in rows:
+        items_count = db[C.purchase_items].count_documents({"purchase_id": p["_id"]})
+        out.append({
+            "id": p["_id"],
+            "ref_no": p.get("ref_no") or p.get("invoice_no"),
+            "supplier_invoice_no": p.get("supplier_invoice_no"),
+            "items_count": items_count,
+            "total": p.get("total", 0),
+            "payment_method": p.get("payment_method"),
+            "created_at": p.get("created_at"),
+        })
+    return out
+
+
+@router.get("/suppliers/{supplier_id}/payments")
+def supplier_payments_list(supplier_id: str, db=Depends(get_db), _u=Depends(require_manager)):
+    rows = list(db[C.supplier_payments].find({"supplier_id": supplier_id}).sort("created_at", -1).limit(200))
+    out = []
+    for p in rows:
+        out.append({
+            "id": p["_id"],
+            "voucher_no": p.get("voucher_no") or p["_id"],
+            "amount": p.get("amount", 0),
+            "payment_method": p.get("payment_method") or p.get("method", "cash"),
+            "notes": p.get("notes"),
+            "created_by_name": _user_name(db, p.get("paid_by") or p.get("created_by", "")),
+            "created_at": p.get("created_at"),
+        })
+    return out
+
+
+@router.get("/suppliers/{supplier_id}/returns")
+def supplier_returns_list(supplier_id: str, db=Depends(get_db), _u=Depends(require_manager)):
+    rows = list(db[C.supplier_returns].find({"supplier_id": supplier_id}).sort("created_at", -1).limit(200))
+    out = []
+    for r in rows:
+        pur = db[C.purchases].find_one({"_id": r.get("purchase_id")})
+        out.append({
+            "id": r["_id"],
+            "voucher_no": r.get("voucher_no"),
+            "purchase_ref": (pur.get("ref_no") or pur.get("invoice_no")) if pur else None,
+            "total": r.get("total", 0),
+            "reason": r.get("reason"),
+            "created_at": r.get("created_at"),
+        })
+    return out
+
+
+# ─── Supplier payment POST ────────────────────────────────────────────────────
+
+class SupPaymentIn(BaseModel):
+    amount: float = Field(..., gt=0)
+    payment_method: str = Field(default="cash")
+    notes: Optional[str] = None
+
+
+@router.post("/suppliers/{supplier_id}/payments", status_code=201)
+def pay_supplier(supplier_id: str, payload: SupPaymentIn, request: Request,
+                 db=Depends(get_db), current=Depends(require_manager)):
+    s = db[C.suppliers].find_one({"_id": supplier_id, "deleted_at": None})
+    if not s:
+        raise HTTPException(404, "Supplier not found")
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y%m%d")
+    count = db[C.supplier_payments].count_documents({"voucher_no": {"$regex": f"^PAY-{today}-"}})
+    voucher_no = f"PAY-{today}-{count + 1:05d}"
+
+    pid = new_id()
+    db[C.supplier_payments].insert_one({
+        "_id": pid, "supplier_id": supplier_id,
+        "amount": float(payload.amount),
+        "method": payload.payment_method,
+        "payment_method": payload.payment_method,
+        "voucher_no": voucher_no,
+        "notes": payload.notes,
+        "paid_by": current["_id"],
+        "created_by": current["_id"],
+        "created_at": now,
+    })
+    db[C.suppliers].update_one({"_id": supplier_id},
+                               {"$inc": {"balance": -float(payload.amount)},
+                                "$set": {"updated_at": now}})
+    log_action(db, current["_id"], "supplier_paid", "supplier_payments", pid,
+               after={"amount": str(payload.amount), "voucher_no": voucher_no}, request=request)
+    return {
+        "id": pid, "voucher_no": voucher_no,
+        "amount": payload.amount,
+        "payment_method": payload.payment_method,
+        "notes": payload.notes,
+        "created_by_name": _user_name(db, current["_id"]),
+        "created_at": now,
+    }
+
+
+# ─── Purchases ───────────────────────────────────────────────────────────────
+
+class PurchaseItemIn(BaseModel):
+    product_id: str
+    unit: str = Field(default="piece", description="piece | carton")
+    quantity: Optional[float] = None
+    unit_cost: Optional[float] = None
+    cartons: Optional[float] = None
+    pieces_per_carton: Optional[float] = None
+    carton_cost: Optional[float] = None
+    sale_price: Optional[float] = None
+
+
+class PurchaseCreate(BaseModel):
+    supplier_id: str
+    supplier_invoice_no: str = Field(..., min_length=1, max_length=100)
+    payment_method: str = Field(default="credit")
+    paid_amount: Optional[float] = 0
+    items: List[PurchaseItemIn] = Field(..., min_length=1)
+    notes: Optional[str] = None
+
+
+@router.post("/purchases", status_code=201)
+def create_purchase(payload: PurchaseCreate, request: Request,
+                    db=Depends(get_db), current=Depends(require_manager)):
+    s = db[C.suppliers].find_one({"_id": payload.supplier_id, "deleted_at": None})
+    if not s:
+        raise HTTPException(404, "Supplier not found")
+    supplier_invoice_no = payload.supplier_invoice_no.strip()
+    if not supplier_invoice_no:
+        raise HTTPException(422, "رقم فاتورة التاجر مطلوب")
+    if payload.payment_method not in {"cash", "credit", "bank_transfer", "banki", "card", "jaib", "fluusak", "hasib"}:
+        raise HTTPException(400, "طريقة دفع المورد غير صحيحة")
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y%m%d")
+    count = db[C.purchases].count_documents({"ref_no": {"$regex": f"^PUR-{today}-"}})
+    ref_no = f"PUR-{today}-{count + 1:05d}"
+
+    total = 0.0
+    resolved_items = []
+    for it in payload.items:
+        if it.unit not in {"piece", "carton"}:
+            raise HTTPException(422, "وحدة التوريد يجب أن تكون piece أو carton")
+        product = db[C.products].find_one({"_id": it.product_id, "deleted_at": None})
+        if not product:
+            raise HTTPException(404, f"المنتج {it.product_id} غير موجود")
+        if it.unit == "carton":
+            cartons = float(it.cartons or 0)
+            ppc = float(it.pieces_per_carton or product.get("pieces_per_carton", 1) or 1)
+            cc = float(it.carton_cost or 0)
+            if cartons <= 0 or ppc <= 0 or cc < 0:
+                raise HTTPException(422, "بيانات الكرتون يجب أن تكون موجبة")
+            qty = cartons * ppc
+            unit_cost = cc / ppc if ppc > 0 else 0.0
+            line_total = cartons * cc
+        else:
+            qty = float(it.quantity or 0)
+            unit_cost = float(it.unit_cost or 0)
+            if qty <= 0 or unit_cost < 0:
+                raise HTTPException(422, "الكمية والتكلفة يجب أن تكونا صحيحتين")
+            line_total = qty * unit_cost
+        total += line_total
+        resolved_items.append({
+            "product_id": it.product_id, "unit": it.unit,
+            "quantity": qty, "unit_cost": unit_cost,
+            "cartons": it.cartons, "pieces_per_carton": it.pieces_per_carton,
+            "carton_cost": it.carton_cost, "sale_price": it.sale_price,
+            "line_total": line_total,
+        })
+
+    paid_amount = float(payload.paid_amount or 0)
+    if paid_amount < 0 or paid_amount > total + 1e-9:
+        raise HTTPException(400, "المبلغ المدفوع لا يمكن أن يتجاوز إجمالي التوريد")
+    if payload.payment_method != "credit" and paid_amount not in (0, total):
+        raise HTTPException(400, "التوريد النقدي أو البنكي إما مسدد بالكامل أو يسجل كآجل")
+
+    # لقطة رصيد التاجر قبل هذه الفاتورة
+    balance_before_snap = float(s.get("balance", 0))
+
+    pur_id = new_id()
+    db[C.purchases].insert_one({
+        "_id": pur_id, "ref_no": ref_no, "invoice_no": ref_no,
+        "supplier_invoice_no": supplier_invoice_no,
+        "supplier_id": payload.supplier_id,
+        "subtotal": total, "total": total,
+        "paid_amount": paid_amount,
+        "payment_method": payload.payment_method,
+        "notes": payload.notes, "created_by": current["_id"],
+        "balance_before": balance_before_snap,
+        "created_at": now, "updated_at": now, "deleted_at": None,
+    })
+
+    items_out = []
+    for it in resolved_items:
+        pi_id = new_id()
+        db[C.purchase_items].insert_one({
+            "_id": pi_id, "purchase_id": pur_id,
+            "product_id": it["product_id"],
+            "unit": it["unit"],
+            "quantity": it["quantity"], "unit_cost": it["unit_cost"],
+            "cartons": it.get("cartons"),
+            "pieces_per_carton": it.get("pieces_per_carton"),
+            "carton_cost": it.get("carton_cost"),
+            "sale_price": it.get("sale_price"),
+            "total": it["line_total"],
+            "returned_quantity": 0,
+        })
+        upd = {"$inc": {"current_stock": it["quantity"]}, "$set": {"updated_at": now}}
+        if it.get("sale_price"):
+            upd["$set"]["sale_price"] = it["sale_price"]
+        db[C.products].update_one({"_id": it["product_id"]}, upd)
+        db[C.inventory_movements].insert_one({
+            "_id": new_id(), "product_id": it["product_id"],
+            "movement_type": MovementType.purchase.value,
+            "quantity": it["quantity"],
+            "reference_table": "purchases", "reference_id": pur_id,
+            "user_id": current["_id"], "notes": f"توريد {ref_no}",
+            "created_at": now,
+        })
+        prod = db[C.products].find_one({"_id": it["product_id"]}, {"name": 1})
+        items_out.append({
+            "product_name": prod["name"] if prod else it["product_id"],
+            "quantity": it["quantity"], "unit_cost": it["unit_cost"],
+            "total": it["line_total"],
+        })
+
+    # تحديث رصيد التاجر بالمبلغ المتبقي (قيمة الفاتورة - المدفوع الآن)
+    # يشمل جميع طرق الدفع — نقدي/بنكي بدون paid_amount صريح = مسدّد كاملاً
+    _pm = payload.payment_method
+    _pa = paid_amount
+    _eff = _pa if (_pa > 0 or _pm == "credit") else total
+    balance_delta = total - _eff
+    if abs(balance_delta) > 0.001:
+        db[C.suppliers].update_one({"_id": payload.supplier_id},
+                                   {"$inc": {"balance": balance_delta},
+                                    "$set": {"updated_at": now}})
+
+    log_action(db, current["_id"], "purchase_created", "purchases", pur_id,
+               after={"ref_no": ref_no, "total": str(total)}, request=request)
+    return {
+        "id": pur_id, "ref_no": ref_no, "supplier_invoice_no": supplier_invoice_no,
+        "total": total, "paid_amount": paid_amount,
+        "payment_method": payload.payment_method, "notes": payload.notes,
+        "created_by_name": _user_name(db, current["_id"]),
+        "created_at": now, "items": items_out,
+    }
+
+
+@router.get("/purchases")
+def list_purchases(supplier_id: Optional[str] = None, db=Depends(get_db),
+                   _u=Depends(require_manager)):
+    filt = {"deleted_at": None}
+    if supplier_id:
+        filt["supplier_id"] = supplier_id
+    rows = list(db[C.purchases].find(filt).sort("created_at", -1).limit(200))
+    out = []
+    for p in rows:
+        sup = db[C.suppliers].find_one({"_id": p.get("supplier_id")})
+        out.append({
+            "id": p["_id"],
+            "ref_no": p.get("ref_no") or p.get("invoice_no"),
+            "invoice_no": p.get("ref_no") or p.get("invoice_no"),
+            "supplier_id": p.get("supplier_id"),
+            "supplier_name": sup["name"] if sup else None,
+            "total": p.get("total", 0),
+            "payment_method": p.get("payment_method"),
+            "created_at": p.get("created_at"),
+        })
+    return out
+
+
+@router.get("/purchases/{purchase_id}")
+def get_purchase(purchase_id: str, db=Depends(get_db), _u=Depends(require_manager)):
+    p = db[C.purchases].find_one({"_id": purchase_id, "deleted_at": None})
+    if not p:
+        raise HTTPException(404, "Purchase not found")
+
+    pi_rows = list(db[C.purchase_items].find({"purchase_id": purchase_id}))
+    items_out = []
+    for pi in pi_rows:
+        prod = db[C.products].find_one({"_id": pi["product_id"]}, {"name": 1, "unit": 1})
+        returned = float(pi.get("returned_quantity", 0))
+        available = max(0.0, float(pi.get("quantity", 0)) - returned)
+        items_out.append({
+            "id": pi["_id"],
+            "product_id": pi["product_id"],
+            "product_name": prod["name"] if prod else pi["product_id"],
+            "product_unit": prod.get("unit", "piece") if prod else "piece",
+            "quantity": pi.get("quantity", 0),
+            "unit_cost": pi.get("unit_cost", 0),
+            "total": pi.get("total", 0),
+            "returned_quantity": returned,
+            "available_to_return": available,
+        })
+
+    sup = db[C.suppliers].find_one({"_id": p.get("supplier_id")}, {"name": 1, "phone": 1})
+    total = float(p.get("total", 0))
+    _pm  = p.get("payment_method", "credit")
+    _pa  = float(p.get("paid_amount") or 0)
+    _eff = _pa if (_pa > 0 or _pm == "credit") else total
+
+    # الرصيد قبل الفاتورة — مخزّن عند الإنشاء (null للفواتير القديمة)
+    balance_before = p.get("balance_before")
+    balance_after  = None
+    if balance_before is not None:
+        balance_before = float(balance_before)
+        balance_after  = balance_before + (total - _eff)
+
+    # الدفعات المرتبطة بهذه الفاتورة (عند وجود purchase_id)
+    linked_payments = []
+    for pay in db[C.supplier_payments].find({"purchase_id": p["_id"]}).sort("created_at", 1):
+        linked_payments.append({
+            "voucher_no": pay.get("voucher_no") or pay["_id"],
+            "amount": float(pay.get("amount", 0)),
+            "payment_method": pay.get("payment_method") or pay.get("method", "cash"),
+            "created_by_name": _user_name(db, pay.get("paid_by") or pay.get("created_by", "")),
+            "created_at": pay.get("created_at"),
+        })
+
+    return {
+        "id": p["_id"],
+        "ref_no": p.get("ref_no") or p.get("invoice_no"),
+        "supplier_invoice_no": p.get("supplier_invoice_no"),
+        "supplier_id": p.get("supplier_id"),
+        "supplier_name": sup["name"] if sup else None,
+        "supplier_phone": sup.get("phone") if sup else None,
+        "total": total,
+        "paid_amount": _pa,
+        "effective_paid": _eff,
+        "remaining": max(0.0, total - _eff),
+        "payment_method": _pm,
+        "notes": p.get("notes"),
+        "created_by_name": _user_name(db, p.get("created_by", "")),
+        "created_at": p.get("created_at"),
+        "balance_before": balance_before,
+        "balance_after": balance_after,
+        "items": items_out,
+        "linked_payments": linked_payments,
+    }
+
+
+# ─── Supplier returns ─────────────────────────────────────────────────────────
+
+class ReturnItemIn(BaseModel):
+    purchase_item_id: str
+    return_unit: str = Field(default="piece")
+    return_quantity: float = Field(..., gt=0)
+
+
+class SupplierReturnCreate(BaseModel):
+    purchase_id: str
+    reason: Optional[str] = None
+    items: List[ReturnItemIn] = Field(..., min_length=1)
+
+
+@router.post("/supplier-returns", status_code=201)
+def create_supplier_return(payload: SupplierReturnCreate, request: Request,
+                           db=Depends(get_db), current=Depends(require_manager)):
+    pur = db[C.purchases].find_one({"_id": payload.purchase_id, "deleted_at": None})
+    if not pur:
+        raise HTTPException(404, "Purchase not found")
+
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y%m%d")
+    count = db[C.supplier_returns].count_documents({"voucher_no": {"$regex": f"^RET-{today}-"}})
+    voucher_no = f"RET-{today}-{count + 1:05d}"
+
+    total = 0.0
+    items_out = []
+    seen_items = set()
+    for it in payload.items:
+        if it.purchase_item_id in seen_items:
+            raise HTTPException(400, "لا يمكن تكرار بند التوريد في نفس المرتجع")
+        seen_items.add(it.purchase_item_id)
+        if it.return_unit not in {"piece", "carton"}:
+            raise HTTPException(422, "وحدة المرتجع يجب أن تكون piece أو carton")
+        pi = db[C.purchase_items].find_one({"_id": it.purchase_item_id, "purchase_id": payload.purchase_id})
+        if not pi:
+            raise HTTPException(404, f"Purchase item {it.purchase_item_id} not found")
+        ppc = int(pi.get("pieces_per_carton", 1) or 1)
+        requested_pieces = float(it.return_quantity) * (ppc if it.return_unit == "carton" else 1)
+        available = max(0.0, float(pi.get("quantity", 0)) - float(pi.get("returned_quantity", 0)))
+        if requested_pieces > available + 1e-9:
+            raise HTTPException(400, f"الكمية المرتجعة تتجاوز المتاح ({available})")
+
+        unit_cost = float(pi.get("unit_cost", 0))
+        line_total = requested_pieces * unit_cost
+        total += line_total
+
+        prod = db[C.products].find_one({"_id": pi["product_id"]}, {"name": 1})
+        items_out.append({
+            "purchase_item_id": it.purchase_item_id,
+            "product_id": pi["product_id"],
+            "product_name": prod["name"] if prod else pi["product_id"],
+            "return_unit": it.return_unit,
+            "quantity": requested_pieces,
+            "pieces": requested_pieces,
+            "cartons": float(it.return_quantity) if it.return_unit == "carton" else None,
+            "unit_cost": unit_cost,
+            "total": line_total,
+        })
+
+        db[C.purchase_items].update_one(
+            {"_id": it.purchase_item_id},
+            {"$inc": {"returned_quantity": requested_pieces}}
+        )
+        db[C.products].update_one(
+            {"_id": pi["product_id"]},
+            {"$inc": {"current_stock": -requested_pieces}, "$set": {"updated_at": now}}
+        )
+        db[C.inventory_movements].insert_one({
+            "_id": new_id(), "product_id": pi["product_id"],
+            "movement_type": "supplier_return",
+            "quantity": -requested_pieces,
+            "reference_table": "supplier_returns",
+            "user_id": current["_id"],
+            "notes": f"استرجاع {voucher_no}",
+            "created_at": now,
+        })
+
+    ret_id = new_id()
+    db[C.supplier_returns].insert_one({
+        "_id": ret_id,
+        "supplier_id": pur["supplier_id"],
+        "purchase_id": payload.purchase_id,
+        "voucher_no": voucher_no,
+        "reason": payload.reason,
+        "total": total,
+        "items": items_out,
+        "created_by": current["_id"],
+        "created_at": now,
+    })
+    db[C.suppliers].update_one(
+        {"_id": pur["supplier_id"]},
+        {"$inc": {"balance": -total}, "$set": {"updated_at": now}}
+    )
+    log_action(db, current["_id"], "supplier_return_created", "supplier_returns", ret_id,
+               after={"voucher_no": voucher_no, "total": str(total)}, request=request)
+
+    pur_ref = pur.get("ref_no") or pur.get("invoice_no")
+    return {
+        "id": ret_id, "voucher_no": voucher_no, "purchase_ref": pur_ref,
+        "supplier_id": pur["supplier_id"], "total": total,
+        "reason": payload.reason, "items": items_out,
+        "created_by_name": _user_name(db, current["_id"]),
+        "created_at": now,
+    }
+
+
+@router.get("/supplier-returns/{return_id}")
+def get_supplier_return(return_id: str, db=Depends(get_db), _u=Depends(require_manager)):
+    r = db[C.supplier_returns].find_one({"_id": return_id})
+    if not r:
+        raise HTTPException(404, "Return not found")
+    pur = db[C.purchases].find_one({"_id": r.get("purchase_id")})
+    return {
+        "id": r["_id"], "voucher_no": r.get("voucher_no"),
+        "purchase_ref": (pur.get("ref_no") or pur.get("invoice_no")) if pur else None,
+        "total": r.get("total", 0), "reason": r.get("reason"),
+        "items": r.get("items", []),
+        "created_by_name": _user_name(db, r.get("created_by", "")),
+        "created_at": r.get("created_at"),
+    }
+
+
+# ─── Legacy endpoints ─────────────────────────────────────────────────────────
+
+@router.get("/supplier-accounts")
+def list_supplier_accounts(db=Depends(get_db), _u=Depends(require_manager)):
+    rows = list(db[C.suppliers].find({"deleted_at": None}).sort("name", 1))
+    return [{
+        "id": s["_id"], "name": s["name"], "phone": s.get("phone"),
+        "balance": s.get("balance", 0),
+    } for s in rows]
+
+
+@router.get("/supplier-accounts/{supplier_id}/statement")
+def statement_legacy(supplier_id: str, db=Depends(get_db), _u=Depends(require_manager)):
+    return supplier_statement(supplier_id, db, _u)
+
+
+@router.post("/supplier-accounts/{supplier_id}/payments")
+def pay_supplier_legacy(supplier_id: str, payload: SupPaymentIn, request: Request,
+                        db=Depends(get_db), current=Depends(require_manager)):
+    return pay_supplier(supplier_id, payload, request, db, current)

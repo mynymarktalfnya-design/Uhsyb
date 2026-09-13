@@ -1,0 +1,33 @@
+{
+  "folder_id": "159qWTh4tDK0vM60weuA8AeQd9j50UbHH",
+  "folder_name": "Mini Market Backups",
+  "uploads": {
+    "market_db_20260906_155038_manual.json.gz": {
+      "status": "uploaded",
+      "uploaded_at": "2026-09-06T15:51:00.453510+00:00",
+      "file_id": "1bj4UdIgsdWhD7sq-RBfwKSoaXIbzbs0k",
+      "web_view_link": "https://drive.google.com/file/d/1bj4UdIgsdWhD7sq-RBfwKSoaXIbzbs0k/view?usp=drivesdk",
+      "size": 7199
+    },
+    "market_db_20260906_155301_manual.json.gz": {
+      "status": "uploaded",
+      "uploaded_at": "2026-09-06T15:53:03.806427+00:00",
+      "file_id": "1WzBDnQf6tk5NHv5Ge3Hs5bIzuBFFI2qP",
+      "web_view_link": "https://drive.google.com/file/d/1WzBDnQf6tk5NHv5Ge3Hs5bIzuBFFI2qP/view?usp=drivesdk",
+      "size": 7338
+    },
+    "market_db_20260911_000000_daily.json.gz": {
+      "status": "uploaded",
+      "uploaded_at": "2026-09-11T00:00:11.021881+00:00",
+      "file_id": "1pMbVWvXnASv6ByHyaOG2zULjnXICndyK",
+      "web_view_link": "https://drive.google.com/file/d/1pMbVWvXnASv6ByHyaOG2zULjnXICndyK/view?usp=drivesdk",
+      "size": 8593
+    },
+    "market_db_20260913_000000_daily.json.gz": {
+      "status": "error",
+      "last_attempt_at": "2026-09-13T00:00:22.285897+00:00",
+      "error": "تعذر البحث عن مجلد النسخ في Google Drive (HTTP 404): {\"error\":{\"message\":\"No google-drive connection found for this customer\"}}",
+      "size": 9459
+    }
+  }
+}
