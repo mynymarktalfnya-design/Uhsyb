@@ -221,6 +221,34 @@ REACT_APP_BACKEND_URL=http://localhost:8080
 >
 > **إشعار عودة الإنترنت:** يفحص الخادم المحلي الاتصال كل دقيقة. عند الانتقال من Offline إلى Online يرسل إشعارًا إلى Telegram، ثم يزامن النسخ غير المرفوعة إلى Google Drive إذا كان الرفع التلقائي مفعّلًا، ويرسل نتيجة المزامنة. لا يتم تكرار الإشعار إلا بعد حدوث انقطاع جديد.
 
+### المراقب المستقل عن خادم التطبيق
+
+يوجد سكربت مستقل في `scripts/internet_telegram_monitor.py`. لا يعتمد على FastAPI أو قاعدة البيانات، ويحفظ حالته ذريًا حتى لا يكرر إشعار الانتقال نفسه. للاختبار اليدوي:
+
+```bash
+export TELEGRAM_BOT_TOKEN='رمز-جديد-وسري'
+export TELEGRAM_CHAT_ID='8227840392'
+export STATE_FILE=/tmp/mabna-connectivity-state.json
+python3 scripts/internet_telegram_monitor.py --once --notify-now
+```
+
+للتشغيل الدائم على جهاز Linux، انسخ `deploy/telegram-monitor.env.example` إلى `/etc/mabna-market/telegram-monitor.env`، ضع الرمز الجديد، ثم نفّذ:
+
+```bash
+sudo install -d -m 700 /etc/mabna-market /var/lib/mabna-market
+sudo chmod 600 /etc/mabna-market/telegram-monitor.env
+sudo cp deploy/internet-telegram-monitor.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now internet-telegram-monitor
+sudo systemctl status internet-telegram-monitor
+```
+
+عرض السجل:
+
+```bash
+journalctl -u internet-telegram-monitor -f
+```
+
 
 ## التشغيل المحلي
 

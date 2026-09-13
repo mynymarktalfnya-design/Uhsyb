@@ -1,0 +1,21 @@
+[Unit]
+Description=Mabna Market Internet and Telegram Monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Uhsyb
+EnvironmentFile=/etc/mabna-market/telegram-monitor.env
+ExecStart=/usr/bin/python3 /home/ubuntu/Uhsyb/scripts/internet_telegram_monitor.py
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/lib/mabna-market
+
+[Install]
+WantedBy=multi-user.target
