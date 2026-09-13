@@ -510,10 +510,11 @@ def _sync_local_backups_to_drive() -> dict:
     folder_id = _drive_folder_id()
     remote = _drive_files(service, folder_id)
     known = {(f.get("appProperties") or {}).get("backup_signature") for f in remote}
+    known_names = {f.get("name") for f in remote}
     uploaded, skipped = [], []
     for filepath in _list_backups():
         signature = _backup_signature(filepath)
-        if signature in known:
+        if signature in known or filepath.name in known_names:
             skipped.append(filepath.name)
             continue
         metadata = {"name": filepath.name, "description": f"ميني ماركت الفنية backup; signature={signature}",
@@ -526,6 +527,7 @@ def _sync_local_backups_to_drive() -> dict:
             fields="id,name,size,modifiedTime,appProperties",
         ).execute()
         known.add(signature)
+        known_names.add(filepath.name)
         uploaded.append(created)
     return {"uploaded": uploaded, "skipped": skipped, "duplicates_prevented": len(skipped)}
 
