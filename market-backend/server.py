@@ -64,7 +64,7 @@ from routes.parties import router as parties_router
 from routes.sales import router as sales_router
 from routes.expenses import router as expenses_router
 from routes.reports import router as reports_router
-from routes.sync import router as sync_router
+from routes.sync import router as sync_router, start_sync_worker, stop_sync_worker
 from routes.notifications import router as notifications_router
 from routes.customer_accounts import router as customer_accounts_router
 from routes.supplier_accounts import router as supplier_accounts_router
@@ -184,6 +184,10 @@ def on_startup():
         start_scheduler()
     except Exception as e:
         logger.error(f"Backup scheduler failed to start: {e}")
+    try:
+        start_sync_worker()
+    except Exception as e:
+        logger.error(f"Sync worker failed to start: {e}")
 
 
 @app.on_event("shutdown")
@@ -194,5 +198,9 @@ def on_shutdown():
         pass
     try:
         stop_scheduler()
+    except Exception:
+        pass
+    try:
+        stop_sync_worker()
     except Exception:
         pass
