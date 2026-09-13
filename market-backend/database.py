@@ -6,6 +6,8 @@ so the app works for development/demo without an external database.
 """
 import os
 import logging
+import json
+from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 logger = logging.getLogger(__name__)
@@ -13,9 +15,19 @@ logger = logging.getLogger(__name__)
 from pymongo import ASCENDING, DESCENDING
 from pymongo.database import Database
 
-MONGO_URL = os.environ.get("MONGO_URL", "")
-NEON_DATABASE_URL = os.environ.get("NEON_DATABASE_URL", "")
-DB_NAME = os.environ.get("DB_NAME", "market_db")
+_CONNECTION_SETTINGS_FILE = Path(__file__).resolve().parent / "data" / "database_settings.json"
+
+def _saved_connection_settings() -> dict:
+    try:
+        return json.loads(_CONNECTION_SETTINGS_FILE.read_text()) if _CONNECTION_SETTINGS_FILE.exists() else {}
+    except Exception:
+        return {}
+
+_saved = _saved_connection_settings()
+_saved_url = _saved.get("connection_url", "")
+MONGO_URL = os.environ.get("MONGO_URL", "") or _saved.get("mongo_url", "") or (_saved_url if _saved_url.startswith(("mongodb://", "mongodb+srv://")) else "")
+NEON_DATABASE_URL = os.environ.get("NEON_DATABASE_URL", "") or (_saved_url if _saved_url.startswith(("postgresql://", "postgres://")) else "")
+DB_NAME = os.environ.get("DB_NAME", "") or _saved.get("db_name", "market_db")
 # Only fall back to in-memory mongomock when explicitly allowed (dev/demo mode).
 # In production, a bad MONGO_URL must fail fast rather than silently lose data.
 _ALLOW_MONGOMOCK = os.environ.get("ALLOW_MONGOMOCK", "false").lower() in ("1", "true", "yes")
@@ -72,6 +84,62 @@ def _try_real_mongo():
     # Force a real connection attempt
     client[DB_NAME].command("ping")
     return client
+
+def connect_mongodb(mongo_url: str, db_name: str) -> dict:
+    """Validate and atomically switch the process to a MongoDB connection."""
+    global _client, db, MONGO_URL, DB_NAME, DB_BACKEND, USING_MOCK_MONGO, USING_NEON_POSTGRES
+    from pymongo import MongoClient
+    mongo_url = mongo_url.strip()
+    db_name = db_name.strip() or "market_db"
+    if not mongo_url.startswith(("mongodb://", "mongodb+srv://")):
+        raise ValueError("رابط MongoDB يجب أن يبدأ بـ mongodb:// أو mongodb+srv://")
+    parsed = urlsplit(mongo_url)
+    if not parsed.hostname:
+        raise ValueError("رابط MongoDB غير صالح")
+    if parsed.scheme == "mongodb+srv" and parsed.hostname.endswith("mongodb.net"):
+        options = parse_qsl(parsed.query, keep_blank_values=True)
+        if not any(key.lower() == "authsource" for key, _ in options):
+            options.append(("authSource", "admin"))
+            mongo_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(options), parsed.fragment))
+    new_client = MongoClient(mongo_url, uuidRepresentation="standard", tz_aware=True,
+                             serverSelectionTimeoutMS=8000, connectTimeoutMS=8000)
+    new_client[db_name].command("ping")
+    _client, db = new_client, new_client[db_name]
+    MONGO_URL, DB_NAME = mongo_url, db_name
+    USING_MOCK_MONGO, USING_NEON_POSTGRES = False, False
+    _CONNECTION_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _CONNECTION_SETTINGS_FILE.write_text(json.dumps({"mongo_url": mongo_url, "db_name": db_name}, indent=2))
+    try:
+        os.chmod(_CONNECTION_SETTINGS_FILE, 0o600)
+    except OSError:
+        pass
+    init_indexes()
+    DB_BACKEND = "mongodb"
+    return {"connected": True, "persistent": True, "backend": "mongodb", "db_name": db_name}
+
+def connect_database(connection_url: str, db_name: str = "market_db") -> dict:
+    """Connect either MongoDB or the app's document-compatible Neon PostgreSQL store."""
+    global _client, db, MONGO_URL, DB_NAME, NEON_DATABASE_URL, DB_BACKEND, USING_MOCK_MONGO, USING_NEON_POSTGRES
+    url = connection_url.strip()
+    if url.startswith(("mongodb://", "mongodb+srv://")):
+        return connect_mongodb(url, db_name)
+    if url.startswith(("postgresql://", "postgres://")):
+        from postgres_store import PostgresStore
+        new_store = PostgresStore(url)
+        new_store.command("ping")
+        _client, db = new_store, new_store
+        MONGO_URL, NEON_DATABASE_URL, DB_NAME = "", url, db_name.strip() or "market_db"
+        USING_MOCK_MONGO, USING_NEON_POSTGRES = False, True
+        _CONNECTION_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _CONNECTION_SETTINGS_FILE.write_text(json.dumps({"connection_url": url, "db_name": DB_NAME}, indent=2))
+        try:
+            os.chmod(_CONNECTION_SETTINGS_FILE, 0o600)
+        except OSError:
+            pass
+        init_indexes()
+        DB_BACKEND = "neon-postgres"
+        return {"connected": True, "persistent": True, "backend": DB_BACKEND, "db_name": DB_NAME}
+    raise ValueError("أدخل رابط MongoDB أو Neon PostgreSQL صالحًا")
 
 def _use_mock_mongo():
     """Fall back to mongomock (in-memory) database."""

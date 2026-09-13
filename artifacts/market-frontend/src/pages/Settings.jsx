@@ -477,6 +477,8 @@ const InventoryAlertSettingsCard = ({ canManage }) => {
 const DatabaseConnectionCard = () => {
   const [status, setStatus] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [connectionUrl, setConnectionUrl] = useState('');
+  const [dbName, setDbName] = useState('market_db');
 
   const checkConnection = async (showToast = true) => {
     setChecking(true);
@@ -497,6 +499,24 @@ const DatabaseConnectionCard = () => {
     } finally {
       setChecking(false);
     }
+  };
+
+  const connectDatabase = async () => {
+    if (!connectionUrl.trim()) {
+      toast({ title: 'أدخل رابط قاعدة البيانات أولاً', variant: 'destructive' });
+      return;
+    }
+    setChecking(true);
+    try {
+      const response = await api.post('/admin/system/database-connect', {
+        connection_url: connectionUrl.trim(), db_name: dbName.trim() || 'market_db',
+      });
+      setStatus(response.data);
+      setConnectionUrl('');
+      toast({ title: '✅ تم ربط قاعدة البيانات', description: response.data.message });
+    } catch (e) {
+      toast({ title: 'فشل ربط قاعدة البيانات', description: e.response?.data?.detail || 'تحقق من الرابط والصلاحيات', variant: 'destructive' });
+    } finally { setChecking(false); }
   };
 
   useEffect(() => {
@@ -525,7 +545,7 @@ const DatabaseConnectionCard = () => {
               <div>
                 <h3 className="font-bold text-slate-900 text-lg">ربط قاعدة البيانات</h3>
                 <p className="text-sm text-slate-600 mt-1">
-                  اربط MongoDB للحفظ الدائم للفواتير والحسابات والمنتجات.
+                  اربط Neon PostgreSQL أو MongoDB للحفظ الدائم للفواتير والحسابات والمنتجات.
                 </p>
               </div>
               <span className={`shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full ${
@@ -557,15 +577,27 @@ const DatabaseConnectionCard = () => {
               )}
             </div>
 
+            <div className="mt-4 grid grid-cols-1 gap-3 rounded-lg border border-sky-200 bg-sky-50/50 p-3">
+              <div>
+                <Label>رابط اتصال قاعدة البيانات</Label>
+                <Input type="password" value={connectionUrl} onChange={(e) => setConnectionUrl(e.target.value)} placeholder="postgresql://... أو mongodb+srv://..." dir="ltr" autoComplete="new-password" data-testid="database-connection-url-input" />
+                <p className="text-xs text-slate-500 mt-1">يدعم Neon PostgreSQL وروابط MongoDB. لا يتم عرض الرابط بعد الحفظ.</p>
+              </div>
+              <div>
+                <Label>اسم قاعدة البيانات (لـ MongoDB)</Label>
+                <Input value={dbName} onChange={(e) => setDbName(e.target.value)} placeholder="market_db" dir="ltr" data-testid="database-name-input" />
+              </div>
+            </div>
+
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
-                onClick={() => checkConnection(true)}
+                onClick={connectDatabase}
                 disabled={checking}
                 className={persistent ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}
                 data-testid="connect-database-btn"
               >
                 {checking ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Link2 className="w-4 h-4 ml-2" />}
-                {checking ? 'جاري الفحص...' : 'اربط الآن'}
+                {checking ? 'جاري اختبار الرابط...' : 'اختبر واربط الآن'}
               </Button>
               <Button
                 variant="outline"
@@ -580,7 +612,7 @@ const DatabaseConnectionCard = () => {
 
             {!persistent && (
               <p className="text-xs text-slate-500 mt-3">
-                بعد إضافة بيانات MongoDB الصحيحة في إعدادات البيئة الآمنة، اضغط «اربط الآن» للتحقق من الحفظ الدائم.
+                أدخل رابط Neon أو MongoDB الصحيح ثم اضغط «اختبر واربط الآن» للتحقق من الحفظ الدائم.
               </p>
             )}
           </div>

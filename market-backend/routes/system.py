@@ -1,12 +1,13 @@
 """System administration endpoints — MongoDB version."""
 import os
 import subprocess
+import database as database_module
 from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, EmailStr
 
-from database import get_db, C, DB_BACKEND, USING_MOCK_MONGO
+from database import get_db, C, DB_BACKEND, USING_MOCK_MONGO, connect_database
 from models import new_id
 from utils.deps import get_current_user, require_admin, require_manager
 from utils.security import hash_password, verify_password
@@ -102,11 +103,11 @@ def database_status(db=Depends(get_db), _u=Depends(require_admin)):
     """Return a safe database connectivity summary without exposing credentials."""
     try:
         db.command("ping")
-        persistent = not USING_MOCK_MONGO
+        persistent = not database_module.USING_MOCK_MONGO
         return {
             "connected": True,
             "persistent": persistent,
-            "backend": DB_BACKEND,
+            "backend": database_module.DB_BACKEND,
             "status": "connected" if persistent else "temporary",
             "message": (
                 "قاعدة البيانات مربوطة والحفظ دائم."
@@ -118,10 +119,28 @@ def database_status(db=Depends(get_db), _u=Depends(require_admin)):
         return {
             "connected": False,
             "persistent": False,
-            "backend": DB_BACKEND,
+            "backend": database_module.DB_BACKEND,
             "status": "disconnected",
             "message": f"تعذر الاتصال بقاعدة البيانات: {str(exc)[:160]}",
         }
+
+
+class DatabaseConnectRequest(BaseModel):
+    connection_url: str = Field(..., min_length=10, max_length=2000)
+    db_name: str = Field(default="market_db", min_length=1, max_length=100)
+
+
+@router.post("/admin/system/database-connect")
+def connect_database_from_admin(payload: DatabaseConnectRequest, request: Request,
+                               db=Depends(get_db), current=Depends(require_admin)):
+    """Test first, then atomically switch and save a MongoDB or Neon URL."""
+    try:
+        result = connect_database(payload.connection_url, payload.db_name)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"فشل الاتصال: {str(exc)[:240]}")
+    log_action(db, current["_id"], "database_connection_updated", "settings", None,
+               after={"backend": result["backend"], "db_name": result["db_name"]}, request=request)
+    return {**result, "status": "connected", "message": "تم اختبار الاتصال وحفظه بنجاح. الحفظ الآن دائم."}
 
 
 # ─── Admin: mode ───
