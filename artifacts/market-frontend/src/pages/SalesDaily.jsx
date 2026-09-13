@@ -114,7 +114,7 @@ const SalesDaily = () => {
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Card className="overflow-hidden">
-              <div className="border-b bg-slate-50 p-4"><h2 className="font-bold">فواتير البيع ({fmt(sales.invoice_count)})</h2></div>
+              <div className="border-b bg-slate-50 p-4"><h2 className="font-bold">المنتجات المباعة ({fmt(sales.invoice_count)} فاتورة)</h2></div>
               <div className="max-h-96 overflow-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-right text-xs text-slate-500"><tr><th className="p-3">المنتج المباع</th><th className="p-3">رقم الفاتورة</th><th className="p-3">طريقة الدفع</th><th className="p-3">الإجمالي</th></tr></thead>
