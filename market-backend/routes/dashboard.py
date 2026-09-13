@@ -9,6 +9,7 @@ from utils.time import (
     month_range_utc, year_range_utc,
 )
 from utils.accounting import customer_account_totals
+from utils.dashboard_rows import top_supplier_rows
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -680,11 +681,7 @@ def manager_dashboard(db = Depends(get_db), _u = Depends(require_manager)):
                 "name": supplier["name"],
                 "balance": round(balance, 2),
             })
-    top_suppliers = sorted(
-        [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
-         for s in supplier_balances],
-        key=lambda x: x["balance"], reverse=True,
-    )[:10]
+    top_suppliers = top_supplier_rows(supplier_balances)
     suppliers_total_due = round(sum(s["balance"] for s in supplier_balances), 2)
     suppliers = {
         "count": db[C.suppliers].count_documents({"deleted_at": None}),

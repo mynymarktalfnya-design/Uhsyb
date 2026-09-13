@@ -380,7 +380,7 @@ export default function Backups() {
       </Card>
 
       {/* ── Google Drive backups ── */}
-      {driveBackups.length > 0 && (
+      {status?.drive_enabled && (
         <Card className="border-emerald-200 bg-emerald-50/30">
           <CardContent className="p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -404,6 +404,15 @@ export default function Backups() {
                 تحديث
               </Button>
             </div>
+            {driveLoading ? (
+              <div className="rounded-lg border border-dashed border-emerald-200 bg-white p-6 text-center text-sm text-slate-500">
+                جارٍ تحميل النسخ من Google Drive...
+              </div>
+            ) : driveBackups.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-emerald-200 bg-white p-6 text-center text-sm text-slate-500">
+                لا توجد نسخ معروضة حالياً. اضغط «تحديث» لإعادة المحاولة.
+              </div>
+            ) : (
             <div className="space-y-2">
               {driveBackups.map((backup) => (
                 <div
@@ -433,6 +442,7 @@ export default function Backups() {
                 </div>
               ))}
             </div>
+            )}
           </CardContent>
         </Card>
       )}
