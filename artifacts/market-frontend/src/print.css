@@ -1,12 +1,16 @@
 /* Print styles for receipts and statements */
 @media print {
   @page { size: A4; margin: 12mm; }
-  html, body { direction: rtl !important; unicode-bidi: plaintext; }
+  html, body { direction: rtl !important; unicode-bidi: plaintext; font-family: "Tajawal", "Cairo", "Noto Sans Arabic", Arial, sans-serif !important; }
   body * { visibility: hidden; }
   .print-only, .print-only * { visibility: visible; }
   .print-only { position: absolute; left: 0; top: 0; width: 100%; }
   .print-only-block, .print-only-block * { visibility: visible; }
   .print-only-block { position: absolute; left: 0; top: 0; width: 100%; }
+  .print-only, .print-only-block, .print-only table, .print-only-block table {
+    direction: rtl !important;
+    unicode-bidi: plaintext !important;
+  }
   .no-print { display: none !important; }
   body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .statement-print { width: 100% !important; box-shadow: none !important; border: 0 !important; }

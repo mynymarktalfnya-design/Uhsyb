@@ -156,6 +156,8 @@ function mountOffscreen(html, widthMm = 210) {
     width: `${widthPx}px`,
     background: '#ffffff',
     direction: 'rtl',
+    unicodeBidi: 'plaintext',
+    textAlign: 'right',
     fontFamily: '"Tajawal","Cairo","Noto Sans Arabic",system-ui,Arial,sans-serif',
     fontSize: '13px',
     color: '#0f172a',
@@ -215,12 +217,12 @@ async function htmlToPdfDownload(el, filename, opts = {}) {
 // ====================== HTML BUILDING BLOCKS ======================
 function brandHeaderHtml({ title, voucherNo, dateLabel }) {
   return `
-    <div style="background:linear-gradient(135deg,${BRAND.dark} 0%,${BRAND.dark} 55%,${BRAND.primaryDark} 100%);color:#fff;padding:18px 24px;border-radius:0 0 14px 14px;">
+    <div dir="rtl" style="direction:rtl;unicode-bidi:plaintext;text-align:right;background:linear-gradient(135deg,${BRAND.dark} 0%,${BRAND.dark} 55%,${BRAND.primaryDark} 100%);color:#fff;padding:18px 24px;border-radius:0 0 14px 14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;">
         <div style="display:flex;gap:14px;align-items:center;">
           <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#fbbf24,#d97706);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#0f172a;box-shadow:0 4px 14px rgba(245,158,11,.5);">M</div>
           <div>
-            <div style="font-size:20px;font-weight:900;letter-spacing:.3px;">${BRAND.name}</div>
+            <div dir="rtl" style="direction:rtl;unicode-bidi:isolate;font-size:20px;font-weight:900;letter-spacing:0;white-space:nowrap;">${BRAND.name}</div>
             <div style="font-size:11px;opacity:.75;margin-top:2px;">${BRAND.tagline}</div>
           </div>
         </div>

@@ -136,7 +136,7 @@ const SupplierSummaryStatement = () => {
         <span className="supplier-summary-filter-hint">اترك التاريخين فارغين لعرض كل الفواتير والمدفوعات.</span>
       </div>
 
-      <article className="supplier-summary-report print-only-block" id="supplier-summary-report">
+      <article className="supplier-summary-report print-only-block" id="supplier-summary-report" dir="rtl" lang="ar">
         <header className="supplier-summary-header">
           <div className="supplier-summary-brand">
             <div className="supplier-summary-logo"><Store size={42} strokeWidth={1.8} /></div>
