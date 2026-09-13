@@ -6,7 +6,8 @@ import hashlib
 import tempfile
 import logging
 import re
-from io import FileIO
+import threading
+import requests
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -34,6 +35,7 @@ _DEFAULT_DIR = Path(os.environ.get("BACKUP_DIR", "")).expanduser() \
 BACKUP_DIR   = _DEFAULT_DIR or Path(__file__).resolve().parent.parent / "data" / "backups"
 SETTINGS_FILE = Path(__file__).resolve().parent.parent / "data" / "backup_settings.json"
 RESTORE_MARKER = Path(__file__).resolve().parent.parent / "data" / "last_restore.json"
+CONNECTIVITY_STATE = Path(__file__).resolve().parent.parent / "data" / "connectivity_state.json"
 
 DEFAULT_SETTINGS: dict = {
     "local_interval_hours": 2,
@@ -47,6 +49,7 @@ DEFAULT_SETTINGS: dict = {
 _scheduler: Optional[BackgroundScheduler] = None
 _last_auto_backup: Optional[str] = None
 _last_auto_error: Optional[str] = None
+_connectivity_lock = threading.Lock()
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -110,6 +113,62 @@ def _drive_files(service, folder_id: str = ""):
         fields="files(id,name,size,modifiedTime,appProperties,parents)",
         pageSize=1000,
     ).execute().get("files", [])
+
+
+def _telegram_send(text: str) -> bool:
+    """Send a short notification without logging or exposing the bot token."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    if not token or not chat_id:
+        return False
+    try:
+        response = requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text}, timeout=12,
+        )
+        return response.ok
+    except Exception as exc:
+        logger.warning("Telegram notification failed: %s", str(exc)[:160])
+        return False
+
+
+def _internet_available() -> bool:
+    try:
+        response = requests.get("https://www.google.com/generate_204", timeout=8)
+        return response.status_code < 500
+    except requests.RequestException:
+        return False
+
+
+def _connectivity_watch_job():
+    """Detect offline→online transitions and sync backups once per transition."""
+    if not _connectivity_lock.acquire(blocking=False):
+        return
+    try:
+        online = _internet_available()
+        try:
+            previous = json.loads(CONNECTIVITY_STATE.read_text()) if CONNECTIVITY_STATE.exists() else {}
+        except Exception:
+            previous = {}
+        was_online = previous.get("online")
+        CONNECTIVITY_STATE.parent.mkdir(parents=True, exist_ok=True)
+        CONNECTIVITY_STATE.write_text(json.dumps({"online": online, "checked_at": datetime.now(timezone.utc).isoformat()}, ensure_ascii=False, indent=2))
+        if not online or was_online is True:
+            return
+        _telegram_send("✅ عاد الاتصال بالإنترنت في جهاز ميني ماركت الفنية.")
+        cfg = _load_settings()
+        if cfg.get("drive_enabled") and _drive_service():
+            result = _sync_local_backups_to_drive()
+            _telegram_send(
+                "☁️ تمت مزامنة النسخ الاحتياطية إلى Google Drive.\n"
+                f"المرفوع: {len(result['uploaded'])}\n"
+                f"المتجاوز لتكراره: {result['duplicates_prevented']}"
+            )
+    except Exception as exc:
+        logger.warning("Connectivity recovery job failed: %s", str(exc)[:220])
+        _telegram_send(f"⚠️ عاد الإنترنت لكن فشلت مزامنة النسخ الاحتياطية: {str(exc)[:180]}")
+    finally:
+        _connectivity_lock.release()
 
 
 def _human(n: float) -> str:
@@ -356,6 +415,13 @@ def _add_jobs(cfg: dict):
         kwargs={"trigger": "auto"},
         replace_existing=True,
         misfire_grace_time=300,
+    )
+    _scheduler.add_job(
+        _connectivity_watch_job,
+        trigger=IntervalTrigger(minutes=1),
+        id="connectivity_watch",
+        replace_existing=True,
+        misfire_grace_time=30,
     )
     if cfg.get("daily_midnight", True):
         _scheduler.add_job(
