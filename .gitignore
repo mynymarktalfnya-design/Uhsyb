@@ -11,6 +11,10 @@ out-tsc
 # dependencies
 node_modules
 
+# Local runtime state and credentials — never commit database/Telegram settings
+market-backend/data/*.json
+**/__pycache__/
+
 # IDEs and editors
 /.idea
 .project

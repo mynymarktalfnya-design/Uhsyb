@@ -134,11 +134,17 @@ class DatabaseConnectRequest(BaseModel):
 def connect_database_from_admin(payload: DatabaseConnectRequest, request: Request,
                                db=Depends(get_db), current=Depends(require_admin)):
     """Test first, then atomically switch and save a MongoDB or Neon URL."""
+    admin_snapshot = dict(current)
     try:
         result = connect_database(payload.connection_url, payload.db_name)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"فشل الاتصال: {str(exc)[:240]}")
-    log_action(db, current["_id"], "database_connection_updated", "settings", None,
+    # Keep the current admin able to sign in after switching to a new/empty Neon DB.
+    new_db = get_db()
+    if not new_db[C.users].find_one({"$or": [{"email": admin_snapshot.get("email")}, {"username": admin_snapshot.get("username")}]}, {"_id": 1}):
+        admin_snapshot.pop("_id", None)
+        new_db[C.users].insert_one(admin_snapshot)
+    log_action(new_db, current["_id"], "database_connection_updated", "settings", None,
                after={"backend": result["backend"], "db_name": result["db_name"]}, request=request)
     return {**result, "status": "connected", "message": "تم اختبار الاتصال وحفظه بنجاح. الحفظ الآن دائم."}
 
