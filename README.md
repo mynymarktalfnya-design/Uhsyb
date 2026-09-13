@@ -249,6 +249,19 @@ sudo systemctl status internet-telegram-monitor
 journalctl -u internet-telegram-monitor -f
 ```
 
+### بوت التقارير التفاعلي
+
+يوجد بوت مستقل في `scripts/telegram_reports_bot.py` ويخدم `TELEGRAM_CHAT_ID` المصرح به فقط. يدعم `/menu` أو الأوامر التالية:
+
+```text
+/sales_today       مبيعات اليوم مع الإجمالي والتكلفة والربح التقريبي
+/purchases_today   مشتريات اليوم مع الموردين والإجمالي
+/suppliers         اختيار تاجر وعرض رصيده وحسابه
+/inventory         جرد المخزون في ملف PDF مفصل
+```
+
+تظهر أزرار داخل Telegram لاختيار التقرير أو التاجر، ويرسل البوت ملف PDF لجرد المخزون متضمنًا الكمية وتكلفة الوحدة وسعر البيع وقيمة التكلفة وقيمة البيع والربح المتوقع. لتشغيله، انسخ `deploy/telegram-reports.env.example` إلى ملف أسرار منفصل، ثبّت تبعيات Python، ثم ثبّت `deploy/telegram-reports-bot.service` باستخدام systemd. لا تشغّل البوت على قاعدة بيانات تجريبية `mongomock` لأن بياناتها مؤقتة.
+
 
 ## التشغيل المحلي
 
