@@ -181,3 +181,1075 @@
 [2026-09-13T02:56:16.471Z] INFO:     10.217.45.1:59690 - "GET / HTTP/1.1" 200 OK
 [2026-09-13T02:56:16.583Z] INFO:     10.217.45.1:59700 - "GET /api/health HTTP/1.1" 200 OK
 [2026-09-13T02:56:26.399Z] INFO:     10.217.45.1:58518 - "GET /api/health HTTP/1.1" 200 OK
+[2026-09-13T02:57:09.736Z] INFO:     127.0.0.1:46270 - "GET / HTTP/1.1" 200 OK
+[2026-09-13T02:57:09.786Z] INFO:     127.0.0.1:46284 - "GET /assets/index-DMUyK2AZ.css HTTP/1.1" 200 OK
+[2026-09-13T02:57:09.787Z] INFO:     127.0.0.1:46270 - "GET /assets/index-DKR2Mll4.js HTTP/1.1" 200 OK
+[2026-09-13T02:57:10.129Z] INFO:     127.0.0.1:46270 - "GET /favicon.svg HTTP/1.1" 200 OK
+[2026-09-13T02:57:10.155Z] INFO:     127.0.0.1:46270 - "GET /api/system/info HTTP/1.1" 200 OK
+[2026-09-13T02:57:29.230Z] INFO:     10.217.45.1:50428 - "GET /?from_webdev=1 HTTP/1.1" 200 OK
+[2026-09-13T02:57:29.592Z] INFO:     10.217.45.1:50438 - "GET /assets/index-DKR2Mll4.js HTTP/1.1" 200 OK
+[2026-09-13T02:57:29.592Z] INFO:     10.217.45.1:50446 - "GET /assets/index-DMUyK2AZ.css HTTP/1.1" 200 OK
+[2026-09-13T02:57:32.613Z] INFO:     10.217.45.1:50452 - "HEAD / HTTP/1.1" 405 Method Not Allowed
+[2026-09-13T02:57:32.648Z] INFO:     10.217.45.1:50458 - "GET /api/system/info HTTP/1.1" 200 OK
+[2026-09-13T02:57:33.446Z] INFO:     10.217.45.1:50462 - "GET /api/system/info HTTP/1.1" 200 OK
+[2026-09-13T02:57:33.706Z] INFO:     10.217.45.1:50476 - "GET /api/system/info HTTP/1.1" 200 OK
+[2026-09-13T02:58:04.435Z] INFO:     Shutting down
+[2026-09-13T02:58:04.449Z] [ELIFECYCLE] Command failed.
+[2026-09-13T02:58:04.536Z] INFO:     Waiting for application shutdown.
+[2026-09-13T02:58:04.536Z] 2026-09-13 02:58:04,536 - apscheduler.scheduler - INFO - Scheduler has been shut down
+[2026-09-13T02:58:04.536Z] 2026-09-13 02:58:04,536 - routes.backups - INFO - Backup scheduler stopped
+[2026-09-13T02:58:04.536Z] INFO:     Application shutdown complete.
+[2026-09-13T02:58:04.536Z] INFO:     Finished server process [8026]
+[2026-09-13T02:58:04.746Z] INFO:     Stopping reloader process [8024]
+[2026-09-13T02:58:04.782Z] Dev server exited with code -1
+[2026-09-13T02:58:05.847Z] Starting dev server with command: pnpm run dev
+[2026-09-13T02:58:06.518Z] $ sh -c 'exec uv run --with-requirements requirements.deploy.txt uvicorn deploy_server:app --host 0.0.0.0 --port ${PORT:-3000} --reload'
+[2026-09-13T02:58:06.822Z] INFO:     Will watch for changes in these directories: ['/home/ubuntu/minimarket-permanent']
+[2026-09-13T02:58:06.822Z] INFO:     Uvicorn running on http://0.0.0.0:3000 (Press CTRL+C to quit)
+[2026-09-13T02:58:06.822Z] INFO:     Started reloader process [8370] using StatReload
+[2026-09-13T02:58:08.092Z] INFO:     Started server process [8372]
+[2026-09-13T02:58:08.092Z] INFO:     Waiting for application startup.
+[2026-09-13T02:58:08.202Z] 2026-09-13 02:58:08,202 - server - INFO - Seeding complete (mode=test)
+[2026-09-13T02:58:08.203Z] 2026-09-13 02:58:08,203 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-09-13T02:58:08.203Z] 2026-09-13 02:58:08,203 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-09-13T02:58:08.203Z] 2026-09-13 02:58:08,203 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-09-13T02:58:08.204Z] 2026-09-13 02:58:08,204 - apscheduler.scheduler - INFO - Added job "_auto_backup_job" to job store "default"
+[2026-09-13T02:58:08.204Z] 2026-09-13 02:58:08,204 - apscheduler.scheduler - INFO - Added job "_auto_backup_job" to job store "default"
+[2026-09-13T02:58:08.204Z] 2026-09-13 02:58:08,204 - apscheduler.scheduler - INFO - Added job "_drive_sync_job" to job store "default"
+[2026-09-13T02:58:08.204Z] 2026-09-13 02:58:08,204 - apscheduler.scheduler - INFO - Scheduler started
+[2026-09-13T02:58:08.204Z] 2026-09-13 02:58:08,204 - routes.backups - INFO - Backup scheduler started — interval=1h midnight=True
+[2026-09-13T02:58:08.204Z] INFO:     Application startup complete.
+[2026-09-13T03:01:08.282Z] INFO:     10.217.45.1:59700 - "GET /?from_webdev=1 HTTP/1.1" 200 OK
+[2026-09-13T03:01:08.679Z] INFO:     10.217.45.1:59710 - "GET /assets/index-DMUyK2AZ.css HTTP/1.1" 200 OK
+[2026-09-13T03:01:08.680Z] INFO:     10.217.45.1:59720 - "GET /assets/index-DKR2Mll4.js HTTP/1.1" 200 OK
+[2026-09-13T03:01:11.886Z] INFO:     10.217.45.1:59722 - "HEAD / HTTP/1.1" 405 Method Not Allowed
+[2026-09-13T03:01:11.932Z] INFO:     10.217.45.1:59732 - "GET /api/system/info HTTP/1.1" 200 OK
+[2026-09-13T03:01:12.856Z] INFO:     10.217.45.1:59738 - "GET /api/system/info HTTP/1.1" 200 OK
+[2026-09-13T03:01:13.162Z] INFO:     10.217.45.1:59742 - "GET /api/system/info HTTP/1.1" 200 OK
+[2026-09-13T03:01:15.195Z] /home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 22 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+[2026-09-13T03:01:15.195Z] return self._jws.encode(
+[2026-09-13T03:01:15.197Z] INFO:     10.217.45.1:54040 - "POST /api/auth/login HTTP/1.1" 200 OK
+[2026-09-13T03:01:15.811Z] /home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/jwt/api_jwt.py:368: InsecureKeyLengthWarning: The HMAC key is 22 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+[2026-09-13T03:01:15.811Z] decoded = self.decode_complete(
+[2026-09-13T03:01:15.916Z] INFO:     10.217.45.1:54054 - "GET /api/notifications/unread-count HTTP/1.1" 200 OK
+[2026-09-13T03:01:16.430Z] INFO:     10.217.45.1:54060 - "GET /api/dashboard/manager HTTP/1.1" 500 Internal Server Error
+[2026-09-13T03:01:16.455Z] ERROR:    Exception in ASGI application
+[2026-09-13T03:01:16.455Z] + Exception Group Traceback (most recent call last):
+[2026-09-13T03:01:16.455Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+[2026-09-13T03:01:16.455Z] |     yield
+[2026-09-13T03:01:16.455Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 190, in __call__
+[2026-09-13T03:01:16.455Z] |     async with anyio.create_task_group() as task_group:
+[2026-09-13T03:01:16.455Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 811, in __aexit__
+[2026-09-13T03:01:16.455Z] |     raise BaseExceptionGroup(
+[2026-09-13T03:01:16.455Z] | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+[2026-09-13T03:01:16.455Z] +-+---------------- 1 ----------------
+[2026-09-13T03:01:16.455Z] | Traceback (most recent call last):
+[2026-09-13T03:01:16.455Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:01:16.456Z] |     result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:01:16.456Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:01:16.456Z] |     return await self.app(scope, receive, send)
+[2026-09-13T03:01:16.456Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:01:16.456Z] |     await super().__call__(scope, receive, send)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:01:16.456Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:01:16.456Z] |     raise exc
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:01:16.456Z] |     await self.app(scope, receive, _send)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:01:16.456Z] |     with collapse_excgroups():
+[2026-09-13T03:01:16.456Z] |   File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:01:16.456Z] |     self.gen.throw(value)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:01:16.456Z] |     raise exc
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:01:16.456Z] |     response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:01:16.456Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:01:16.456Z] |     response = await call_next(request)
+[2026-09-13T03:01:16.456Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:01:16.456Z] |     raise app_exc
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:01:16.456Z] |     await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:01:16.456Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:01:16.456Z] |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:16.456Z] |     raise exc
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:16.456Z] |     await app(scope, receive, sender)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:01:16.456Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:01:16.456Z] |     await route.handle(scope, receive, send)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:01:16.456Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:01:16.456Z] |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:16.456Z] |     raise exc
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:16.456Z] |     await app(scope, receive, sender)
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:01:16.456Z] |     response = await func(request)
+[2026-09-13T03:01:16.456Z] |                ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:01:16.456Z] |     raw_response = await run_endpoint_function(
+[2026-09-13T03:01:16.456Z] |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:01:16.456Z] |     return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:01:16.456Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:01:16.456Z] |     return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:01:16.456Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:01:16.456Z] |     return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:01:16.456Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:01:16.456Z] |     return await future
+[2026-09-13T03:01:16.456Z] |            ^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:01:16.456Z] |     result = context.run(func, *args)
+[2026-09-13T03:01:16.456Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:01:16.456Z] |     [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:01:16.456Z] |             ~^^^^^^^
+[2026-09-13T03:01:16.456Z] | KeyError: '_id'
+[2026-09-13T03:01:16.456Z] +------------------------------------
+[2026-09-13T03:01:16.456Z] During handling of the above exception, another exception occurred:
+[2026-09-13T03:01:16.456Z] Traceback (most recent call last):
+[2026-09-13T03:01:16.456Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:01:16.456Z] result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:01:16.456Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:01:16.456Z] return await self.app(scope, receive, send)
+[2026-09-13T03:01:16.456Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.456Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:01:16.456Z] await super().__call__(scope, receive, send)
+[2026-09-13T03:01:16.456Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:01:16.456Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:16.456Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:01:16.456Z] raise exc
+[2026-09-13T03:01:16.456Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:01:16.457Z] await self.app(scope, receive, _send)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:01:16.457Z] with collapse_excgroups():
+[2026-09-13T03:01:16.457Z] File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:01:16.457Z] self.gen.throw(value)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:01:16.457Z] raise exc
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:01:16.457Z] response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:01:16.457Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:01:16.457Z] response = await call_next(request)
+[2026-09-13T03:01:16.457Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:01:16.457Z] raise app_exc
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:01:16.457Z] await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:01:16.457Z] await self.app(scope, receive, send)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:01:16.457Z] await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:16.457Z] raise exc
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:16.457Z] await app(scope, receive, sender)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:01:16.457Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:01:16.457Z] await route.handle(scope, receive, send)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:01:16.457Z] await self.app(scope, receive, send)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:01:16.457Z] await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:16.457Z] raise exc
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:16.457Z] await app(scope, receive, sender)
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:01:16.457Z] response = await func(request)
+[2026-09-13T03:01:16.457Z] ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:01:16.457Z] raw_response = await run_endpoint_function(
+[2026-09-13T03:01:16.457Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:01:16.457Z] return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:01:16.457Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:01:16.457Z] return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:01:16.457Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:01:16.457Z] return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:01:16.457Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:01:16.457Z] return await future
+[2026-09-13T03:01:16.457Z] ^^^^^^^^^^^^
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:01:16.457Z] result = context.run(func, *args)
+[2026-09-13T03:01:16.457Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:16.457Z] File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:01:16.457Z] [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:01:16.457Z] ~^^^^^^^
+[2026-09-13T03:01:16.457Z] KeyError: '_id'
+[2026-09-13T03:01:19.662Z] INFO:     10.217.45.1:54074 - "GET /api/auth/me HTTP/1.1" 200 OK
+[2026-09-13T03:01:19.699Z] INFO:     10.217.45.1:54080 - "HEAD / HTTP/1.1" 405 Method Not Allowed
+[2026-09-13T03:01:20.068Z] INFO:     10.217.45.1:54086 - "GET /api/notifications/unread-count HTTP/1.1" 200 OK
+[2026-09-13T03:01:20.083Z] INFO:     10.217.45.1:54090 - "GET /api/dashboard/manager HTTP/1.1" 500 Internal Server Error
+[2026-09-13T03:01:20.087Z] ERROR:    Exception in ASGI application
+[2026-09-13T03:01:20.087Z] + Exception Group Traceback (most recent call last):
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+[2026-09-13T03:01:20.087Z] |     yield
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 190, in __call__
+[2026-09-13T03:01:20.087Z] |     async with anyio.create_task_group() as task_group:
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 811, in __aexit__
+[2026-09-13T03:01:20.087Z] |     raise BaseExceptionGroup(
+[2026-09-13T03:01:20.087Z] | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+[2026-09-13T03:01:20.087Z] +-+---------------- 1 ----------------
+[2026-09-13T03:01:20.087Z] | Traceback (most recent call last):
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:01:20.087Z] |     result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:01:20.087Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:01:20.087Z] |     return await self.app(scope, receive, send)
+[2026-09-13T03:01:20.087Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:01:20.087Z] |     await super().__call__(scope, receive, send)
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:01:20.087Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:01:20.087Z] |     raise exc
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:01:20.087Z] |     await self.app(scope, receive, _send)
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:01:20.087Z] |     with collapse_excgroups():
+[2026-09-13T03:01:20.087Z] |   File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:01:20.087Z] |     self.gen.throw(value)
+[2026-09-13T03:01:20.087Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:01:20.087Z] |     raise exc
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:01:20.088Z] |     response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:01:20.088Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:01:20.088Z] |     response = await call_next(request)
+[2026-09-13T03:01:20.088Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:01:20.088Z] |     raise app_exc
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:01:20.088Z] |     await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:01:20.088Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:01:20.088Z] |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:20.088Z] |     raise exc
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:20.088Z] |     await app(scope, receive, sender)
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:01:20.088Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:01:20.088Z] |     await route.handle(scope, receive, send)
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:01:20.088Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:01:20.088Z] |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:20.088Z] |     raise exc
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:20.088Z] |     await app(scope, receive, sender)
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:01:20.088Z] |     response = await func(request)
+[2026-09-13T03:01:20.088Z] |                ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:01:20.088Z] |     raw_response = await run_endpoint_function(
+[2026-09-13T03:01:20.088Z] |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:01:20.088Z] |     return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:01:20.088Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:01:20.088Z] |     return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:01:20.088Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:01:20.088Z] |     return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:01:20.088Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:01:20.088Z] |     return await future
+[2026-09-13T03:01:20.088Z] |            ^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:01:20.088Z] |     result = context.run(func, *args)
+[2026-09-13T03:01:20.088Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:01:20.088Z] |     [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:01:20.088Z] |             ~^^^^^^^
+[2026-09-13T03:01:20.088Z] | KeyError: '_id'
+[2026-09-13T03:01:20.088Z] +------------------------------------
+[2026-09-13T03:01:20.088Z] During handling of the above exception, another exception occurred:
+[2026-09-13T03:01:20.088Z] Traceback (most recent call last):
+[2026-09-13T03:01:20.088Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:01:20.088Z] result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:01:20.088Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:01:20.088Z] return await self.app(scope, receive, send)
+[2026-09-13T03:01:20.088Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.088Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:01:20.088Z] await super().__call__(scope, receive, send)
+[2026-09-13T03:01:20.088Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:01:20.088Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:20.088Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:01:20.088Z] raise exc
+[2026-09-13T03:01:20.088Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:01:20.088Z] await self.app(scope, receive, _send)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:01:20.089Z] with collapse_excgroups():
+[2026-09-13T03:01:20.089Z] File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:01:20.089Z] self.gen.throw(value)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:01:20.089Z] raise exc
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:01:20.089Z] response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:01:20.089Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:01:20.089Z] response = await call_next(request)
+[2026-09-13T03:01:20.089Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:01:20.089Z] raise app_exc
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:01:20.089Z] await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:01:20.089Z] await self.app(scope, receive, send)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:01:20.089Z] await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:20.089Z] raise exc
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:20.089Z] await app(scope, receive, sender)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:01:20.089Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:01:20.089Z] await route.handle(scope, receive, send)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:01:20.089Z] await self.app(scope, receive, send)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:01:20.089Z] await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:20.089Z] raise exc
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:20.089Z] await app(scope, receive, sender)
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:01:20.089Z] response = await func(request)
+[2026-09-13T03:01:20.089Z] ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:01:20.089Z] raw_response = await run_endpoint_function(
+[2026-09-13T03:01:20.089Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:01:20.089Z] return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:01:20.089Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:01:20.089Z] return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:01:20.089Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:01:20.089Z] return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:01:20.089Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:01:20.089Z] return await future
+[2026-09-13T03:01:20.089Z] ^^^^^^^^^^^^
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:01:20.089Z] result = context.run(func, *args)
+[2026-09-13T03:01:20.089Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.089Z] File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:01:20.089Z] [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:01:20.089Z] ~^^^^^^^
+[2026-09-13T03:01:20.089Z] KeyError: '_id'
+[2026-09-13T03:01:20.579Z] INFO:     10.217.45.1:54096 - "GET /api/auth/me HTTP/1.1" 200 OK
+[2026-09-13T03:01:20.973Z] INFO:     10.217.45.1:54108 - "GET /api/notifications/unread-count HTTP/1.1" 200 OK
+[2026-09-13T03:01:20.988Z] INFO:     10.217.45.1:54110 - "GET /api/dashboard/manager HTTP/1.1" 500 Internal Server Error
+[2026-09-13T03:01:20.992Z] ERROR:    Exception in ASGI application
+[2026-09-13T03:01:20.992Z] + Exception Group Traceback (most recent call last):
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+[2026-09-13T03:01:20.992Z] |     yield
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 190, in __call__
+[2026-09-13T03:01:20.992Z] |     async with anyio.create_task_group() as task_group:
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 811, in __aexit__
+[2026-09-13T03:01:20.992Z] |     raise BaseExceptionGroup(
+[2026-09-13T03:01:20.992Z] | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+[2026-09-13T03:01:20.992Z] +-+---------------- 1 ----------------
+[2026-09-13T03:01:20.992Z] | Traceback (most recent call last):
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:01:20.992Z] |     result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:01:20.992Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:01:20.992Z] |     return await self.app(scope, receive, send)
+[2026-09-13T03:01:20.992Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:01:20.992Z] |     await super().__call__(scope, receive, send)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:01:20.992Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:01:20.992Z] |     raise exc
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:01:20.992Z] |     await self.app(scope, receive, _send)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:01:20.992Z] |     with collapse_excgroups():
+[2026-09-13T03:01:20.992Z] |   File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:01:20.992Z] |     self.gen.throw(value)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:01:20.992Z] |     raise exc
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:01:20.992Z] |     response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:01:20.992Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:01:20.992Z] |     response = await call_next(request)
+[2026-09-13T03:01:20.992Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:01:20.992Z] |     raise app_exc
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:01:20.992Z] |     await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:01:20.992Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:01:20.992Z] |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:20.992Z] |     raise exc
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:20.992Z] |     await app(scope, receive, sender)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:01:20.992Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:01:20.992Z] |     await route.handle(scope, receive, send)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:01:20.992Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:01:20.992Z] |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:20.992Z] |     raise exc
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:20.992Z] |     await app(scope, receive, sender)
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:01:20.992Z] |     response = await func(request)
+[2026-09-13T03:01:20.992Z] |                ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:01:20.992Z] |     raw_response = await run_endpoint_function(
+[2026-09-13T03:01:20.992Z] |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:01:20.992Z] |     return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:01:20.992Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.992Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:01:20.992Z] |     return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:01:20.993Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:01:20.993Z] |     return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:01:20.993Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:01:20.993Z] |     return await future
+[2026-09-13T03:01:20.993Z] |            ^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:01:20.993Z] |     result = context.run(func, *args)
+[2026-09-13T03:01:20.993Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:01:20.993Z] |     [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:01:20.993Z] |             ~^^^^^^^
+[2026-09-13T03:01:20.993Z] | KeyError: '_id'
+[2026-09-13T03:01:20.993Z] +------------------------------------
+[2026-09-13T03:01:20.993Z] During handling of the above exception, another exception occurred:
+[2026-09-13T03:01:20.993Z] Traceback (most recent call last):
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:01:20.993Z] result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:01:20.993Z] return await self.app(scope, receive, send)
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:01:20.993Z] await super().__call__(scope, receive, send)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:01:20.993Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:01:20.993Z] raise exc
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:01:20.993Z] await self.app(scope, receive, _send)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:01:20.993Z] with collapse_excgroups():
+[2026-09-13T03:01:20.993Z] File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:01:20.993Z] self.gen.throw(value)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:01:20.993Z] raise exc
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:01:20.993Z] response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:01:20.993Z] response = await call_next(request)
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:01:20.993Z] raise app_exc
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:01:20.993Z] await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:01:20.993Z] await self.app(scope, receive, send)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:01:20.993Z] await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:20.993Z] raise exc
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:20.993Z] await app(scope, receive, sender)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:01:20.993Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:01:20.993Z] await route.handle(scope, receive, send)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:01:20.993Z] await self.app(scope, receive, send)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:01:20.993Z] await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:20.993Z] raise exc
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:20.993Z] await app(scope, receive, sender)
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:01:20.993Z] response = await func(request)
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:01:20.993Z] raw_response = await run_endpoint_function(
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:01:20.993Z] return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:01:20.993Z] return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:01:20.993Z] return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:01:20.993Z] return await future
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:01:20.993Z] result = context.run(func, *args)
+[2026-09-13T03:01:20.993Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:20.993Z] File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:01:20.993Z] [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:01:20.993Z] ~^^^^^^^
+[2026-09-13T03:01:20.993Z] KeyError: '_id'
+[2026-09-13T03:01:21.105Z] INFO:     10.217.45.1:54120 - "GET / HTTP/1.1" 200 OK
+[2026-09-13T03:01:21.601Z] INFO:     10.217.45.1:54124 - "GET /api/auth/me HTTP/1.1" 200 OK
+[2026-09-13T03:01:21.606Z] INFO:     10.217.45.1:54130 - "GET /favicon.svg HTTP/1.1" 200 OK
+[2026-09-13T03:01:22.024Z] INFO:     10.217.45.1:54142 - "GET /api/notifications/unread-count HTTP/1.1" 200 OK
+[2026-09-13T03:01:22.037Z] INFO:     10.217.45.1:54138 - "GET /api/dashboard/manager HTTP/1.1" 500 Internal Server Error
+[2026-09-13T03:01:22.041Z] ERROR:    Exception in ASGI application
+[2026-09-13T03:01:22.041Z] + Exception Group Traceback (most recent call last):
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+[2026-09-13T03:01:22.041Z] |     yield
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 190, in __call__
+[2026-09-13T03:01:22.041Z] |     async with anyio.create_task_group() as task_group:
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 811, in __aexit__
+[2026-09-13T03:01:22.041Z] |     raise BaseExceptionGroup(
+[2026-09-13T03:01:22.041Z] | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+[2026-09-13T03:01:22.041Z] +-+---------------- 1 ----------------
+[2026-09-13T03:01:22.041Z] | Traceback (most recent call last):
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:01:22.041Z] |     result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:01:22.041Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:01:22.041Z] |     return await self.app(scope, receive, send)
+[2026-09-13T03:01:22.041Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:01:22.041Z] |     await super().__call__(scope, receive, send)
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:01:22.041Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:01:22.041Z] |     raise exc
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:01:22.041Z] |     await self.app(scope, receive, _send)
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:01:22.041Z] |     with collapse_excgroups():
+[2026-09-13T03:01:22.041Z] |   File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:01:22.041Z] |     self.gen.throw(value)
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:01:22.041Z] |     raise exc
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:01:22.041Z] |     response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:01:22.041Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.041Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:01:22.041Z] |     response = await call_next(request)
+[2026-09-13T03:01:22.041Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:01:22.042Z] |     raise app_exc
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:01:22.042Z] |     await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:01:22.042Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:01:22.042Z] |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:22.042Z] |     raise exc
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:22.042Z] |     await app(scope, receive, sender)
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:01:22.042Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:01:22.042Z] |     await route.handle(scope, receive, send)
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:01:22.042Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:01:22.042Z] |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:22.042Z] |     raise exc
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:22.042Z] |     await app(scope, receive, sender)
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:01:22.042Z] |     response = await func(request)
+[2026-09-13T03:01:22.042Z] |                ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:01:22.042Z] |     raw_response = await run_endpoint_function(
+[2026-09-13T03:01:22.042Z] |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:01:22.042Z] |     return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:01:22.042Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:01:22.042Z] |     return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:01:22.042Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:01:22.042Z] |     return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:01:22.042Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:01:22.042Z] |     return await future
+[2026-09-13T03:01:22.042Z] |            ^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:01:22.042Z] |     result = context.run(func, *args)
+[2026-09-13T03:01:22.042Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:01:22.042Z] |     [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:01:22.042Z] |             ~^^^^^^^
+[2026-09-13T03:01:22.042Z] | KeyError: '_id'
+[2026-09-13T03:01:22.042Z] +------------------------------------
+[2026-09-13T03:01:22.042Z] During handling of the above exception, another exception occurred:
+[2026-09-13T03:01:22.042Z] Traceback (most recent call last):
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:01:22.042Z] result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:01:22.042Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:01:22.042Z] return await self.app(scope, receive, send)
+[2026-09-13T03:01:22.042Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:01:22.042Z] await super().__call__(scope, receive, send)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:01:22.042Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:01:22.042Z] raise exc
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:01:22.042Z] await self.app(scope, receive, _send)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:01:22.042Z] with collapse_excgroups():
+[2026-09-13T03:01:22.042Z] File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:01:22.042Z] self.gen.throw(value)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:01:22.042Z] raise exc
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:01:22.042Z] response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:01:22.042Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:01:22.042Z] response = await call_next(request)
+[2026-09-13T03:01:22.042Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:01:22.042Z] raise app_exc
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:01:22.042Z] await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:01:22.042Z] await self.app(scope, receive, send)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:01:22.042Z] await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:22.042Z] raise exc
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:22.042Z] await app(scope, receive, sender)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:01:22.042Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:01:22.042Z] await route.handle(scope, receive, send)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:01:22.042Z] await self.app(scope, receive, send)
+[2026-09-13T03:01:22.042Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:01:22.043Z] await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:01:22.043Z] raise exc
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:01:22.043Z] await app(scope, receive, sender)
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:01:22.043Z] response = await func(request)
+[2026-09-13T03:01:22.043Z] ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:01:22.043Z] raw_response = await run_endpoint_function(
+[2026-09-13T03:01:22.043Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:01:22.043Z] return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:01:22.043Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:01:22.043Z] return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:01:22.043Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:01:22.043Z] return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:01:22.043Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:01:22.043Z] return await future
+[2026-09-13T03:01:22.043Z] ^^^^^^^^^^^^
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:01:22.043Z] result = context.run(func, *args)
+[2026-09-13T03:01:22.043Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:01:22.043Z] File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:01:22.043Z] [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:01:22.043Z] ~^^^^^^^
+[2026-09-13T03:01:22.043Z] KeyError: '_id'
+[2026-09-13T03:01:27.306Z] INFO:     10.217.45.1:46498 - "GET /api/pos/settings HTTP/1.1" 200 OK
+[2026-09-13T03:01:27.309Z] INFO:     10.217.45.1:46502 - "GET /api/alert-settings HTTP/1.1" 200 OK
+[2026-09-13T03:01:27.318Z] INFO:     10.217.45.1:46518 - "GET /api/admin/system/mode HTTP/1.1" 200 OK
+[2026-09-13T03:01:27.809Z] INFO:     10.217.45.1:46524 - "GET /api/admin/system/database-status HTTP/1.1" 200 OK
+[2026-09-13T03:01:30.947Z] INFO:     10.217.45.1:46568 - "GET /api/admin/backups/settings HTTP/1.1" 200 OK
+[2026-09-13T03:01:30.949Z] INFO:     10.217.45.1:46552 - "GET /api/admin/backups/status HTTP/1.1" 200 OK
+[2026-09-13T03:01:30.951Z] INFO:     10.217.45.1:46540 - "GET /api/admin/backups HTTP/1.1" 200 OK
+[2026-09-13T03:02:12.282Z] INFO:     10.217.45.1:49468 - "GET /?from_webdev=1 HTTP/1.1" 200 OK
+[2026-09-13T03:02:12.687Z] INFO:     10.217.45.1:49484 - "GET /assets/index-DMUyK2AZ.css HTTP/1.1" 200 OK
+[2026-09-13T03:02:12.697Z] INFO:     10.217.45.1:49494 - "GET /assets/index-DKR2Mll4.js HTTP/1.1" 200 OK
+[2026-09-13T03:02:15.837Z] INFO:     10.217.45.1:36968 - "HEAD / HTTP/1.1" 405 Method Not Allowed
+[2026-09-13T03:02:15.869Z] INFO:     10.217.45.1:36982 - "GET /api/auth/me HTTP/1.1" 200 OK
+[2026-09-13T03:02:16.286Z] INFO:     10.217.45.1:36984 - "GET /api/notifications/unread-count HTTP/1.1" 200 OK
+[2026-09-13T03:02:16.293Z] INFO:     10.217.45.1:36994 - "GET /api/dashboard/manager HTTP/1.1" 500 Internal Server Error
+[2026-09-13T03:02:16.297Z] ERROR:    Exception in ASGI application
+[2026-09-13T03:02:16.298Z] + Exception Group Traceback (most recent call last):
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+[2026-09-13T03:02:16.298Z] |     yield
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 190, in __call__
+[2026-09-13T03:02:16.298Z] |     async with anyio.create_task_group() as task_group:
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 811, in __aexit__
+[2026-09-13T03:02:16.298Z] |     raise BaseExceptionGroup(
+[2026-09-13T03:02:16.298Z] | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+[2026-09-13T03:02:16.298Z] +-+---------------- 1 ----------------
+[2026-09-13T03:02:16.298Z] | Traceback (most recent call last):
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:02:16.298Z] |     result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:02:16.298Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:02:16.298Z] |     return await self.app(scope, receive, send)
+[2026-09-13T03:02:16.298Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:02:16.298Z] |     await super().__call__(scope, receive, send)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:02:16.298Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:02:16.298Z] |     raise exc
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:02:16.298Z] |     await self.app(scope, receive, _send)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:02:16.298Z] |     with collapse_excgroups():
+[2026-09-13T03:02:16.298Z] |   File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:02:16.298Z] |     self.gen.throw(value)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:02:16.298Z] |     raise exc
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:02:16.298Z] |     response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:02:16.298Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:02:16.298Z] |     response = await call_next(request)
+[2026-09-13T03:02:16.298Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:02:16.298Z] |     raise app_exc
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:02:16.298Z] |     await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:02:16.298Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:02:16.298Z] |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:02:16.298Z] |     raise exc
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:02:16.298Z] |     await app(scope, receive, sender)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:02:16.298Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:02:16.298Z] |     await route.handle(scope, receive, send)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:02:16.298Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:02:16.298Z] |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:02:16.298Z] |     raise exc
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:02:16.298Z] |     await app(scope, receive, sender)
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:02:16.298Z] |     response = await func(request)
+[2026-09-13T03:02:16.298Z] |                ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.298Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:02:16.298Z] |     raw_response = await run_endpoint_function(
+[2026-09-13T03:02:16.299Z] |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:02:16.299Z] |     return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:02:16.299Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:02:16.299Z] |     return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:02:16.299Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:02:16.299Z] |     return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:02:16.299Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:02:16.299Z] |     return await future
+[2026-09-13T03:02:16.299Z] |            ^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:02:16.299Z] |     result = context.run(func, *args)
+[2026-09-13T03:02:16.299Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:02:16.299Z] |     [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:02:16.299Z] |             ~^^^^^^^
+[2026-09-13T03:02:16.299Z] | KeyError: '_id'
+[2026-09-13T03:02:16.299Z] +------------------------------------
+[2026-09-13T03:02:16.299Z] During handling of the above exception, another exception occurred:
+[2026-09-13T03:02:16.299Z] Traceback (most recent call last):
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:02:16.299Z] result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:02:16.299Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:02:16.299Z] return await self.app(scope, receive, send)
+[2026-09-13T03:02:16.299Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:02:16.299Z] await super().__call__(scope, receive, send)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:02:16.299Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:02:16.299Z] raise exc
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:02:16.299Z] await self.app(scope, receive, _send)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:02:16.299Z] with collapse_excgroups():
+[2026-09-13T03:02:16.299Z] File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:02:16.299Z] self.gen.throw(value)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:02:16.299Z] raise exc
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:02:16.299Z] response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:02:16.299Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:02:16.299Z] response = await call_next(request)
+[2026-09-13T03:02:16.299Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:02:16.299Z] raise app_exc
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:02:16.299Z] await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:02:16.299Z] await self.app(scope, receive, send)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:02:16.299Z] await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:02:16.299Z] raise exc
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:02:16.299Z] await app(scope, receive, sender)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:02:16.299Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:02:16.299Z] await route.handle(scope, receive, send)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:02:16.299Z] await self.app(scope, receive, send)
+[2026-09-13T03:02:16.299Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:02:16.299Z] await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:02:16.300Z] raise exc
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:02:16.300Z] await app(scope, receive, sender)
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:02:16.300Z] response = await func(request)
+[2026-09-13T03:02:16.300Z] ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:02:16.300Z] raw_response = await run_endpoint_function(
+[2026-09-13T03:02:16.300Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:02:16.300Z] return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:02:16.300Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:02:16.300Z] return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:02:16.300Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:02:16.300Z] return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:02:16.300Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:02:16.300Z] return await future
+[2026-09-13T03:02:16.300Z] ^^^^^^^^^^^^
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:02:16.300Z] result = context.run(func, *args)
+[2026-09-13T03:02:16.300Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:16.300Z] File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:02:16.300Z] [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:02:16.300Z] ~^^^^^^^
+[2026-09-13T03:02:16.300Z] KeyError: '_id'
+[2026-09-13T03:02:16.631Z] INFO:     10.217.45.1:37010 - "GET /api/auth/me HTTP/1.1" 200 OK
+[2026-09-13T03:02:16.942Z] INFO:     10.217.45.1:37020 - "GET /api/auth/me HTTP/1.1" 200 OK
+[2026-09-13T03:02:17.344Z] INFO:     10.217.45.1:37022 - "GET /api/notifications/unread-count HTTP/1.1" 200 OK
+[2026-09-13T03:02:17.360Z] INFO:     10.217.45.1:37034 - "GET /api/dashboard/manager HTTP/1.1" 500 Internal Server Error
+[2026-09-13T03:02:17.364Z] ERROR:    Exception in ASGI application
+[2026-09-13T03:02:17.364Z] + Exception Group Traceback (most recent call last):
+[2026-09-13T03:02:17.364Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+[2026-09-13T03:02:17.364Z] |     yield
+[2026-09-13T03:02:17.364Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 190, in __call__
+[2026-09-13T03:02:17.364Z] |     async with anyio.create_task_group() as task_group:
+[2026-09-13T03:02:17.364Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 811, in __aexit__
+[2026-09-13T03:02:17.364Z] |     raise BaseExceptionGroup(
+[2026-09-13T03:02:17.364Z] | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+[2026-09-13T03:02:17.364Z] +-+---------------- 1 ----------------
+[2026-09-13T03:02:17.364Z] | Traceback (most recent call last):
+[2026-09-13T03:02:17.364Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:02:17.364Z] |     result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:02:17.364Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.364Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:02:17.364Z] |     return await self.app(scope, receive, send)
+[2026-09-13T03:02:17.364Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.364Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:02:17.365Z] |     await super().__call__(scope, receive, send)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:02:17.365Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:02:17.365Z] |     raise exc
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:02:17.365Z] |     await self.app(scope, receive, _send)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:02:17.365Z] |     with collapse_excgroups():
+[2026-09-13T03:02:17.365Z] |   File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:02:17.365Z] |     self.gen.throw(value)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:02:17.365Z] |     raise exc
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:02:17.365Z] |     response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:02:17.365Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:02:17.365Z] |     response = await call_next(request)
+[2026-09-13T03:02:17.365Z] |                ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:02:17.365Z] |     raise app_exc
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:02:17.365Z] |     await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:02:17.365Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:02:17.365Z] |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:02:17.365Z] |     raise exc
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:02:17.365Z] |     await app(scope, receive, sender)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:02:17.365Z] |     await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:02:17.365Z] |     await route.handle(scope, receive, send)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:02:17.365Z] |     await self.app(scope, receive, send)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:02:17.365Z] |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:02:17.365Z] |     raise exc
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:02:17.365Z] |     await app(scope, receive, sender)
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:02:17.365Z] |     response = await func(request)
+[2026-09-13T03:02:17.365Z] |                ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:02:17.365Z] |     raw_response = await run_endpoint_function(
+[2026-09-13T03:02:17.365Z] |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:02:17.365Z] |     return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:02:17.365Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:02:17.365Z] |     return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:02:17.365Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:02:17.365Z] |     return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:02:17.365Z] |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:02:17.365Z] |     return await future
+[2026-09-13T03:02:17.365Z] |            ^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:02:17.365Z] |     result = context.run(func, *args)
+[2026-09-13T03:02:17.365Z] |              ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] |   File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:02:17.365Z] |     [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:02:17.365Z] |             ~^^^^^^^
+[2026-09-13T03:02:17.365Z] | KeyError: '_id'
+[2026-09-13T03:02:17.365Z] +------------------------------------
+[2026-09-13T03:02:17.365Z] During handling of the above exception, another exception occurred:
+[2026-09-13T03:02:17.365Z] Traceback (most recent call last):
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 408, in run_asgi
+[2026-09-13T03:02:17.365Z] result = await app(  # type: ignore[func-returns-value]
+[2026-09-13T03:02:17.365Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
+[2026-09-13T03:02:17.365Z] return await self.app(scope, receive, send)
+[2026-09-13T03:02:17.365Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+[2026-09-13T03:02:17.365Z] await super().__call__(scope, receive, send)
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/applications.py", line 123, in __call__
+[2026-09-13T03:02:17.365Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+[2026-09-13T03:02:17.365Z] raise exc
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+[2026-09-13T03:02:17.365Z] await self.app(scope, receive, _send)
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 189, in __call__
+[2026-09-13T03:02:17.365Z] with collapse_excgroups():
+[2026-09-13T03:02:17.365Z] File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+[2026-09-13T03:02:17.365Z] self.gen.throw(value)
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_utils.py", line 93, in collapse_excgroups
+[2026-09-13T03:02:17.365Z] raise exc
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+[2026-09-13T03:02:17.365Z] response = await self.dispatch_func(request, call_next)
+[2026-09-13T03:02:17.365Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.365Z] File "/home/ubuntu/minimarket-permanent/market-backend/server.py", line 50, in persist_local_changes
+[2026-09-13T03:02:17.366Z] response = await call_next(request)
+[2026-09-13T03:02:17.366Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 165, in call_next
+[2026-09-13T03:02:17.366Z] raise app_exc
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/base.py", line 151, in coro
+[2026-09-13T03:02:17.366Z] await self.app(scope, receive_or_disconnect, send_no_error)
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+[2026-09-13T03:02:17.366Z] await self.app(scope, receive, send)
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+[2026-09-13T03:02:17.366Z] await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:02:17.366Z] raise exc
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:02:17.366Z] await app(scope, receive, sender)
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 756, in __call__
+[2026-09-13T03:02:17.366Z] await self.middleware_stack(scope, receive, send)
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 776, in app
+[2026-09-13T03:02:17.366Z] await route.handle(scope, receive, send)
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 297, in handle
+[2026-09-13T03:02:17.366Z] await self.app(scope, receive, send)
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 77, in app
+[2026-09-13T03:02:17.366Z] await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+[2026-09-13T03:02:17.366Z] raise exc
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+[2026-09-13T03:02:17.366Z] await app(scope, receive, sender)
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/routing.py", line 72, in app
+[2026-09-13T03:02:17.366Z] response = await func(request)
+[2026-09-13T03:02:17.366Z] ^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 278, in app
+[2026-09-13T03:02:17.366Z] raw_response = await run_endpoint_function(
+[2026-09-13T03:02:17.366Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
+[2026-09-13T03:02:17.366Z] return await run_in_threadpool(dependant.call, **values)
+[2026-09-13T03:02:17.366Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/starlette/concurrency.py", line 42, in run_in_threadpool
+[2026-09-13T03:02:17.366Z] return await anyio.to_thread.run_sync(func, *args)
+[2026-09-13T03:02:17.366Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/to_thread.py", line 63, in run_sync
+[2026-09-13T03:02:17.366Z] return await get_async_backend().run_sync_in_worker_thread(
+[2026-09-13T03:02:17.366Z] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2596, in run_sync_in_worker_thread
+[2026-09-13T03:02:17.366Z] return await future
+[2026-09-13T03:02:17.366Z] ^^^^^^^^^^^^
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/.cache/uv/archive-v0/325cjbMNTjWx81dA/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1029, in run
+[2026-09-13T03:02:17.366Z] result = context.run(func, *args)
+[2026-09-13T03:02:17.366Z] ^^^^^^^^^^^^^^^^^^^^^^^^
+[2026-09-13T03:02:17.366Z] File "/home/ubuntu/minimarket-permanent/market-backend/routes/dashboard.py", line 684, in manager_dashboard
+[2026-09-13T03:02:17.366Z] [{"id": s["_id"], "name": s["name"], "balance": float(s.get("balance", 0))}
+[2026-09-13T03:02:17.366Z] ~^^^^^^^
+[2026-09-13T03:02:17.366Z] KeyError: '_id'
+[2026-09-13T03:02:47.683Z] INFO:     10.217.45.1:42146 - "GET /api/notifications/unread-count HTTP/1.1" 200 OK
+[2026-09-13T03:03:17.713Z] INFO:     10.217.45.1:54964 - "GET /?from_webdev=1 HTTP/1.1" 200 OK
+[2026-09-13T03:03:18.111Z] INFO:     10.217.45.1:54968 - "GET /assets/index-DMUyK2AZ.css HTTP/1.1" 200 OK
+[2026-09-13T03:03:18.112Z] INFO:     10.217.45.1:54974 - "GET /assets/index-DKR2Mll4.js HTTP/1.1" 200 OK
+[2026-09-13T03:04:23.915Z] INFO:     127.0.0.1:38252 - "GET /api/health HTTP/1.1" 200 OK
+[2026-09-13T03:04:23.925Z] INFO:     127.0.0.1:38254 - "GET / HTTP/1.1" 200 OK
