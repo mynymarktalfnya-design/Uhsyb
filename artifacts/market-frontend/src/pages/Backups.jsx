@@ -52,8 +52,10 @@ export default function Backups() {
   const [list,          setList]          = useState([]);
   const [status,        setStatus]        = useState(null);
   const [settings,      setSettings]      = useState(null);
+  const [driveBackups,  setDriveBackups]  = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [running,       setRunning]       = useState(false);
+  const [driveSyncing,  setDriveSyncing]  = useState(false);
   const [savingSettings,setSavingSettings]= useState(false);
   const [showSettings,  setShowSettings]  = useState(false);
 
@@ -61,6 +63,7 @@ export default function Backups() {
   const [localInterval, setLocalInterval] = useState(2);
   const [midnightOn,    setMidnightOn]    = useState(true);
   const [retention,     setRetention]     = useState(30);
+  const [driveEnabled,  setDriveEnabled]  = useState(false);
 
   // restore dialog
   const [restoreOf,      setRestoreOf]      = useState(null);
@@ -82,11 +85,17 @@ export default function Backups() {
       ]);
       setList(a.data || []);
       setStatus(b.data || null);
+      if (b.data?.drive_connected) {
+        api.get('/admin/backups/drive/list').then((r) => setDriveBackups(r.data || [])).catch(() => setDriveBackups([]));
+      } else {
+        setDriveBackups([]);
+      }
       const s = c.data || {};
       setSettings(s);
       setLocalInterval(s.local_interval_hours ?? 2);
       setMidnightOn(s.daily_midnight ?? true);
       setRetention(s.retention_count ?? 30);
+      setDriveEnabled(s.drive_enabled ?? false);
     } catch (e) {
       toast({ title: 'خطأ في التحميل', description: formatApiError(e), variant: 'destructive' });
     }
@@ -138,13 +147,27 @@ export default function Backups() {
     setDeletingName(null);
   };
 
+  const syncDrive = async () => {
+    setDriveSyncing(true);
+    try {
+      const { data } = await api.post('/admin/backups/drive/sync');
+      toast({ title: '✅ تمت مزامنة Google Drive', description: `رُفعت ${data.uploaded?.length || 0} نسخة، وتجنب النظام ${data.duplicates_prevented || 0} تكراراً.` });
+      await load(true);
+    } catch (e) {
+      toast({ title: 'تعذر مزامنة Google Drive', description: formatApiError(e), variant: 'destructive' });
+    }
+    setDriveSyncing(false);
+  };
+
   const runRestore = async () => {
     if (restoreConfirm !== 'RESTORE_DATABASE') {
       toast({ title: 'عبارة التأكيد غير صحيحة', variant: 'destructive' }); return;
     }
     setRestoreBusy(true);
     try {
-      const { data } = await api.post(`/admin/backups/restore/${restoreOf}`, {
+      const isDriveRestore = restoreOf?.startsWith('drive:');
+      const driveId = isDriveRestore ? restoreOf.split(':')[1] : null;
+      const { data } = await api.post(isDriveRestore ? `/admin/backups/drive/restore/${driveId}` : `/admin/backups/restore/${restoreOf}`, {
         confirm: restoreConfirm, current_password: restorePw,
       });
       toast({ title: '✅ تمت الاستعادة', description: `نسخة أمان: ${data.safety_backup_created || '—'}` });
@@ -166,7 +189,7 @@ export default function Backups() {
         local_interval_hours: localInterval,
         daily_midnight: midnightOn,
         retention_count: retention,
-        drive_enabled: settings?.drive_enabled ?? false,
+        drive_enabled: driveEnabled,
         drive_interval_hours: settings?.drive_interval_hours ?? 4,
       });
       toast({ title: '✅ تم حفظ الإعدادات' });
@@ -321,14 +344,39 @@ export default function Backups() {
             <Cloud className="w-5 h-5 text-slate-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-slate-700">Google Drive — غير مربوط</p>
+            <p className="font-bold text-slate-700">Google Drive — {status?.drive_connected ? 'متصل' : 'غير متصل'}</p>
             <p className="text-sm text-slate-500 mt-0.5">
-              لتفعيل الرفع التلقائي إلى Google Drive، يرجى تفعيل التكامل من لوحة Replit ثم ضبط الإعدادات.
+              {status?.drive_connected ? 'يتم رفع كل نسخة مرة واحدة فقط اعتماداً على بصمة محتواها.' : 'أضف بيانات اعتماد Google Drive للخادم حتى يظهر الاتصال ويبدأ الرفع الآمن.'}
             </p>
           </div>
-          <Badge className="bg-slate-100 text-slate-500 border border-slate-300 flex-shrink-0">قريباً</Badge>
+          {status?.drive_connected ? (
+            <Button size="sm" onClick={syncDrive} disabled={driveSyncing} className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0">
+              {driveSyncing ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Cloud className="w-4 h-4 ml-1" />} مزامنة الآن
+            </Button>
+          ) : <Badge className="bg-slate-100 text-slate-500 border border-slate-300 flex-shrink-0">غير مفعّل</Badge>}
         </CardContent>
       </Card>
+
+      {status?.drive_connected && driveBackups.length > 0 && (
+        <Card className="border border-blue-200 bg-blue-50/40">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-blue-900">نسخ Google Drive المتاحة للاستعادة</h3>
+              <Badge variant="outline">{driveBackups.length} نسخة</Badge>
+            </div>
+            <div className="space-y-2">
+              {driveBackups.map((backup) => (
+                <div key={backup.id} className="flex items-center justify-between gap-3 rounded-lg bg-white border border-blue-100 px-3 py-2">
+                  <span className="font-mono text-xs text-slate-700 truncate">{backup.name}</span>
+                  <Button size="sm" variant="outline" className="border-indigo-300 text-indigo-700" onClick={() => setRestoreOf(`drive:${backup.id}:${backup.name}`)}>
+                    <RotateCcw className="w-3.5 h-3.5 ml-1" /> استعادة
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Settings panel ── */}
       {showSettings && settings && (
@@ -412,6 +460,18 @@ export default function Backups() {
                 <p className="text-xs text-slate-400 mt-1.5">
                   النسخ الأقدم تُحذف تلقائياً عند تجاوز الحد
                 </p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-semibold text-slate-700 mb-2 block">الرفع التلقائي إلى Google Drive</Label>
+                <button onClick={() => setDriveEnabled(!driveEnabled)} disabled={!status?.drive_connected}
+                  className={`w-full rounded-lg border-2 px-4 py-3 flex items-center gap-3 ${driveEnabled && status?.drive_connected ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                  <div className={`w-10 h-6 rounded-full relative ${driveEnabled && status?.drive_connected ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                    <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 ${driveEnabled && status?.drive_connected ? 'right-0.5' : 'left-0.5'}`} />
+                  </div>
+                  <span className="font-semibold text-sm">{driveEnabled && status?.drive_connected ? 'مفعّل' : 'معطّل'}</span>
+                </button>
+                <p className="text-xs text-slate-400 mt-1.5">تُرفع النسخ الجديدة مرة واحدة فقط بعد إنشائها.</p>
               </div>
             </div>
 

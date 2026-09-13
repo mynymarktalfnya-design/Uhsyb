@@ -3,8 +3,10 @@ import gzip
 import json
 import os
 import hashlib
+import tempfile
 import logging
 import re
+from io import FileIO
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -64,9 +66,50 @@ def _save_settings(settings: dict):
 
 
 def _backup_signature(filepath: Path) -> str:
-    """Stable identity for one exact backup file, used for idempotent restore."""
-    stat = filepath.stat()
-    return hashlib.sha256(f"{filepath.name}:{stat.st_size}:{stat.st_mtime_ns}".encode()).hexdigest()
+    """Content identity shared by local and Drive copies; prevents duplicate uploads."""
+    digest = hashlib.sha256()
+    with filepath.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _drive_service():
+    """Return an optional Drive client without ever exposing credentials to the UI."""
+    try:
+        from googleapiclient.discovery import build
+        from google.oauth2 import service_account, credentials
+        scopes = ["https://www.googleapis.com/auth/drive.file"]
+        raw_json = os.environ.get("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")
+        token = os.environ.get("GOOGLE_DRIVE_ACCESS_TOKEN")
+        if raw_json:
+            info = json.loads(raw_json)
+            return build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(info, scopes=scopes), cache_discovery=False)
+        if token:
+            return build("drive", "v3", credentials=credentials.Credentials(token=token, scopes=scopes), cache_discovery=False)
+    except Exception as exc:
+        logger.warning("Google Drive is unavailable: %s", exc)
+    return None
+
+
+def _drive_folder_id() -> str:
+    return os.environ.get("GOOGLE_DRIVE_BACKUP_FOLDER_ID", "")
+
+
+def _drive_query(folder_id: str = "") -> str:
+    query = "trashed = false and name contains 'market_db_'"
+    if folder_id:
+        query += f" and '{folder_id}' in parents"
+    return query
+
+
+def _drive_files(service, folder_id: str = ""):
+    return service.files().list(
+        q=_drive_query(folder_id),
+        spaces="drive",
+        fields="files(id,name,size,modifiedTime,appProperties,parents)",
+        pageSize=1000,
+    ).execute().get("files", [])
 
 
 def _human(n: float) -> str:
@@ -266,6 +309,8 @@ def _auto_backup_job(trigger: str = "auto"):
     try:
         from database import db as _db
         _do_backup(_db, trigger=trigger)
+        if _load_settings().get("drive_enabled") and _drive_service():
+            _sync_local_backups_to_drive()
     except Exception as exc:
         _last_auto_error = str(exc)
         logger.error("Auto backup (%s) failed: %s", trigger, exc)
@@ -378,6 +423,7 @@ def update_settings(payload: BackupSettingsIn, _u=Depends(require_admin)):
 def get_status(_u=Depends(require_admin)):
     files = _list_backups()
     cfg   = _load_settings()
+    drive_connected = _drive_service() is not None
     sched = _scheduler is not None and _scheduler.running
     base  = {
         "scheduler_running": sched,
@@ -388,6 +434,7 @@ def get_status(_u=Depends(require_admin)):
         "schedule": f"كل {cfg.get('local_interval_hours', 2)} ساعة تلقائياً",
         "retention_count": cfg.get("retention_count", 30),
         "drive_enabled": cfg.get("drive_enabled", False),
+        "drive_connected": drive_connected,
     }
     if not files:
         return {**base, "count": 0, "total_size": 0, "total_size_human": "0 B", "latest": None}
@@ -408,6 +455,16 @@ def get_status(_u=Depends(require_admin)):
 
 @router.get("")
 def list_backups(_u=Depends(require_admin)):
+    service = _drive_service()
+    remote_signatures = set()
+    if service:
+        try:
+            remote_signatures = {
+                (f.get("appProperties") or {}).get("backup_signature")
+                for f in _drive_files(service, _drive_folder_id())
+            }
+        except Exception as exc:
+            logger.warning("Could not inspect Google Drive backups: %s", exc)
     return [
         {
             "name": f.name,
@@ -415,10 +472,80 @@ def list_backups(_u=Depends(require_admin)):
             "size_human": _human(f.stat().st_size),
             "created_at": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
             "trigger": _infer_trigger(f.name),
-            "drive_status": "connected" if os.environ.get("GOOGLE_DRIVE_BACKUP_ENABLED", "").lower() == "true" else "not_connected",
+            "signature": _backup_signature(f),
+            "drive_status": "uploaded" if _backup_signature(f) in remote_signatures else ("connected" if service else "not_connected"),
         }
         for f in _list_backups()
     ]
+
+
+@router.get("/drive/status")
+def drive_status(_u=Depends(require_admin)):
+    service = _drive_service()
+    if not service:
+        return {"connected": False, "message": "لم يتم إعداد بيانات اتصال Google Drive"}
+    try:
+        files = _drive_files(service, _drive_folder_id())
+        return {"connected": True, "count": len(files), "folder_id_configured": bool(_drive_folder_id())}
+    except Exception as exc:
+        return {"connected": False, "message": f"تعذر الوصول إلى Google Drive: {str(exc)[:180]}"}
+
+
+@router.get("/drive/list")
+def drive_list(_u=Depends(require_admin)):
+    service = _drive_service()
+    if not service:
+        raise HTTPException(503, "Google Drive غير متصل")
+    try:
+        return _drive_files(service, _drive_folder_id())
+    except Exception as exc:
+        raise HTTPException(502, f"تعذر قراءة نسخ Google Drive: {str(exc)[:180]}")
+
+
+def _sync_local_backups_to_drive() -> dict:
+    service = _drive_service()
+    if not service:
+        raise RuntimeError("Google Drive غير متصل")
+    from googleapiclient.http import MediaFileUpload
+    folder_id = _drive_folder_id()
+    remote = _drive_files(service, folder_id)
+    known = {(f.get("appProperties") or {}).get("backup_signature") for f in remote}
+    uploaded, skipped = [], []
+    for filepath in _list_backups():
+        signature = _backup_signature(filepath)
+        if signature in known:
+            skipped.append(filepath.name)
+            continue
+        metadata = {"name": filepath.name, "description": f"ميني ماركت الفنية backup; signature={signature}",
+                    "appProperties": {"backup_signature": signature, "source": "market-backend", "format": "json.gz"}}
+        if folder_id:
+            metadata["parents"] = [folder_id]
+        created = service.files().create(
+            body=metadata,
+            media_body=MediaFileUpload(str(filepath), mimetype="application/gzip", resumable=True),
+            fields="id,name,size,modifiedTime,appProperties",
+        ).execute()
+        known.add(signature)
+        uploaded.append(created)
+    return {"uploaded": uploaded, "skipped": skipped, "duplicates_prevented": len(skipped)}
+
+
+@router.post("/drive/sync")
+def drive_sync(request: Request, db=Depends(get_db), current=Depends(require_admin)):
+    """Upload local backups exactly once by content signature."""
+    service = _drive_service()
+    if not service:
+        raise HTTPException(503, "Google Drive غير متصل؛ لم يتم رفع أي ملف")
+    try:
+        result = _sync_local_backups_to_drive()
+        log_action(db, current["_id"], "drive_backup_sync", "system", None,
+                   after={"uploaded": len(result["uploaded"]), "skipped": len(result["skipped"])}, request=request)
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Google Drive backup sync failed")
+        raise HTTPException(502, f"فشل رفع النسخ إلى Google Drive: {str(exc)[:220]}")
 
 
 # ── Run / Download / Delete / Restore ────────────────────────────────────────
@@ -468,6 +595,46 @@ class RestorePayload(BaseModel):
     current_password: str = Field(..., min_length=1)
 
 
+def _restore_file(fp: Path, filename: str, request: Request, db, current) -> dict:
+    if not filename.endswith(".json.gz"):
+        raise HTTPException(400, "الاستعادة متاحة فقط لملفات .json.gz")
+    signature = _backup_signature(fp)
+    try:
+        previous = json.loads(RESTORE_MARKER.read_text()) if RESTORE_MARKER.exists() else {}
+    except Exception:
+        previous = {}
+    if previous.get("signature") == signature:
+        raise HTTPException(409, "هذه النسخة تمت استعادتها مسبقاً؛ اختر نسخة أحدث لتجنب تكرار الاستعادة")
+    safety_name = "FAILED"
+    try:
+        safety_name = _do_backup(db, trigger="safety").name
+    except Exception:
+        logger.exception("Could not create safety backup before restore")
+    try:
+        with gzip.open(str(fp), "rt", encoding="utf-8") as fh:
+            backup = json.load(fh)
+        if not isinstance(backup.get("meta"), dict) or backup["meta"].get("format_version") not in {"1.1", "1.2", "1.3"}:
+            raise ValueError("إصدار النسخة غير مدعوم أو البيانات الوصفية مفقودة")
+        restored, documents_restored, failures = _restore_collections(db, backup.get("data", {}))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(400, f"تعذّر قراءة ملف النسخة الاحتياطية: {exc}")
+    if failures:
+        raise HTTPException(500, "تعذّرت استعادة بعض مجموعات البيانات: " + ", ".join(failures) + f". تم إنشاء نسخة الأمان: {safety_name}")
+    log_action(db, current["_id"], "restore_success", "system", None,
+               after={"file": filename, "safety_backup": safety_name,
+                       "collections_restored": restored,
+                       "documents_restored": documents_restored}, request=request)
+    RESTORE_MARKER.parent.mkdir(parents=True, exist_ok=True)
+    RESTORE_MARKER.write_text(json.dumps({"filename": filename, "signature": signature,
+                                          "restored_at": datetime.now(timezone.utc).isoformat()},
+                                         ensure_ascii=False, indent=2))
+    return {"detail": "✅ تمت استعادة جميع بيانات النظام بنجاح — يرجى تسجيل الدخول من جديد",
+            "restored_from": filename, "collections_restored": restored,
+            "documents_restored": documents_restored, "safety_backup_created": safety_name}
+
+
 @router.post("/restore/{filename}")
 def restore(filename: str, payload: RestorePayload,
             request: Request, db=Depends(get_db), current=Depends(require_admin)):
@@ -480,53 +647,36 @@ def restore(filename: str, payload: RestorePayload,
         raise HTTPException(400, "عبارة التأكيد غير صحيحة")
     if not verify_password(payload.current_password, current["password_hash"]):
         raise HTTPException(401, "كلمة المرور غير صحيحة")
-    if not filename.endswith(".json.gz"):
-        raise HTTPException(400, "الاستعادة متاحة فقط لملفات .json.gz")
-    signature = _backup_signature(fp)
-    try:
-        previous = json.loads(RESTORE_MARKER.read_text()) if RESTORE_MARKER.exists() else {}
-    except Exception:
-        previous = {}
-    if previous.get("signature") == signature:
-        raise HTTPException(409, "هذه النسخة تمت استعادتها مسبقاً؛ اختر نسخة أحدث لتجنب تكرار الاستعادة")
+    return _restore_file(fp, filename, request, db, current)
 
-    # Create safety backup first
-    safety_name = "FAILED"
-    try:
-        safety_name = _do_backup(db, trigger="safety").name
-    except Exception: pass
 
+@router.post("/drive/restore/{file_id}")
+def restore_from_drive(file_id: str, payload: RestorePayload,
+                       request: Request, db=Depends(get_db), current=Depends(require_admin)):
+    """Download one Drive backup to a temporary file, verify it, then restore once."""
+    if payload.confirm != "RESTORE_DATABASE":
+        raise HTTPException(400, "عبارة التأكيد غير صحيحة")
+    if not verify_password(payload.current_password, current["password_hash"]):
+        raise HTTPException(401, "كلمة المرور غير صحيحة")
+    service = _drive_service()
+    if not service:
+        raise HTTPException(503, "Google Drive غير متصل")
     try:
-        with gzip.open(str(fp), "rt", encoding="utf-8") as fh:
-            backup = json.load(fh)
+        from googleapiclient.http import MediaIoBaseDownload
+        metadata = service.files().get(fileId=file_id, fields="id,name,size,appProperties").execute()
+        filename = metadata.get("name", "")
+        if not _valid_name(filename) or not filename.endswith(".json.gz"):
+            raise HTTPException(400, "ملف Google Drive ليس نسخة نظام صالحة")
+        with tempfile.NamedTemporaryFile(prefix="market-drive-", suffix=".json.gz") as tmp:
+            request_download = service.files().get_media(fileId=file_id)
+            downloader = MediaIoBaseDownload(tmp, request_download)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            tmp.flush()
+            return _restore_file(Path(tmp.name), filename, request, db, current)
+    except HTTPException:
+        raise
     except Exception as exc:
-        raise HTTPException(400, f"تعذّر قراءة ملف النسخة الاحتياطية: {exc}")
-
-    col_data = backup.get("data", {})
-    try:
-        restored, documents_restored, failures = _restore_collections(db, col_data)
-    except Exception as exc:
-        raise HTTPException(400, f"بيانات النسخة غير صالحة: {exc}")
-    if failures:
-        raise HTTPException(
-            500,
-            "تعذّرت استعادة بعض مجموعات البيانات: " + ", ".join(failures)
-            + f". تم إنشاء نسخة الأمان: {safety_name}",
-        )
-
-    log_action(db, current["_id"], "restore_success", "system", None,
-               after={"file": filename, "safety_backup": safety_name,
-                       "collections_restored": restored,
-                       "documents_restored": documents_restored}, request=request)
-    RESTORE_MARKER.parent.mkdir(parents=True, exist_ok=True)
-    RESTORE_MARKER.write_text(json.dumps({
-        "filename": filename, "signature": signature,
-        "restored_at": datetime.now(timezone.utc).isoformat(),
-    }, ensure_ascii=False, indent=2))
-    return {
-        "detail": "✅ تمت استعادة جميع بيانات النظام بنجاح — يرجى تسجيل الدخول من جديد",
-        "restored_from": filename,
-        "collections_restored": restored,
-        "documents_restored": documents_restored,
-        "safety_backup_created": safety_name,
-    }
+        logger.exception("Google Drive restore failed")
+        raise HTTPException(502, f"تعذر تنزيل النسخة من Google Drive: {str(exc)[:220]}")
