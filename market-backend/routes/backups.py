@@ -84,7 +84,8 @@ def _drive_service():
         from googleapiclient.discovery import build
         from google.oauth2 import service_account, credentials
         scopes = ["https://www.googleapis.com/auth/drive.file"]
-        raw_json = os.environ.get("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")
+        drive_cfg = _load_drive_config()
+        raw_json = drive_cfg.get("service_account_json") or os.environ.get("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")
         token = os.environ.get("GOOGLE_DRIVE_ACCESS_TOKEN")
         if raw_json:
             info = json.loads(raw_json)
@@ -97,7 +98,24 @@ def _drive_service():
 
 
 def _drive_folder_id() -> str:
-    return os.environ.get("GOOGLE_DRIVE_BACKUP_FOLDER_ID", "")
+    return _load_drive_config().get("folder_id") or os.environ.get("GOOGLE_DRIVE_BACKUP_FOLDER_ID", "")
+
+
+DRIVE_CONFIG_FILE = Path(__file__).resolve().parent.parent / "data" / "drive_settings.json"
+
+def _load_drive_config() -> dict:
+    try:
+        return json.loads(DRIVE_CONFIG_FILE.read_text()) if DRIVE_CONFIG_FILE.exists() else {}
+    except Exception:
+        return {}
+
+def _save_drive_config(config: dict) -> None:
+    DRIVE_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DRIVE_CONFIG_FILE.write_text(json.dumps(config, indent=2))
+    try:
+        os.chmod(DRIVE_CONFIG_FILE, 0o600)
+    except OSError:
+        pass
 
 
 def _drive_query(folder_id: str = "") -> str:
@@ -611,6 +629,43 @@ def list_backups(_u=Depends(require_admin)):
         }
         for f in _list_backups()
     ]
+
+
+class DriveConfigIn(BaseModel):
+    email: str = Field(..., min_length=5, max_length=320)
+    folder_id: str = Field(default="", max_length=200)
+    service_account_json: str = Field(default="", max_length=20000)
+
+
+@router.get("/drive/config")
+def drive_config(_u=Depends(require_admin)):
+    cfg = _load_drive_config()
+    return {"email": cfg.get("email", ""), "folder_id": cfg.get("folder_id", ""), "credentials_configured": bool(cfg.get("service_account_json") or os.environ.get("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON"))}
+
+
+@router.post("/drive/config")
+def save_drive_config(payload: DriveConfigIn, request: Request, db=Depends(get_db), current=Depends(require_admin)):
+    email = payload.email.strip().lower()
+    raw_json = payload.service_account_json.strip()
+    existing = _load_drive_config()
+    if not raw_json:
+        raw_json = existing.get("service_account_json", "") or os.environ.get("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON", "")
+    if not raw_json:
+        raise HTTPException(400, "البريد وحده لا يمنح صلاحية Google Drive؛ أدخل بيانات حساب الخدمة JSON أو فعّل موصل Google Drive.")
+    try:
+        info = json.loads(raw_json)
+        actual_email = str(info.get("client_email", "")).strip().lower()
+        if actual_email and actual_email != email:
+            raise ValueError("البريد لا يطابق client_email داخل بيانات حساب الخدمة")
+        from googleapiclient.discovery import build
+        from google.oauth2 import service_account
+        service = build("drive", "v3", credentials=service_account.Credentials.from_service_account_info(info, scopes=["https://www.googleapis.com/auth/drive.file"]), cache_discovery=False)
+        _drive_files(service, payload.folder_id.strip())
+    except Exception as exc:
+        raise HTTPException(400, f"فشل اختبار Google Drive: {str(exc)[:220]}")
+    _save_drive_config({"email": email, "folder_id": payload.folder_id.strip(), "service_account_json": raw_json})
+    log_action(db, current["_id"], "google_drive_config_updated", "system", None, after={"email": email, "folder_id": payload.folder_id.strip()}, request=request)
+    return {"connected": True, "email": email, "folder_id": payload.folder_id.strip(), "message": "تم اختبار Google Drive وتفعيل المزامنة."}
 
 
 @router.get("/drive/status")

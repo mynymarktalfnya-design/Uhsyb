@@ -64,6 +64,10 @@ export default function Backups() {
   const [midnightOn,    setMidnightOn]    = useState(true);
   const [retention,     setRetention]     = useState(30);
   const [driveEnabled,  setDriveEnabled]  = useState(false);
+  const [driveEmail, setDriveEmail] = useState('');
+  const [driveFolderId, setDriveFolderId] = useState('');
+  const [driveCredentials, setDriveCredentials] = useState('');
+  const [savingDrive, setSavingDrive] = useState(false);
 
   // restore dialog
   const [restoreOf,      setRestoreOf]      = useState(null);
@@ -96,11 +100,28 @@ export default function Backups() {
       setMidnightOn(s.daily_midnight ?? true);
       setRetention(s.retention_count ?? 30);
       setDriveEnabled(s.drive_enabled ?? false);
+      const driveConfig = await api.get('/admin/backups/drive/config');
+      setDriveEmail(driveConfig.data?.email || '');
+      setDriveFolderId(driveConfig.data?.folder_id || '');
     } catch (e) {
       toast({ title: 'خطأ في التحميل', description: formatApiError(e), variant: 'destructive' });
     }
     if (!quiet) setLoading(false);
   }, []);
+
+  const saveDriveConfig = async () => {
+    setSavingDrive(true);
+    try {
+      const { data } = await api.post('/admin/backups/drive/config', {
+        email: driveEmail.trim(), folder_id: driveFolderId.trim(), service_account_json: driveCredentials.trim(),
+      });
+      setDriveCredentials('');
+      toast({ title: '✅ تم ربط Google Drive', description: data.message });
+      await load(true);
+    } catch (e) {
+      toast({ title: 'فشل ربط Google Drive', description: formatApiError(e), variant: 'destructive' });
+    } finally { setSavingDrive(false); }
+  };
 
   useEffect(() => {
     load();
@@ -253,6 +274,31 @@ export default function Backups() {
               عند الاستعادة يتم إرجاع جميع هذه البيانات معاً.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className={`border-2 ${status?.drive_connected ? 'border-emerald-200 bg-emerald-50/50' : 'border-amber-200 bg-amber-50/50'}`}>
+        <CardContent className="p-5 space-y-3">
+          <div className="flex items-center gap-3">
+            <Cloud className="w-6 h-6 text-blue-600" />
+            <div>
+              <h2 className="font-bold text-slate-900">ربط Google Drive</h2>
+              <p className="text-xs text-slate-600">البريد وحده لا يمنح صلاحية Drive؛ يجب إدخال بيانات حساب الخدمة لاختبار الربط بأمان.</p>
+            </div>
+            <Badge className="mr-auto">{status?.drive_connected ? 'مربوط' : 'غير مربوط'}</Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><Label>بريد حساب الخدمة</Label><Input value={driveEmail} onChange={(e) => setDriveEmail(e.target.value)} placeholder="backup@project.iam.gserviceaccount.com" dir="ltr" /></div>
+            <div><Label>معرّف مجلد النسخ (اختياري)</Label><Input value={driveFolderId} onChange={(e) => setDriveFolderId(e.target.value)} placeholder="معرّف مجلد Google Drive" dir="ltr" /></div>
+          </div>
+          <div>
+            <Label>بيانات حساب الخدمة JSON</Label>
+            <textarea value={driveCredentials} onChange={(e) => setDriveCredentials(e.target.value)} placeholder="الصق JSON من Google Cloud هنا — لن يظهر بعد الحفظ" className="w-full min-h-20 rounded-md border border-slate-300 bg-white p-2 text-xs font-mono" dir="ltr" autoComplete="off" />
+          </div>
+          <Button onClick={saveDriveConfig} disabled={savingDrive || !driveEmail.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {savingDrive ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Cloud className="w-4 h-4 ml-2" />}
+            {savingDrive ? 'جاري اختبار الربط...' : 'اختبر واربط Google Drive'}
+          </Button>
         </CardContent>
       </Card>
 
