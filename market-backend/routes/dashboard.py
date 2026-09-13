@@ -419,6 +419,10 @@ def cashier_daily_report(
             "total": float(s.get("total", 0) or 0),
             "payment_method": s.get("payment_method") or "cash",
             "created_at": s.get("created_at"),
+            "product_names": [
+                (db[C.products].find_one({"_id": item.get("product_id")}, {"name": 1}) or {}).get("name", "—")
+                for item in db[C.sale_items].find({"sale_id": s["_id"]})
+            ],
         } for s in sales],
         "return_rows": [{
             "id": r["_id"],

@@ -522,9 +522,11 @@ export default function Backups() {
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-slate-600">{fmtDate(b.created_at)}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className="flex items-center justify-center gap-1 text-xs text-slate-400">
-                        <CloudOff className="w-3.5 h-3.5" /> غير مربوط
-                      </span>
+                      {b.drive_status === 'connected' ? (
+                        <span className="flex items-center justify-center gap-1 text-xs text-emerald-600"><Cloud className="w-3.5 h-3.5" /> محفوظ على Google Drive</span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-1 text-xs text-slate-400"><CloudOff className="w-3.5 h-3.5" /> غير متصل</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1.5 flex-wrap justify-center">

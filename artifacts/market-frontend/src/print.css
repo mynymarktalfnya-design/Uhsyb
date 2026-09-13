@@ -1,6 +1,7 @@
 /* Print styles for receipts and statements */
 @media print {
   @page { size: A4; margin: 12mm; }
+  html, body { direction: rtl !important; unicode-bidi: plaintext; }
   body * { visibility: hidden; }
   .print-only, .print-only * { visibility: visible; }
   .print-only { position: absolute; left: 0; top: 0; width: 100%; }
@@ -14,6 +15,10 @@
   .statement-ledger td { border: 1px solid #94a3b8 !important; }
   .statement-ledger tr { break-inside: avoid; page-break-inside: avoid; }
   .statement-ledger .ledger-items { background: #f8fafc !important; }
+  .statement-print, .statement-print table, .statement-print th, .statement-print td {
+    direction: rtl !important;
+    text-align: right;
+  }
 }
 .print-only { display: none; }
 @media print { .print-only { display: block; } }

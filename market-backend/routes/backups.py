@@ -2,6 +2,7 @@
 import gzip
 import json
 import os
+import hashlib
 import logging
 import re
 from datetime import datetime, timezone
@@ -30,6 +31,7 @@ _DEFAULT_DIR = Path(os.environ.get("BACKUP_DIR", "")).expanduser() \
                if os.environ.get("BACKUP_DIR") else None
 BACKUP_DIR   = _DEFAULT_DIR or Path(__file__).resolve().parent.parent / "data" / "backups"
 SETTINGS_FILE = Path(__file__).resolve().parent.parent / "data" / "backup_settings.json"
+RESTORE_MARKER = Path(__file__).resolve().parent.parent / "data" / "last_restore.json"
 
 DEFAULT_SETTINGS: dict = {
     "local_interval_hours": 2,
@@ -59,6 +61,12 @@ def _load_settings() -> dict:
 def _save_settings(settings: dict):
     SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     SETTINGS_FILE.write_text(json.dumps(settings, ensure_ascii=False, indent=2))
+
+
+def _backup_signature(filepath: Path) -> str:
+    """Stable identity for one exact backup file, used for idempotent restore."""
+    stat = filepath.stat()
+    return hashlib.sha256(f"{filepath.name}:{stat.st_size}:{stat.st_mtime_ns}".encode()).hexdigest()
 
 
 def _human(n: float) -> str:
@@ -407,7 +415,7 @@ def list_backups(_u=Depends(require_admin)):
             "size_human": _human(f.stat().st_size),
             "created_at": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
             "trigger": _infer_trigger(f.name),
-            "drive_status": "not_configured",
+            "drive_status": "connected" if os.environ.get("GOOGLE_DRIVE_BACKUP_ENABLED", "").lower() == "true" else "not_connected",
         }
         for f in _list_backups()
     ]
@@ -474,6 +482,13 @@ def restore(filename: str, payload: RestorePayload,
         raise HTTPException(401, "كلمة المرور غير صحيحة")
     if not filename.endswith(".json.gz"):
         raise HTTPException(400, "الاستعادة متاحة فقط لملفات .json.gz")
+    signature = _backup_signature(fp)
+    try:
+        previous = json.loads(RESTORE_MARKER.read_text()) if RESTORE_MARKER.exists() else {}
+    except Exception:
+        previous = {}
+    if previous.get("signature") == signature:
+        raise HTTPException(409, "هذه النسخة تمت استعادتها مسبقاً؛ اختر نسخة أحدث لتجنب تكرار الاستعادة")
 
     # Create safety backup first
     safety_name = "FAILED"
@@ -503,6 +518,11 @@ def restore(filename: str, payload: RestorePayload,
                after={"file": filename, "safety_backup": safety_name,
                        "collections_restored": restored,
                        "documents_restored": documents_restored}, request=request)
+    RESTORE_MARKER.parent.mkdir(parents=True, exist_ok=True)
+    RESTORE_MARKER.write_text(json.dumps({
+        "filename": filename, "signature": signature,
+        "restored_at": datetime.now(timezone.utc).isoformat(),
+    }, ensure_ascii=False, indent=2))
     return {
         "detail": "✅ تمت استعادة جميع بيانات النظام بنجاح — يرجى تسجيل الدخول من جديد",
         "restored_from": filename,
