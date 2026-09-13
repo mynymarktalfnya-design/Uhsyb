@@ -373,10 +373,10 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
                           <Star className="h-3.5 w-3.5 fill-current" />
                         </span>
                         <div className="mb-2 flex min-h-[58px] items-center rounded-lg bg-slate-800/70 px-2">
-                          <p className="line-clamp-3 text-xs font-bold leading-4 text-white">{p.name}</p>
+                          <p className="line-clamp-3 text-sm font-extrabold leading-5 text-white">{p.name}</p>
                         </div>
-                        <p className="mt-1 text-sm font-extrabold text-amber-400">{fmt(p.sale_price)} ر.ي</p>
-                        <p className={`mt-0.5 text-[10px] font-semibold ${outOfStock ? 'text-rose-400' : 'text-emerald-400'}`}>
+                        <p className="mt-1 text-lg font-black text-amber-400 tabular-nums">{fmt(p.sale_price)} ر.ي</p>
+                        <p className={`mt-0.5 text-xs font-bold ${outOfStock ? 'text-rose-400' : 'text-emerald-400'}`}>
                           {outOfStock ? 'نفد المخزون' : `${fmt(p.current_stock)} متوفر`}
                         </p>
                         <span className="mt-auto flex items-center justify-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 py-1.5 text-xs font-extrabold text-amber-300">
@@ -517,12 +517,12 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
                     }`}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white leading-snug truncate">{p.name}</p>
-                      <p className="text-[10px] text-slate-500">{p.sku}</p>
+                      <p className="text-base font-extrabold text-white leading-snug truncate">{p.name}</p>
+                      <p className="text-xs text-slate-500">{p.sku}</p>
                     </div>
                     <div className="text-left flex-shrink-0 mr-3">
-                      <p className="text-sm font-extrabold text-amber-400 tabular-nums">{fmt(p.sale_price)}</p>
-                      <p className={`text-[10px] font-semibold ${oos ? 'text-rose-400' : Number(p.current_stock) <= 3 ? 'text-amber-400' : 'text-slate-500'}`}>
+                      <p className="text-lg font-black text-amber-400 tabular-nums">{fmt(p.sale_price)}</p>
+                      <p className={`text-xs font-bold ${oos ? 'text-rose-400' : Number(p.current_stock) <= 3 ? 'text-amber-400' : 'text-slate-500'}`}>
                         {oos ? 'نفد' : `${fmt(p.current_stock)} متاح`}
                       </p>
                     </div>
@@ -623,8 +623,8 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
                 </div>
                 {/* Product name + SKU */}
                 <div className="flex-1 min-w-0 text-right pr-1">
-                  <p className="text-sm font-bold text-white leading-snug line-clamp-1">{it.name}</p>
-                  <p className="text-[10px] text-slate-600 font-mono">
+                  <p className="text-base font-extrabold text-white leading-snug line-clamp-2">{it.name}</p>
+                  <p className="text-xs text-slate-600 font-mono">
                     {it.sku} · {it.sale_unit === 'carton'
                       ? `كرتون (${it.pieces_per_carton || 1} قطعة)`
                       : 'قطعة'}
@@ -654,13 +654,13 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
                 </div>
                 {/* Unit price */}
                 <div className="w-20 flex-shrink-0 text-center">
-                  <p className="text-xs font-bold text-slate-300 tabular-nums">{fmt(it.unit_price)}</p>
-                  <p className="text-[9px] text-slate-600">ريال</p>
+                  <p className="text-base font-extrabold text-slate-200 tabular-nums">{fmt(it.unit_price)}</p>
+                  <p className="text-[10px] text-slate-600">ريال</p>
                 </div>
                 {/* Line total */}
                 <div className="w-20 flex-shrink-0 text-center">
-                  <p className="text-sm font-extrabold text-amber-400 tabular-nums">{fmt(lineTotal)}</p>
-                  <p className="text-[9px] text-slate-600">ريال</p>
+                  <p className="text-lg font-black text-amber-400 tabular-nums">{fmt(lineTotal)}</p>
+                  <p className="text-[10px] text-slate-600">ريال</p>
                 </div>
               </div>
             );

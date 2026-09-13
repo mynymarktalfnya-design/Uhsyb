@@ -1890,3 +1890,5 @@
 [2026-09-13T21:23:08.265Z] INFO:     127.0.0.1:40242 - "GET /assets/index-5gDnn8on.css HTTP/1.1" 200 OK
 [2026-09-13T21:23:08.266Z] INFO:     127.0.0.1:40240 - "GET /assets/index-DB9a-o44.js HTTP/1.1" 200 OK
 [2026-09-13T21:23:08.644Z] INFO:     127.0.0.1:40240 - "GET /api/system/info HTTP/1.1" 200 OK
+[2026-09-13T21:28:12.940Z] INFO:     10.45.192.1:34548 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
+[2026-09-13T21:28:17.941Z] INFO:     10.45.192.1:52884 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
