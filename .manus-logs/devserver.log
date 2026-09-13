@@ -1892,3 +1892,12 @@
 [2026-09-13T21:23:08.644Z] INFO:     127.0.0.1:40240 - "GET /api/system/info HTTP/1.1" 200 OK
 [2026-09-13T21:28:12.940Z] INFO:     10.45.192.1:34548 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
 [2026-09-13T21:28:17.941Z] INFO:     10.45.192.1:52884 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
+[2026-09-13T21:28:21.108Z] INFO:     127.0.0.1:58126 - "GET / HTTP/1.1" 200 OK
+[2026-09-13T21:28:21.140Z] INFO:     127.0.0.1:58136 - "GET /assets/index-oEeDIm8G.css HTTP/1.1" 200 OK
+[2026-09-13T21:28:21.141Z] INFO:     127.0.0.1:58126 - "GET /assets/index-6oIUyIQX.js HTTP/1.1" 200 OK
+[2026-09-13T21:28:21.596Z] INFO:     127.0.0.1:58126 - "GET /api/system/info HTTP/1.1" 200 OK
+[2026-09-13T21:28:22.942Z] INFO:     10.45.192.1:52896 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
+[2026-09-13T21:28:23.505Z] INFO:     10.45.192.1:52898 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
+[2026-09-13T21:28:27.941Z] INFO:     10.45.192.1:46160 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
+[2026-09-13T21:28:28.109Z] INFO:     10.45.192.1:46174 - "GET /api/notifications/unread-count HTTP/1.1" 200 OK
+[2026-09-13T21:28:32.939Z] INFO:     10.45.192.1:46178 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
