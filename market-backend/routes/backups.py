@@ -55,10 +55,16 @@ _last_drive_error: Optional[str] = None
 def _load_settings() -> dict:
     try:
         if SETTINGS_FILE.exists():
-            return {**DEFAULT_SETTINGS, **json.loads(SETTINGS_FILE.read_text())}
+            settings = {**DEFAULT_SETTINGS, **json.loads(SETTINGS_FILE.read_text())}
+            if os.environ.get("OFFLINE_MODE", "false").lower() in ("1", "true", "yes"):
+                settings["drive_enabled"] = False
+            return settings
     except Exception:
         pass
-    return dict(DEFAULT_SETTINGS)
+    settings = dict(DEFAULT_SETTINGS)
+    if os.environ.get("OFFLINE_MODE", "false").lower() in ("1", "true", "yes"):
+        settings["drive_enabled"] = False
+    return settings
 
 
 def _save_settings(settings: dict):
