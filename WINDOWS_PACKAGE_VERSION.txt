@@ -1,0 +1,3 @@
+Mini Market Windows Package
+Version: 2026.09.13-sync-conflicts
+Includes: offline local database, Neon synchronization, sync conflict review, local backups.
