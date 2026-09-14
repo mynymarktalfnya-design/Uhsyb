@@ -120,10 +120,19 @@ def connect_mongodb(mongo_url: str, db_name: str) -> dict:
 def connect_database(connection_url: str, db_name: str = "market_db") -> dict:
     """Connect either MongoDB or the app's document-compatible Neon PostgreSQL store."""
     global _client, db, MONGO_URL, DB_NAME, NEON_DATABASE_URL, DB_BACKEND, USING_MOCK_MONGO, USING_NEON_POSTGRES
-    url = connection_url.strip()
+    # Values copied from dashboards or .env files are often surrounded by quotes.
+    # Remove only those outer quotes; credentials inside the URL remain untouched.
+    url = connection_url.strip().strip('"').strip("'").strip()
+    db_name = db_name.strip().strip('"').strip("'") or "market_db"
     if url.startswith(("mongodb://", "mongodb+srv://")):
         return connect_mongodb(url, db_name)
     if url.startswith(("postgresql://", "postgres://")):
+        # Neon requires TLS. Make the UI forgiving when the pasted URL omits it.
+        parsed = urlsplit(url)
+        options = parse_qsl(parsed.query, keep_blank_values=True)
+        if not any(key.lower() == "sslmode" for key, _ in options):
+            options.append(("sslmode", "require"))
+            url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(options), parsed.fragment))
         from postgres_store import PostgresStore
         new_store = PostgresStore(url)
         new_store.command("ping")
