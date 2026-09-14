@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, ShoppingCart, Package, Users, TrendingUp,
+  LayoutDashboard, ShoppingCart, Package, Users, TrendingUp, ClipboardList,
   Wallet, FileText, Settings, UserCircle, LogOut, Store,
   ShieldCheck, Bell, RefreshCw, ScrollText, Lock, Database, AlertTriangle, PieChart,
 } from 'lucide-react';
@@ -32,6 +32,7 @@ const menuItems = [
   { path: '/dashboard/day-close',    label: 'إقفال اليوم',     icon: Lock,            roles: ['admin'] },
   { path: '/dashboard/audit-logs',   label: 'سجل العمليات',   icon: ScrollText,      roles: ['admin'] },
   { path: '/dashboard/backups',      label: 'النسخ الاحتياطية', icon: Database,      roles: ['admin'] },
+  { path: '/dashboard/inventory-audits', label: 'جرد المخزون', icon: ClipboardList, roles: ['admin', 'manager'] },
   { path: '/dashboard/employees',    label: 'الموظفون',       icon: UserCircle,      roles: ['admin'] },
   { path: '/dashboard/settings',     label: 'الإعدادات',      icon: Settings,        roles: ['admin'] },
 ];

@@ -19,7 +19,7 @@ api.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   const method = (config.method || 'get').toUpperCase();
   const url = `${config.baseURL || ''}${config.url || ''}`;
-  if (method === 'POST' && /\/sales$/.test(url) && !config.headers['Idempotency-Key']) {
+  if (method === 'POST' && /(\/sales|\/admin\/inventory-audits)$/.test(url) && !config.headers['Idempotency-Key']) {
     config.headers['Idempotency-Key'] = crypto.randomUUID();
   }
   return config;
