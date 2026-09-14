@@ -4,6 +4,8 @@
 
 تستخدم الواجهة الخدمة على `http://127.0.0.1:8765` عند توفرها، وتعود تلقائيًا إلى IndexedDB عند عدم تثبيتها. كل عملية تعديل تحمل `X-Operation-ID` و`Idempotency-Key`. في الخادم، يسجل `OperationReceiptMiddleware` الاستجابة الناجحة ويعيدها عند وصول العملية نفسها مرة أخرى، بما يمنع تكرار البيع أو الشراء أو المرتجع عند إعادة الإرسال.
 
+على Windows لا تحفظ الخدمة JWT الخام في SQLite؛ بل تستخدم Windows DPAPI (`CryptProtectData`/`CryptUnprotectData`) لحماية رمز المصادقة في سجل العملية. ويمكن تمرير Authorization مؤقتًا إلى endpoint `/sync` عند عودة النظام للاتصال. إذا لم تتوفر DPAPI على Windows تفشل عملية التخزين بدل حفظ السر مكشوفًا. على Linux التجريبي لا يُحفظ Authorization الخام، لكن المزامنة بعد إغلاق المتصفح تحتاج رمز خدمة/جلسة مناسبًا للنشر الفعلي.
+
 ## Windows
 
 من PowerShell بصلاحيات Administrator:

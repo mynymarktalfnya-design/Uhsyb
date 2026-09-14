@@ -45,6 +45,16 @@ class LocalQueueTests(unittest.TestCase):
         self.assertEqual(stored["retries"], 1)
         self.assertTrue(stored["last_error"])
 
+    def test_raw_authorization_is_not_stored_in_headers(self):
+        service.enqueue({
+            "operation_id": "op-secret", "url": "http://127.0.0.1:9/unreachable",
+            "method": "POST", "body": {},
+            "headers": {"Authorization": "Bearer raw-secret-token"},
+        })
+        stored = service.list_operations()[0]
+        self.assertNotIn("raw-secret-token", stored["headers"])
+        self.assertNotIn("Authorization", stored["headers"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -13,6 +13,7 @@ import sqlite3
 import threading
 import time
 import uuid
+import base64
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
@@ -31,6 +32,28 @@ _stop = threading.Event()
 
 def now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _protect_auth(value):
+    """Protect JWT at rest on Windows; never write the raw token to SQLite."""
+    if not value:
+        return None
+    if os.name != "nt":
+        return None
+    try:
+        import win32crypt
+        encrypted = win32crypt.CryptProtectData(value.encode("utf-8"), "MMF JWT", None, None, None, 0)[1]
+        return base64.b64encode(encrypted).decode("ascii")
+    except Exception as exc:
+        raise RuntimeError(f"Windows DPAPI unavailable: {exc}")
+
+
+def _unprotect_auth(value):
+    if not value or os.name != "nt":
+        return None
+    import win32crypt
+    encrypted = base64.b64decode(value.encode("ascii"))
+    return win32crypt.CryptUnprotectData(encrypted, None, None, None, 0)[1].decode("utf-8")
 
 
 def db():
@@ -65,8 +88,8 @@ def enqueue(item):
     if not url or urlparse(url).scheme not in {"http", "https"}:
         raise ValueError("A valid http(s) URL is required")
     headers = dict(item.get("headers") or {})
-    headers.pop("Authorization", None)
-    headers.pop("authorization", None)
+    auth = headers.pop("Authorization", None) or headers.pop("authorization", None)
+    auth_protected = _protect_auth(auth)
     headers["X-Operation-ID"] = operation_id
     payload = json.dumps(item.get("body"), ensure_ascii=False) if not isinstance(item.get("body"), str) else item.get("body")
     stamp = now()
@@ -77,8 +100,8 @@ def enqueue(item):
             conn.close()
             return dict(row)
         op_id = str(uuid.uuid4())
-        conn.execute("INSERT INTO operations(id, operation_id, url, method, headers, body, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
-                     (op_id, operation_id, url, method, json.dumps(headers), payload, stamp, stamp))
+        conn.execute("INSERT INTO operations(id, operation_id, url, method, headers, body, state, last_error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)",
+                     (op_id, operation_id, url, method, json.dumps({"headers": headers, "auth_protected": auth_protected}), payload, None, stamp, stamp))
         conn.commit()
         row = conn.execute("SELECT * FROM operations WHERE id = ?", (op_id,)).fetchone()
         conn.close()
@@ -93,13 +116,17 @@ def list_operations(limit=100):
         return rows
 
 
-def sync_one(row):
+def sync_one(row, transient_auth=None):
     with _db_lock:
         conn = db()
         conn.execute("UPDATE operations SET state='syncing', updated_at=? WHERE id=? AND state IN ('pending','failed')", (now(), row["id"]))
         conn.commit()
         conn.close()
-    headers = json.loads(row["headers"] or "{}")
+    saved = json.loads(row["headers"] or "{}")
+    headers = dict(saved.get("headers") or {})
+    auth = transient_auth or _unprotect_auth(saved.get("auth_protected"))
+    if auth:
+        headers["Authorization"] = auth
     # The browser stores the JWT in the queued request only in memory; the
     # service accepts a refreshed Authorization header on /sync when supplied.
     body = row["body"].encode("utf-8") if row["body"] is not None else None
@@ -169,8 +196,9 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/queue":
                 return self._send(202, enqueue(payload))
             if self.path == "/sync":
+                transient_auth = self.headers.get("Authorization") or self.headers.get("authorization")
                 for row in list_operations(100):
-                    if row["state"] in {"pending", "failed"}: sync_one(row)
+                    if row["state"] in {"pending", "failed"}: sync_one(row, transient_auth=transient_auth)
                 return self._send(200, {"operations": list_operations()})
         except Exception as exc:
             return self._send(400, {"detail": str(exc)[:300]})
