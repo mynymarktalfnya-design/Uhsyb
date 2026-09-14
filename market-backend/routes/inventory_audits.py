@@ -68,16 +68,16 @@ def create_audit(payload: AuditCreate, request: Request, db=Depends(get_db), cur
     log_action(db, current["_id"], "inventory_audit_created", "stock_audits", doc["_id"], after={"audit_no": audit_no, "items": len(items)}, request=request)
     return _out(doc)
 
+@router.get("/current/pdf")
+def current_audit_pdf(db=Depends(get_db), current=Depends(require_manager)):
+    snap = build_inventory_snapshot(db, audit_no=_next_no(db), actor_name=current.get("full_name") or current.get("username") or "—")
+    return Response(render_inventory_pdf(snap), media_type="application/pdf", headers={"Content-Disposition": 'inline; filename="inventory-audit-current.pdf"'})
+
 @router.get("/{audit_id}")
 def get_audit(audit_id: str, db=Depends(get_db), _u=Depends(require_manager)):
     audit = db[C.stock_audits].find_one({"_id": audit_id})
     if not audit: raise HTTPException(404, "الجرد غير موجود")
     return _out(audit)
-
-@router.get("/current/pdf")
-def current_audit_pdf(db=Depends(get_db), current=Depends(require_manager)):
-    snap = build_inventory_snapshot(db, audit_no=_next_no(db), actor_name=current.get("full_name") or current.get("username") or "—")
-    return Response(render_inventory_pdf(snap), media_type="application/pdf", headers={"Content-Disposition": 'inline; filename="inventory-audit-current.pdf"'})
 
 @router.get("/{audit_id}/pdf")
 def audit_pdf(audit_id: str, db=Depends(get_db), _u=Depends(require_manager)):
