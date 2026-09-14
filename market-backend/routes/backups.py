@@ -305,7 +305,7 @@ _COLLECTIONS = [
     C.expenses, C.expense_categories,
     C.shifts, C.notifications, C.audit_logs,
     C.devices, C.sync_queue,
-    C.product_change_requests, C.day_closes,
+    C.product_change_requests, C.day_closes, C.invoice_counters, C.idempotency_keys,
 ]
 
 

@@ -4,18 +4,18 @@
 
 set -e
 
-BACKUP_DIR="/app/backups"
-DB_NAME="market_db"
-DB_USER="market_admin"
-DB_HOST="localhost"
-RETENTION_DAYS=14
+BACKUP_DIR="${BACKUP_DIR:-/app/backups}"
+DB_NAME="${DB_NAME:-market_db}"
+DB_USER="${DB_USER:-market_admin}"
+DB_HOST="${DB_HOST:-localhost}"
+RETENTION_DAYS="${RETENTION_DAYS:-14}"
+
+: "${PGPASSWORD:?PGPASSWORD must be provided by the deployment environment}"
 
 mkdir -p "$BACKUP_DIR"
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/market_db_${TIMESTAMP}.sql.gz"
-
-export PGPASSWORD="MarketSecure2026"
 
 echo "[$(date)] Starting backup → $BACKUP_FILE"
 pg_dump -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" --no-owner --clean --if-exists \

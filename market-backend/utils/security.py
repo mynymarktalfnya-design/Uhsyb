@@ -13,6 +13,8 @@ if not JWT_SECRET_KEY:
     raise RuntimeError(
         "يجب تعيين متغير البيئة JWT_SECRET_KEY أو SESSION_SECRET"
     )
+if len(JWT_SECRET_KEY) < 32:
+    raise RuntimeError("يجب أن يكون مفتاح JWT بطول 32 محرفًا على الأقل")
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 

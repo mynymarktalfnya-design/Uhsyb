@@ -12,7 +12,7 @@ ADMIN = {"email_or_username": "admin", "password": "Admin@2026"}
 MANAGER = {"email_or_username": "manager", "password": "Manager@2026"}
 CASHIER = {"email_or_username": "cashier", "password": "Cashier@2026"}
 
-PG = dict(host="localhost", user="market_admin", password="MarketSecure2026", dbname="market_db")
+PG = dict(host="localhost", user="market_admin", password=os.environ.get("PGPASSWORD", ""), dbname="market_db")
 
 
 def _login(creds):
