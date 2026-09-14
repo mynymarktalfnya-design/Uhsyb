@@ -4,6 +4,7 @@ $Data = Join-Path $env:ProgramData 'MMF\offline'
 New-Item -ItemType Directory -Force -Path $Data | Out-Null
 $env:MMF_LOCAL_DB = Join-Path $Data 'offline-queue.sqlite3'
 [Environment]::SetEnvironmentVariable('MMF_LOCAL_DB', $env:MMF_LOCAL_DB, 'Machine')
+icacls.exe $Data /inheritance:r /grant:r "$env:USERNAME:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" | Out-Null
 python -m pip install --upgrade pywin32
 python "$Root\mmf_windows_service.py" install
 sc.exe config MMFLocalQueueService start=auto
