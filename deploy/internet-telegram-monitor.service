@@ -6,9 +6,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/Uhsyb
+WorkingDirectory=%h/Uhsyb
 EnvironmentFile=/etc/mabna-market/telegram-monitor.env
-ExecStart=/usr/bin/python3 /home/ubuntu/Uhsyb/scripts/internet_telegram_monitor.py
+ExecStart=/usr/bin/python3 %h/Uhsyb/scripts/internet_telegram_monitor.py
 Restart=always
 RestartSec=10
 NoNewPrivileges=true
