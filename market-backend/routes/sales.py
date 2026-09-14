@@ -3,6 +3,7 @@ we use atomic per-doc updates + best-effort consistency for the in-store flow.""
 from datetime import datetime, timezone, date as _date
 from decimal import Decimal
 from threading import Lock
+from time import perf_counter
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi import Header
@@ -110,6 +111,7 @@ def create_sale(payload: SaleCreate, request: Request,
 
 
 def _create_sale_reserved(payload: SaleCreate, request: Request, db, current, reservation):
+    started_at = perf_counter()
     if payload.payment_method not in VALID_PAYMENT_METHODS:
         raise HTTPException(status_code=400, detail="Invalid payment method")
     if payload.payment_method == "credit" and not payload.customer_id:
@@ -254,15 +256,16 @@ def _create_sale_reserved(payload: SaleCreate, request: Request, db, current, re
             raise HTTPException(status_code=409, detail="تغيّر المخزون أثناء البيع، أعد المحاولة")
         decremented.append((product_id, stock_qty))
 
-    for product_id, stock_qty in requested_stock.items():
-        db[C.inventory_movements].insert_one({
+    movement_docs = [{
             "_id": new_id(), "product_id": product_id,
             "movement_type": MovementType.sale.value,
             "quantity": -stock_qty,
             "reference_table": "sales", "reference_id": sale_id,
             "user_id": current["_id"], "notes": f"Sale {invoice_no}",
             "created_at": now,
-        })
+        } for product_id, stock_qty in requested_stock.items()]
+    if movement_docs:
+        db[C.inventory_movements].insert_many(movement_docs)
 
     if payload.payment_method == "credit":
         computed_balance = customer_account_totals(db, payload.customer_id)["balance"]
@@ -285,8 +288,33 @@ def _create_sale_reserved(payload: SaleCreate, request: Request, db, current, re
 
     db[C.idempotency_keys].update_one(reservation, {"$set": {"status": "completed"}})
 
-    s = db[C.sales].find_one({"_id": sale_id})
-    return _sale_to_out(s, db)
+    elapsed_ms = (perf_counter() - started_at) * 1000
+    if elapsed_ms >= 1000:
+        import logging
+        logging.getLogger(__name__).warning("sale persistence slow: %.0fms items=%d payment=%s", elapsed_ms, len(item_docs), payload.payment_method)
+
+    # Build the response from the already assembled sale and item documents.
+    # Avoid a second sale read on the cashier's critical payment path.
+    response_sale = dict(sale_doc)
+    response_sale["_id"] = sale_id
+    return SaleOut.model_validate({
+        "id": sale_id, "invoice_no": invoice_no,
+        "cashier_id": current["_id"], "customer_id": payload.customer_id,
+        "subtotal": float(subtotal), "discount_amount": float(discount_amount),
+        "tax_amount": 0.0, "total": float(total),
+        "paid_amount": float(paid_amount), "change_amount": float(change_amount),
+        "payment_method": payload.payment_method,
+        "status": SaleStatus.completed.value,
+        "items": [{
+            "id": item["_id"], "product_id": item["product_id"],
+            "product_name": prod_map[item["product_id"]].get("name"),
+            "quantity": item["quantity"], "unit_price": item["unit_price"],
+            "discount": item.get("discount", 0), "tax": item.get("tax", 0),
+            "total": item["total"], "sale_unit": item.get("sale_unit", "piece"),
+            "pieces_per_carton": item.get("pieces_per_carton"),
+        } for item in item_docs],
+        "created_at": now,
+    })
 
 
 @router.get("/sales", response_model=List[SaleOut])

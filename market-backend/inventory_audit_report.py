@@ -52,23 +52,31 @@ class _NumberedCanvas(canvas_module.Canvas):
         self.restoreState()
 
 
-def _barcode(db, product_id):
-    row = db[C.barcodes].find_one({"product_id": product_id}, {"barcode": 1}, sort=[("is_primary", -1)])
-    return row.get("barcode") if row else "—"
+def _barcodes(db, product_ids):
+    """Load barcodes in one query; N+1 queries made large audits very slow."""
+    rows = list(db[C.barcodes].find({"product_id": {"$in": list(product_ids)}}, {"product_id": 1, "barcode": 1, "is_primary": 1}))
+    result = {}
+    for row in rows:
+        pid = row.get("product_id")
+        if pid not in result or row.get("is_primary", False):
+            result[pid] = row.get("barcode") or "—"
+    return result
 
 
 def build_inventory_snapshot(db, *, audit_no, actor_name, branch="ميني ماركت الفنية", actual_by_product=None, created_at=None):
     created_at = created_at or datetime.now(timezone.utc)
     actual_by_product = actual_by_product or {}
     rows = []
-    for index, product in enumerate(db[C.products].find({"deleted_at": None, "is_active": True}).sort("name", 1), 1):
+    products = list(db[C.products].find({"deleted_at": None, "is_active": True}).sort("name", 1))
+    barcode_by_product = _barcodes(db, [product["_id"] for product in products])
+    for index, product in enumerate(products, 1):
         pid = product["_id"]
         system_qty = float(product.get("current_stock", 0) or 0)
         actual = actual_by_product.get(pid, system_qty)
         rows.append({
             "line_no": index,
             "product_id": pid,
-            "barcode": _barcode(db, pid),
+            "barcode": barcode_by_product.get(pid, "—"),
             "name": product.get("name", "—"),
             "unit": product.get("unit", "piece"),
             "actual_quantity": float(actual),
@@ -116,7 +124,8 @@ def render_inventory_pdf(snapshot):
     data = [[_p(h, bold) for h in headers]]
     for row in snapshot["rows"]:
         data.append([_p(row["line_no"], normal), _p(row["barcode"], normal), _p(row["name"], normal), _p(row["unit"], normal), _p(f'{row["actual_quantity"]:,.2f}', normal), _p(f'{row["system_quantity"]:,.2f}', normal), _p(f'{row["unit_cost"]:,.2f}', normal)])
-    table = Table(data, colWidths=[9*mm, 31*mm, 48*mm, 20*mm, 27*mm, 27*mm, 25*mm], repeatRows=1, splitByRow=1)
+    # Keep the table within A4 printable width (210 - 24 = 186 mm).
+    table = Table(data, colWidths=[8*mm, 29*mm, 46*mm, 19*mm, 27*mm, 27*mm, 30*mm], repeatRows=1, splitByRow=1)
     table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0f2948")), ("TEXTCOLOR", (0,0), (-1,0), colors.white), ("GRID", (0,0), (-1,-1), .3, colors.grey), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("ALIGN", (0,0), (-1,-1), "RIGHT"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f8fafc")]), ("FONTNAME", (0,0), (-1,-1), FONT)]))
     story += [table, Spacer(1, 8)]
     totals = [[_p("إجمالي عدد الأصناف", bold), _p(snapshot["total_items"], normal), _p("إجمالي الكمية الفعلية", bold), _p(f'{snapshot["total_actual"]:,.2f}', normal), _p("إجمالي كمية النظام", bold), _p(f'{snapshot["total_system"]:,.2f}', normal)]]

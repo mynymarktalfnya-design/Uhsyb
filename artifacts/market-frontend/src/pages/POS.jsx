@@ -125,7 +125,8 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
     }).catch(() => {}).finally(() => setLoading(false));
 
     const refreshOnFocus = () => refreshProducts();
-    const interval = window.setInterval(refreshProducts, 5000);
+    // Refresh often enough for a cashier, but do not compete with the sale request.
+    const interval = window.setInterval(refreshProducts, 30000);
     window.addEventListener('focus', refreshOnFocus);
     return () => {
       window.clearInterval(interval);
@@ -304,7 +305,8 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       setLastInvoice(data);
       toast({ title: '✅ تم البيع', description: `${data.invoice_no} — ${fmt(data.total)} ر.ي` });
       setCart([]); setCreditCustomer(null); setPayMethod('cash'); setCartonMode(false);
-      api.get('/pos/products', { params: { limit: 500 } }).then((r) => setAllProducts(r.data)).catch(() => {});
+      // Refresh in the background without delaying the payment response/UI.
+      window.setTimeout(refreshProducts, 0);
       searchRef.current?.focus();
     } catch (e) {
       toast({ title: 'فشل البيع', description: formatApiError(e), variant: 'destructive' });
@@ -318,10 +320,10 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
     <div
       dir="rtl"
       data-testid="pos-page"
-      className="flex min-h-0 flex-col overflow-hidden bg-[#eef3f8] text-slate-900"
+      className="flex min-h-0 flex-col overflow-hidden bg-[#f8fafc] text-slate-900"
       style={{ height: 'calc(100vh - 60px)' }}
     >
-      <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-[#19395f] bg-[#102d50] px-5 text-white shadow-lg">
+      <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-[#1e293b] bg-[#0f172a] px-5 text-white shadow-lg">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
             <ShoppingBasket className="h-5 w-5 text-sky-300" />
@@ -343,15 +345,15 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
         <section dir="rtl" className="order-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_18px_45px_rgba(15,45,80,0.10)] md:order-1" data-testid="featured-products-panel">
           <div className="mb-3 flex flex-shrink-0 items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-sky-600">البيع السريع</p>
-              <h1 className="text-xl font-black text-[#102d50]">المنتجات المميزة</h1>
+            <p className="text-xs font-bold text-amber-600">البيع السريع</p>
+            <h1 className="text-xl font-black text-slate-900">المنتجات المميزة</h1>
             </div>
-            <Badge className="border border-sky-100 bg-sky-50 text-sky-700">{featuredProducts.length}</Badge>
+            <Badge className="border border-amber-100 bg-amber-50 text-amber-700">{featuredProducts.length}</Badge>
           </div>
 
           <div className="relative mb-3 flex-shrink-0">
-            <div className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 transition focus-within:border-sky-400 focus-within:ring-4 focus-within:ring-sky-100" dir="ltr">
-              <ScanLine className="h-5 w-5 flex-shrink-0 text-sky-600" />
+            <div className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 transition focus-within:border-amber-400 focus-within:ring-4 focus-within:ring-amber-100" dir="ltr">
+              <ScanLine className="h-5 w-5 flex-shrink-0 text-amber-600" />
               <div className="relative flex-1" dir="rtl">
                 <Search className="pointer-events-none absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -376,9 +378,9 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
                   {!loading && displayProducts.length === 0 && <div className="py-8 text-center text-sm text-slate-400">لا توجد نتائج</div>}
                   {displayProducts.map((p) => {
                     const oos = Number(p.current_stock) <= 0;
-                    return <button key={p.id} type="button" onClick={() => addToCart(p)} disabled={oos} data-testid={`pos-product-${p.sku}`} className={`flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-right transition ${oos ? 'cursor-not-allowed opacity-40' : 'hover:bg-sky-50'}`}>
+                    return <button key={p.id} type="button" onClick={() => addToCart(p)} disabled={oos} data-testid={`pos-product-${p.sku}`} className={`flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-right transition ${oos ? 'cursor-not-allowed opacity-40' : 'hover:bg-amber-50'}`}>
                       <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-800">{p.name}</span>
-                      <span className="mr-4 flex-shrink-0 text-sm font-black tabular-nums text-sky-700">{fmt(p.sale_price)} ر.ي</span>
+                      <span className="mr-4 flex-shrink-0 text-sm font-black tabular-nums text-amber-700">{fmt(p.sale_price)} ر.ي</span>
                     </button>;
                   })}
                 </div>
@@ -386,9 +388,9 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
             )}
           </div>
 
-          <div className="mb-3 flex items-center justify-between rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-2">
-            <div className="flex items-center gap-2"><Star className="h-4 w-4 fill-amber-400 text-amber-400" /><span className="text-xs font-bold text-[#102d50]">اختيارات المتجر السريعة</span></div>
-            <span className="text-[10px] font-semibold text-sky-600">اضغط لإضافة المنتج</span>
+          <div className="mb-3 flex items-center justify-between rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-2">
+            <div className="flex items-center gap-2"><Star className="h-4 w-4 fill-amber-400 text-amber-400" /><span className="text-xs font-bold text-slate-900">اختيارات المتجر السريعة</span></div>
+                    <span className="text-[10px] font-semibold text-amber-600">اضغط لإضافة المنتج</span>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
@@ -402,9 +404,9 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {featuredProducts.map((p) => {
                   const outOfStock = Number(p.current_stock || 0) <= 0;
-                  return <button key={p.id} type="button" disabled={outOfStock} onClick={() => addToCart(p)} data-testid={`featured-product-${p.sku}`} className={`group flex min-h-[118px] flex-col justify-between rounded-2xl border bg-white p-3 text-right shadow-sm transition-all ${outOfStock ? 'cursor-not-allowed opacity-45' : 'border-slate-200 hover:-translate-y-0.5 hover:border-sky-400 hover:shadow-lg hover:shadow-sky-100 active:scale-[0.98]'}`}>
-                    <div className="flex items-start justify-between gap-2"><p className="line-clamp-2 text-sm font-extrabold leading-5 text-[#102d50]">{p.name}</p><Star className="h-4 w-4 flex-shrink-0 fill-amber-400 text-amber-400" /></div>
-                    <div className="mt-3 flex items-end justify-between gap-2"><span className="text-base font-black tabular-nums text-sky-700">{fmt(p.sale_price)} <small className="text-[10px] font-bold">ر.ي</small></span><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600"><Plus className="h-4 w-4" /></span></div>
+                  return <button key={p.id} type="button" disabled={outOfStock} onClick={() => addToCart(p)} data-testid={`featured-product-${p.sku}`} className={`group flex min-h-[118px] flex-col justify-between rounded-2xl border bg-white p-3 text-right shadow-sm transition-all ${outOfStock ? 'cursor-not-allowed opacity-45' : 'border-slate-200 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-100 active:scale-[0.98]'}`}>
+                    <div className="flex items-start justify-between gap-2"><p className="line-clamp-2 text-sm font-extrabold leading-5 text-slate-900">{p.name}</p><Star className="h-4 w-4 flex-shrink-0 fill-amber-400 text-amber-400" /></div>
+                    <div className="mt-3 flex items-end justify-between gap-2"><span className="text-base font-black tabular-nums text-amber-700">{fmt(p.sale_price)} <small className="text-[10px] font-bold">ر.ي</small></span><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600"><Plus className="h-4 w-4" /></span></div>
                   </button>;
                 })}
               </div>
@@ -414,8 +416,8 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
 
         {/* Invoice workspace — right side. */}
         <section dir="rtl" className="order-1 flex min-h-0 w-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,45,80,0.12)] md:order-2 md:w-[430px] md:flex-shrink-0" data-testid="pos-invoice-panel">
-          <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-100 bg-[#102d50] px-4 py-4 text-white">
-            <div><p className="text-[10px] font-bold text-sky-200">فاتورة جديدة</p><h2 className="text-lg font-black">الفاتورة الحالية</h2></div>
+          <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-100 bg-slate-900 px-4 py-4 text-white">
+            <div><p className="text-[10px] font-bold text-amber-200">فاتورة جديدة</p><h2 className="text-lg font-black">الفاتورة الحالية</h2></div>
             <div className="text-left"><p className="text-[10px] text-slate-300">رقم الفاتورة</p><p className="font-mono text-xs font-bold text-white">{lastInvoice ? lastInvoice.invoice_no : 'تلقائي'}</p></div>
           </div>
           <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-2 text-[11px] font-bold text-slate-500"><span>{cart.length} أصناف</span><span>{fmt(totalQty)} كمية</span><button type="button" onClick={clearCart} className="text-rose-500 hover:text-rose-700">مسح الفاتورة</button></div>
@@ -425,23 +427,23 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
             {cart.length === 0 ? <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center text-slate-300"><Receipt className="mb-3 h-12 w-12" /><p className="text-sm font-bold text-slate-400">الفاتورة فارغة</p><p className="mt-1 text-xs">اختر منتجًا من القائمة</p></div> : cart.map((it, i) => {
               const lineTotal = it.quantity * it.unit_price * (it.sale_unit === 'carton' ? (it.pieces_per_carton || 1) : 1);
               return <div key={it.product_id} data-testid={`cart-item-${i}`} className="grid grid-cols-[1fr_58px_82px_28px] items-center gap-2 border-b border-slate-100 py-3">
-                <div className="min-w-0"><p className="line-clamp-1 text-xs font-extrabold text-[#102d50]">{it.name}</p><p className="mt-1 text-[10px] text-slate-400">{fmt(it.unit_price)} ر.ي / {it.sale_unit === 'carton' ? 'كرتون' : 'قطعة'}</p></div>
-                <div className="flex items-center justify-center gap-1"><button type="button" onClick={() => updateQty(i, -1)} className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600"><Minus className="h-3 w-3" /></button><input type="number" value={it.quantity} onChange={(e) => setQtyDirect(i, e.target.value)} className="w-7 border-0 bg-transparent text-center text-xs font-black text-[#102d50] outline-none" min="0" /><button type="button" onClick={() => updateQty(i, 1)} className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600"><Plus className="h-3 w-3" /></button></div>
-                <p className="text-center text-xs font-black tabular-nums text-sky-700">{fmt(lineTotal)}</p>
+                <div className="min-w-0"><p className="line-clamp-1 text-xs font-extrabold text-slate-900">{it.name}</p><p className="mt-1 text-[10px] text-slate-400">{fmt(it.unit_price)} ر.ي / {it.sale_unit === 'carton' ? 'كرتون' : 'قطعة'}</p></div>
+                <div className="flex items-center justify-center gap-1"><button type="button" onClick={() => updateQty(i, -1)} className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:border-amber-400 hover:text-amber-600"><Minus className="h-3 w-3" /></button><input type="number" value={it.quantity} onChange={(e) => setQtyDirect(i, e.target.value)} className="w-7 border-0 bg-transparent text-center text-xs font-black text-slate-900 outline-none" min="0" /><button type="button" onClick={() => updateQty(i, 1)} className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:border-amber-400 hover:text-amber-600"><Plus className="h-3 w-3" /></button></div>
+                <p className="text-center text-xs font-black tabular-nums text-amber-700">{fmt(lineTotal)}</p>
                 <button type="button" onClick={() => removeItem(i)} className="flex h-7 w-7 items-center justify-center rounded-lg text-rose-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
               </div>;
             })}
           </div>
 
           <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50 p-3">
-            <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">الإجمالي المستحق</span><span className="text-2xl font-black tabular-nums text-[#102d50]" data-testid="pos-total">{fmt(total)} <small className="text-xs">ر.ي</small></span></div>
+            <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">الإجمالي المستحق</span><span className="text-2xl font-black tabular-nums text-slate-900" data-testid="pos-total">{fmt(total)} <small className="text-xs">ر.ي</small></span></div>
             {effectiveDiscount > 0 && <div className="mb-2 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700"><span>خصم الكرتون ({cartonDiscountPercent}%)</span><span>− {fmt(effectiveDiscount)} ر.ي</span></div>}
             <div className="mb-2 flex items-center justify-between gap-2"><span className="text-[11px] font-black text-slate-500">طريقة الدفع</span><button type="button" onClick={() => { const next = !cartonMode; setCartonMode(next); setCart((prev) => prev.map((item) => ({ ...item, sale_unit: next ? 'carton' : 'piece', pieces_per_carton: item.pieces_per_carton || 1 }))); }} data-testid="pos-carton-mode-toggle" className={`rounded-xl border px-2.5 py-1.5 text-[10px] font-black ${cartonMode ? 'border-orange-400 bg-orange-500 text-white' : 'border-slate-200 bg-white text-slate-500'}`}><Package className="ml-1 inline h-3.5 w-3.5" />بيع بالكرتون</button></div>
             <div className="grid grid-cols-4 gap-1.5">
-              {PAYMENT_METHODS.map((pm) => { const Icon = pm.icon; const active = payMethod === pm.v; return <button key={pm.v} type="button" onClick={() => onPaySelect(pm.v)} data-testid={`pos-payment-${pm.v}`} className={`flex items-center justify-center gap-1 rounded-xl border px-1 py-2 text-[10px] font-black transition ${active ? 'border-sky-600 bg-sky-600 text-white shadow-md shadow-sky-200' : 'border-slate-200 bg-white text-slate-500 hover:border-sky-300 hover:text-sky-700'}`}><Icon className="h-3.5 w-3.5" />{pm.l}</button>; })}
+              {PAYMENT_METHODS.map((pm) => { const Icon = pm.icon; const active = payMethod === pm.v; return <button key={pm.v} type="button" onClick={() => onPaySelect(pm.v)} data-testid={`pos-payment-${pm.v}`} className={`flex items-center justify-center gap-1 rounded-xl border px-1 py-2 text-[10px] font-black transition ${active ? 'border-amber-500 bg-amber-500 text-white shadow-md shadow-amber-200' : 'border-slate-200 bg-white text-slate-500 hover:border-amber-300 hover:text-amber-700'}`}><Icon className="h-3.5 w-3.5" />{pm.l}</button>; })}
             </div>
             {payMethod === 'credit' && <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2" data-testid="pos-credit-info">{creditCustomer ? <div className="flex items-center justify-between"><div><p className="text-xs font-black text-rose-700">{creditCustomer.full_name}</p><p className="text-[10px] text-rose-500">الرصيد بعد البيع: {fmt(Number(creditCustomer.balance) + total)} ر.ي</p></div><button type="button" onClick={() => setCustDialog(true)} className="text-[10px] font-bold text-rose-600 underline">تغيير</button></div> : <button type="button" onClick={() => setCustDialog(true)} className="flex w-full items-center justify-center gap-2 py-1 text-xs font-bold text-rose-600"><UserPlus className="h-4 w-4" />اختر عميلاً للبيع الآجل</button>}</div>}
-            <div className="mt-3 grid grid-cols-3 gap-2"><button type="button" onClick={() => setReturnsOpen(true)} data-testid="pos-open-returns-btn" className="flex h-10 items-center justify-center gap-1 rounded-xl border border-rose-200 bg-white text-xs font-black text-rose-600 hover:bg-rose-50"><RotateCcw className="h-4 w-4" />استرجاع</button><button type="button" onClick={holdInvoice} className="flex h-10 items-center justify-center gap-1 rounded-xl border border-amber-200 bg-white text-xs font-black text-amber-600 hover:bg-amber-50"><PauseCircle className="h-4 w-4" />تعليق</button><button type="button" onClick={() => setHeldDialog(true)} className="relative flex h-10 items-center justify-center gap-1 rounded-xl border border-sky-200 bg-white text-xs font-black text-sky-700 hover:bg-sky-50"><PlayCircle className="h-4 w-4" />معلقة{heldInvoices.length > 0 && <span className="absolute -right-1 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-600 px-1 text-[10px] text-white">{heldInvoices.length}</span>}</button></div>
+            <div className="mt-3 grid grid-cols-3 gap-2"><button type="button" onClick={() => setReturnsOpen(true)} data-testid="pos-open-returns-btn" className="flex h-10 items-center justify-center gap-1 rounded-xl border border-rose-200 bg-white text-xs font-black text-rose-600 hover:bg-rose-50"><RotateCcw className="h-4 w-4" />استرجاع</button><button type="button" onClick={holdInvoice} className="flex h-10 items-center justify-center gap-1 rounded-xl border border-amber-200 bg-white text-xs font-black text-amber-600 hover:bg-amber-50"><PauseCircle className="h-4 w-4" />تعليق</button><button type="button" onClick={() => setHeldDialog(true)} className="relative flex h-10 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-700 hover:bg-sky-50"><PlayCircle className="h-4 w-4" />معلقة{heldInvoices.length > 0 && <span className="absolute -right-1 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] text-white">{heldInvoices.length}</span>}</button></div>
             <button type="button" onClick={completeSale} disabled={submitting || !canComplete} data-testid="pos-complete-sale-btn" className={`mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-black text-white shadow-lg transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 ${canComplete ? 'bg-emerald-600 shadow-emerald-200 hover:bg-emerald-700' : 'bg-slate-300'}`}>{submitting ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />جارٍ الحفظ...</> : <><CheckCircle2 className="h-5 w-5" />إتمام الدفع {cart.length > 0 && <span>— {fmt(total)} ر.ي</span>}</>}</button>
           </div>
         </section>
@@ -503,7 +505,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
         <DialogContent className="max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-sky-400" /> اختر عميل
+              <UserPlus className="w-5 h-5 text-amber-400" /> اختر عميل
             </DialogTitle>
           </DialogHeader>
           <div className="relative mb-2">

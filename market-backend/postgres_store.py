@@ -373,9 +373,27 @@ class PostgresCollection:
         return type("InsertResult", (), {"inserted_id": document["_id"]})()
 
     def insert_many(self, documents):
-        ids = []
+        prepared = []
         for document in documents:
-            ids.append(self.insert_one(document).inserted_id)
+            item = copy.deepcopy(document)
+            item.setdefault("_id", self.store.new_id())
+            prepared.append(item)
+        if not prepared:
+            return type("InsertResult", (), {"inserted_ids": []})()
+        with self.store._cursor() as cur:
+            cur.executemany(
+                """
+                INSERT INTO market_documents(collection, doc_id, document)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (collection, doc_id) DO UPDATE SET document = EXCLUDED.document
+                """,
+                [(self.name, str(item["_id"]), Json(_encode(item))) for item in prepared],
+            )
+        with self.store._cache_lock:
+            cached = self.store._cache.get(self.name)
+            if cached is not None:
+                cached.extend(copy.deepcopy(prepared))
+        ids = [item["_id"] for item in prepared]
         return type("InsertManyResult", (), {"inserted_ids": ids})()
 
     def update_one(self, query, update, upsert=False):

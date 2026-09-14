@@ -40,6 +40,10 @@ class OperationReceiptMiddleware(BaseHTTPMiddleware):
         operation_id = request.headers.get("X-Operation-ID") or request.headers.get("Idempotency-Key")
         if request.method not in {"POST", "PUT", "PATCH", "DELETE"} or not operation_id:
             return await call_next(request)
+        # Sales already have route-level idempotency and a durable sale receipt.
+        # Avoid a second database write on the cashier's critical payment path.
+        if request.url.path == "/api/sales":
+            return await call_next(request)
         prior = db[C.operation_receipts].find_one({"operation_id": operation_id, "method": request.method, "path": request.url.path})
         if prior:
             return JSONResponse(content=prior.get("body", {}), status_code=int(prior.get("status_code", 200)), headers={"X-Idempotent-Replay": "true"})
