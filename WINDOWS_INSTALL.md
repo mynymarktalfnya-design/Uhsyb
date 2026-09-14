@@ -2,6 +2,19 @@
 
 هذه الحزمة لا تحتوي على Tokens أو روابط قواعد بيانات أو ملفات أسرار. استخدم قاعدة اختبار منفصلة، وليس قاعدة الإنتاج.
 
+## تشغيل واجهة Production
+
+لا تفتح `index.html` مباشرة ولا تستخدم `pnpm dev` لتشغيل النسخة النهائية؛ استخدم المشغل التالي من جذر مجلد `Uhsyb`:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\start-production-windows.ps1
+```
+
+ثم افتح `http://localhost:5173/login`. يشغل المشغل Backend على المنفذ 8080، ويقدم ملفات CSS/JavaScript المبنية، ويمرر طلبات `/api` إلى Backend. يجب توفير `JWT_SECRET_KEY` بطول 32 حرفًا على الأقل و`NEON_DATABASE_URL` أو `MONGO_URL` عبر متغيرات Windows/Secret Manager.
+
+إذا كان `dist/public/index.html` غير موجود، نفّذ `pnpm install --frozen-lockfile` ثم `pnpm --filter @workspace/market-frontend build`.
+
 ## التثبيت السريع بنقرة واحدة
 
 1. فك ضغط ملف ZIP كاملًا.
