@@ -1,0 +1,38 @@
+# الخدمة المحلية والتشغيل دون اتصال
+
+أضيفت خدمة `local-service/mmf_local_service.py` لتوفير طابور دائم مستقل عن تبويب المتصفح. تحفظ الخدمة العمليات في SQLite باستخدام WAL و` synchronous=FULL`، وتستخدم الحالات `pending` و`syncing` و`synced` و`failed`. لا تُزال العملية بعد الإرسال؛ تبقى كسجل محلي حتى بعد نجاح المزامنة، وتبقى العمليات الفاشلة لإعادة المحاولة.
+
+تستخدم الواجهة الخدمة على `http://127.0.0.1:8765` عند توفرها، وتعود تلقائيًا إلى IndexedDB عند عدم تثبيتها. كل عملية تعديل تحمل `X-Operation-ID` و`Idempotency-Key`. في الخادم، يسجل `OperationReceiptMiddleware` الاستجابة الناجحة ويعيدها عند وصول العملية نفسها مرة أخرى، بما يمنع تكرار البيع أو الشراء أو المرتجع عند إعادة الإرسال.
+
+## Windows
+
+من PowerShell بصلاحيات Administrator:
+
+```powershell
+cd local-service
+python -m pip install -r requirements.txt
+Set-ExecutionPolicy -Scope Process Bypass
+.\install-windows.ps1
+```
+
+ينشئ المثبت الخدمة `MMFLocalQueueService` ويضبط تشغيلها تلقائيًا مع Windows، ويضع قاعدة البيانات في `%ProgramData%\MMF\offline\offline-queue.sqlite3`. يتطلب التشغيل الفعلي على Windows وجود Python و`pywin32`، ولم يُنفذ اختبار Windows داخل بيئة Linux الحالية.
+
+## Linux
+
+```bash
+sudo install -d -m 700 /var/lib/mmf
+sudo cp deploy/mmf-local-service.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now mmf-local-service
+```
+
+## نقاط HTTP المحلية
+
+- `GET /health` يعرض عدد العمليات في كل حالة.
+- `GET /queue` يعرض الطابور المحلي.
+- `POST /queue` يضيف عملية، ويمنع تكرار `operation_id`.
+- `POST /sync` يطلب مزامنة فورية بالإضافة إلى المزامنة الدورية التلقائية.
+
+## حدود التحقق
+
+تم التحقق محليًا من صياغة Python، وفحص TypeScript، وتشغيل اختبارات وحدة الطابور، وتشغيل الخدمة وقراءة حالة الصحة وإدخال عملية وفشلها مع بقائها في حالة `failed`. لم يتم الادعاء باختبار خدمة Windows أو إعادة تشغيل Windows فعليًا لأن بيئة التنفيذ Linux. كما يجب تشغيل اختبار تكاملي على جهاز Windows حقيقي مع خادم قاعدة البيانات الفعلي قبل اعتماد النشر الإنتاجي.

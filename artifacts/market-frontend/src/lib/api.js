@@ -18,9 +18,10 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('mm_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   const method = (config.method || 'get').toUpperCase();
-  const url = `${config.baseURL || ''}${config.url || ''}`;
-  if (method === 'POST' && /(\/sales|\/admin\/inventory-audits)$/.test(url) && !config.headers['Idempotency-Key']) {
-    config.headers['Idempotency-Key'] = crypto.randomUUID();
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    const operationId = config.headers['X-Operation-ID'] || crypto.randomUUID();
+    config.headers['X-Operation-ID'] = operationId;
+    if (!config.headers['Idempotency-Key']) config.headers['Idempotency-Key'] = operationId;
   }
   return config;
 });
@@ -38,12 +39,10 @@ api.interceptors.response.use(
     const cfg = err.config || {};
     const method = (cfg.method || 'get').toUpperCase();
     const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
-    if (isNetErr && isMutation && navigator && !navigator.onLine) {
+    if (isNetErr && isMutation) {
       try {
         const fullUrl = cfg.baseURL ? `${cfg.baseURL}${cfg.url}` : cfg.url;
         const safeHeaders = { ...(cfg.headers || {}) };
-        delete safeHeaders.Authorization;
-        delete safeHeaders.authorization;
         await enqueueRequest({
           url: fullUrl,
           method,

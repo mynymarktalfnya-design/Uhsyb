@@ -56,3 +56,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+local-service/*.sqlite3
+local-service/*.sqlite3-*
+.mmf/

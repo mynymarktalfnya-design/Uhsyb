@@ -1,0 +1,23 @@
+[Unit]
+Description=Mini Market الفنية Persistent Offline Queue
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Uhsyb/local-service
+Environment=MMF_LOCAL_HOST=127.0.0.1
+Environment=MMF_LOCAL_PORT=8765
+Environment=MMF_LOCAL_DB=/var/lib/mmf/offline-queue.sqlite3
+ExecStart=/usr/bin/python3 /home/ubuntu/Uhsyb/local-service/mmf_local_service.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/lib/mmf
+
+[Install]
+WantedBy=multi-user.target

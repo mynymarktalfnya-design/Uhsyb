@@ -1,0 +1,50 @@
+import os
+import sys
+import tempfile
+import unittest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import mmf_local_service as service
+
+
+class LocalQueueTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.NamedTemporaryFile(delete=False)
+        self.tmp.close()
+        os.unlink(self.tmp.name)
+        service.DB_PATH = self.tmp.name
+
+    def tearDown(self):
+        for suffix in ("", "-wal", "-shm"):
+            try:
+                os.unlink(self.tmp.name + suffix)
+            except FileNotFoundError:
+                pass
+
+    def test_enqueue_is_durable_and_idempotent(self):
+        first = service.enqueue({
+            "operation_id": "op-1", "url": "http://127.0.0.1:9/unreachable",
+            "method": "POST", "body": {"total": 10}, "headers": {},
+        })
+        second = service.enqueue({
+            "operation_id": "op-1", "url": "http://127.0.0.1:9/unreachable",
+            "method": "POST", "body": {"total": 999}, "headers": {},
+        })
+        self.assertEqual(first["id"], second["id"])
+        self.assertEqual(first["operation_id"], "op-1")
+        self.assertEqual(service.list_operations()[0]["state"], "pending")
+
+    def test_failed_operation_is_retained_for_retry(self):
+        row = service.enqueue({
+            "operation_id": "op-2", "url": "http://127.0.0.1:9/unreachable",
+            "method": "POST", "body": {"total": 20}, "headers": {},
+        })
+        self.assertFalse(service.sync_one(row))
+        stored = service.list_operations()[0]
+        self.assertEqual(stored["state"], "failed")
+        self.assertEqual(stored["retries"], 1)
+        self.assertTrue(stored["last_error"])
+
+
+if __name__ == "__main__":
+    unittest.main()

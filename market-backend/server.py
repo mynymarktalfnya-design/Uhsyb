@@ -11,8 +11,11 @@ load_dotenv(ROOT_DIR / ".env")
 
 import os
 import logging
-from fastapi import FastAPI
+import json
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from datetime import datetime, timezone
 
 from database import db, C, DB_BACKEND, USING_MOCK_MONGO, init_indexes
@@ -26,6 +29,37 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Mini Market Management System", version="1.0.0")
 
+
+class OperationReceiptMiddleware(BaseHTTPMiddleware):
+    """Replay successful mutation responses for an already-seen operation ID.
+
+    This protects every offline-capable POST/PUT/PATCH/DELETE route, including
+    routes that predate the route-specific sales idempotency implementation.
+    """
+    async def dispatch(self, request: Request, call_next):
+        operation_id = request.headers.get("X-Operation-ID") or request.headers.get("Idempotency-Key")
+        if request.method not in {"POST", "PUT", "PATCH", "DELETE"} or not operation_id:
+            return await call_next(request)
+        prior = db[C.operation_receipts].find_one({"operation_id": operation_id, "method": request.method, "path": request.url.path})
+        if prior:
+            return JSONResponse(content=prior.get("body", {}), status_code=int(prior.get("status_code", 200)), headers={"X-Idempotent-Replay": "true"})
+        response = await call_next(request)
+        if response.status_code < 400 and "application/json" in (response.headers.get("content-type") or ""):
+            chunks = [chunk async for chunk in response.body_iterator]
+            raw = b"".join(chunks)
+            try:
+                body = json.loads(raw.decode("utf-8") or "{}")
+                db[C.operation_receipts].insert_one({
+                    "_id": new_id(), "operation_id": operation_id,
+                    "method": request.method, "path": request.url.path,
+                    "status_code": response.status_code, "body": body,
+                    "created_at": datetime.now(timezone.utc),
+                })
+            except Exception as exc:
+                logger.warning("operation receipt skipped: %s", exc)
+            return Response(content=raw, status_code=response.status_code, headers=dict(response.headers), media_type="application/json")
+        return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
@@ -33,6 +67,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(OperationReceiptMiddleware)
 
 # ───────── Routers (mounted in startup-safe order) ─────────
 from routes.auth import router as auth_router
