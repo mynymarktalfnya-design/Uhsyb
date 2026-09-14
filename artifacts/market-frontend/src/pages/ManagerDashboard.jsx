@@ -17,6 +17,7 @@ import {
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../hooks/use-toast';
+import DashboardDetailsModal from '../components/dashboard/DashboardDetailsModal';
 
 const formatNum = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(n ?? 0);
 const formatMoney = (n) => `${formatNum(n)} ر.ي`;
@@ -31,6 +32,7 @@ export default function ManagerDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [detailKind, setDetailKind] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -108,134 +110,15 @@ export default function ManagerDashboard() {
         </Card>
       )}
 
-      {/* SALES KPIs */}
+      {/* Financial summary: details open on demand to keep the dashboard compact. */}
       <section>
-        <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-emerald-600" /> المبيعات
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="مبيعات اليوم"   value={formatMoney(data.sales.today)} gradient="from-emerald-500 to-teal-600" icon={Receipt} testid="kpi-sales-today" />
-          <KpiCard label="مبيعات الأسبوع" value={formatMoney(data.sales.week)}  gradient="from-emerald-600 to-emerald-700" icon={Receipt} testid="kpi-sales-week" />
-          <KpiCard label="مبيعات الشهر"  value={formatMoney(data.sales.month)} gradient="from-teal-600 to-teal-700" icon={Receipt} testid="kpi-sales-month" />
-          <KpiCard label="مبيعات السنة"  value={formatMoney(data.sales.year)}  gradient="from-cyan-600 to-cyan-700" icon={TrendingUp} testid="kpi-sales-year" />
+        <h2 className="text-lg font-bold text-slate-800 mb-3">الملخص المالي</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <SummaryCard title="المبيعات" subtitle="صافي اليوم" value={formatMoney(data.sales.net_today)} icon={Receipt} color="emerald" onClick={() => setDetailKind('sales')} />
+          <SummaryCard title="المشتريات" subtitle="مشتريات اليوم" value={formatMoney(data.purchases?.today_total)} icon={ShoppingCart} color="blue" onClick={() => setDetailKind('purchases')} />
+          <SummaryCard title="الأرباح" subtitle="صافي اليوم بعد المصروفات" value={formatMoney(data.net_profits?.today)} icon={Award} color="amber" onClick={() => setDetailKind('profit')} />
         </div>
       </section>
-
-      {/* PROFITS KPIs */}
-      <section>
-        <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-          <Award className="w-5 h-5 text-amber-600" /> الأرباح (للمدير فقط)
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="إجمالي ربح المنتجات اليوم"   value={formatMoney(data.profits.today)} gradient="from-amber-500 to-orange-600" icon={ArrowUpRight} testid="kpi-profit-today" />
-          <KpiCard label="إجمالي ربح المنتجات الأسبوع" value={formatMoney(data.profits.week)}  gradient="from-amber-600 to-orange-700" icon={ArrowUpRight} testid="kpi-profit-week" />
-          <KpiCard label="إجمالي ربح المنتجات الشهر"  value={formatMoney(data.profits.month)} gradient="from-orange-600 to-red-600" icon={ArrowUpRight} testid="kpi-profit-month" />
-          <KpiCard label="إجمالي ربح المنتجات السنة"  value={formatMoney(data.profits.year)}  gradient="from-orange-700 to-red-700" icon={ArrowUpRight} testid="kpi-profit-year" />
-        </div>
-      </section>
-
-      {/* NET PROFITS AFTER OPERATING EXPENSES */}
-      <section>
-        <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-          <TrendingDown className="w-5 h-5 text-rose-600" /> صافي الأرباح بعد خصم المصروفات
-        </h2>
-        <div className="grid grid-cols-2 gap-4">
-          <KpiCard label="صافي الربح اليوم بعد المصروفات" value={formatMoney(data.net_profits?.today)} gradient="from-emerald-600 to-teal-700" icon={ArrowUpRight} testid="kpi-net-profit-today" />
-          <KpiCard label="صافي الربح الشهر بعد المصروفات" value={formatMoney(data.net_profits?.month)} gradient="from-emerald-700 to-cyan-700" icon={ArrowUpRight} testid="kpi-net-profit-month" />
-        </div>
-      </section>
-
-      {/* Profit reconciliation: revenue − COGS, with approved returns removed */}
-      {data.profit_details && (
-        <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50/70 to-white">
-          <CardContent className="p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-              <div>
-                <h2 className="font-bold text-slate-900 flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-amber-600" /> تقرير الربح المحاسبي
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  الربح الحقيقي = صافي المبيعات − صافي تكلفة البضاعة المباعة
-                </p>
-              </div>
-              <Badge className="bg-amber-100 text-amber-800 border-amber-300">التكلفة من سجل الفاتورة</Badge>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead className="bg-white/80 text-slate-500">
-                  <tr>
-                    <th className="p-3 text-right">الفترة</th>
-                    <th className="p-3 text-right">إجمالي المبيعات</th>
-                    <th className="p-3 text-right">تكلفة البضاعة</th>
-                    <th className="p-3 text-right">المرتجعات</th>
-                    <th className="p-3 text-right">صافي المبيعات</th>
-                    <th className="p-3 text-right">صافي التكلفة</th>
-                    <th className="p-3 text-right">صافي الربح</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ['اليوم', 'today'],
-                    ['الأسبوع', 'week'],
-                    ['الشهر', 'month'],
-                    ['السنة', 'year'],
-                  ].map(([label, key]) => {
-                    const p = data.profit_details[key] || {};
-                    return (
-                      <tr key={key} className="border-t border-amber-100">
-                        <td className="p-3 font-bold text-slate-800">{label}</td>
-                        <td className="p-3 text-emerald-700">{formatMoney(p.gross_sales)}</td>
-                        <td className="p-3 text-slate-700">{formatMoney(p.cogs)}</td>
-                        <td className="p-3 text-rose-600">− {formatMoney(p.returns)}</td>
-                        <td className="p-3 text-emerald-700">{formatMoney(p.net_sales)}</td>
-                        <td className="p-3 text-slate-700">{formatMoney(p.net_cogs)}</td>
-                        <td className="p-3 font-extrabold text-amber-700">{formatMoney(p.profit)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {data.profit_details.today?.cost_data_complete === false && (
-              <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-800">
-                تنبيه: توجد {data.profit_details.today.missing_cost_lines} بنود بيع بدون تكلفة شراء صالحة؛
-                يلزم إدخال Cost Price للمنتجات حتى تكون أرباحها دقيقة بالكامل.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* SALES BREAKDOWN — cash vs credit */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-          <div className="flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-emerald-600" />
-            <span className="text-sm text-slate-700">مبيعات اليوم النقدية</span>
-          </div>
-          <strong className="text-emerald-700 font-bold" data-testid="kpi-sales-today-cash">
-            {formatMoney(data.sales.today_cash ?? 0)}
-          </strong>
-        </div>
-        <div className="flex justify-between items-center p-3 bg-rose-50 rounded-xl border border-rose-200">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-rose-600" />
-            <span className="text-sm text-slate-700">مبيعات اليوم الآجلة</span>
-          </div>
-          <strong className="text-rose-700 font-bold" data-testid="kpi-sales-today-credit">
-            {formatMoney(data.sales.today_credit ?? 0)}
-          </strong>
-        </div>
-        <div className="flex justify-between items-center p-3 bg-blue-50 rounded-xl border border-blue-200">
-          <div className="flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-blue-600" />
-            <span className="text-sm text-slate-700">عدد فواتير اليوم</span>
-          </div>
-          <strong className="text-blue-700 font-bold" data-testid="kpi-invoices-today">
-            {data.sales.invoices_today ?? 0}
-          </strong>
-        </div>
-      </div>
 
       {/* Cash Box + Returns + Customers + Suppliers Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -561,11 +444,24 @@ export default function ManagerDashboard() {
           )}
         </CardContent>
       </Card>
+      {detailKind && <DashboardDetailsModal kind={detailKind} managerData={data} onClose={() => setDetailKind(null)} />}
     </div>
   );
 }
 
 // ============== Sub-components ==============
+function SummaryCard({ title, subtitle, value, icon: Icon, color, onClick }) {
+  const colors = {
+    emerald: 'from-emerald-50 to-teal-50 border-emerald-200 text-emerald-700',
+    blue: 'from-blue-50 to-indigo-50 border-blue-200 text-blue-700',
+    amber: 'from-amber-50 to-orange-50 border-amber-200 text-amber-700',
+  };
+  return <button type="button" onClick={onClick} className={`text-right w-full rounded-xl border bg-gradient-to-br ${colors[color]} p-4 shadow-sm hover:shadow-md transition-all`}>
+    <div className="flex items-center justify-between"><Icon className="w-6 h-6" /><span className="text-xs underline">عرض التفاصيل</span></div>
+    <p className="font-bold text-slate-900 mt-3">{title}</p><p className="text-xs text-slate-500 mt-1">{subtitle}</p><p className="text-2xl font-extrabold mt-1">{value}</p>
+  </button>;
+}
+
 function KpiCard({ label, value, gradient, icon: Icon, testid }) {
   return (
     <Card className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all">
