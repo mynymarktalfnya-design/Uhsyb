@@ -215,6 +215,8 @@ class C:
     sync_queue = "sync_queue"
     product_change_requests = "product_change_requests"
     day_closes = "day_closes"
+    invoice_counters = "invoice_counters"
+    idempotency_keys = "idempotency_keys"
 
 
 def init_indexes():
@@ -233,6 +235,7 @@ def init_indexes():
         db[C.barcodes].create_index([("product_id", ASCENDING)])
         db[C.customers].create_index([("phone", ASCENDING)])
         db[C.suppliers].create_index([("name", ASCENDING)])
+        db[C.sales].create_index([("invoice_no", ASCENDING)], unique=True, sparse=True)
         db[C.sales].create_index([("sale_number", ASCENDING)], unique=True, sparse=True)
         db[C.sales].create_index([("created_at", DESCENDING)])
         db[C.sale_items].create_index([("sale_id", ASCENDING)])
@@ -241,5 +244,6 @@ def init_indexes():
         db[C.audit_logs].create_index([("created_at", DESCENDING)])
         db[C.notifications].create_index([("user_id", ASCENDING), ("read", ASCENDING)])
         db[C.day_closes].create_index([("close_date", ASCENDING)], unique=True)
+        db[C.idempotency_keys].create_index([("user_id", ASCENDING), ("key", ASCENDING)], unique=True)
     except Exception as e:
         logger.warning(f"Index creation skipped: {e}")

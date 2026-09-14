@@ -17,6 +17,11 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('mm_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const method = (config.method || 'get').toUpperCase();
+  const url = `${config.baseURL || ''}${config.url || ''}`;
+  if (method === 'POST' && /\/sales$/.test(url) && !config.headers['Idempotency-Key']) {
+    config.headers['Idempotency-Key'] = crypto.randomUUID();
+  }
   return config;
 });
 
@@ -36,11 +41,14 @@ api.interceptors.response.use(
     if (isNetErr && isMutation && navigator && !navigator.onLine) {
       try {
         const fullUrl = cfg.baseURL ? `${cfg.baseURL}${cfg.url}` : cfg.url;
+        const safeHeaders = { ...(cfg.headers || {}) };
+        delete safeHeaders.Authorization;
+        delete safeHeaders.authorization;
         await enqueueRequest({
           url: fullUrl,
           method,
           body: cfg.data,
-          headers: cfg.headers,
+          headers: safeHeaders,
         });
         // Resolve as if successful (the UI updates optimistically); will sync when online
         return Promise.resolve({

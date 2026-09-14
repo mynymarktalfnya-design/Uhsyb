@@ -1,6 +1,5 @@
 """System administration endpoints — MongoDB version."""
 import os
-import subprocess
 import database as database_module
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +37,7 @@ BUSINESS_COLLECTIONS = [
     C.product_batches, C.barcodes, C.products, C.categories,
     C.customers, C.suppliers,
     C.notifications, C.audit_logs, C.sync_queue, C.devices,
+    C.invoice_counters, C.idempotency_keys,
 ]
 
 
@@ -62,25 +62,14 @@ def _set_mode(db, mode: str) -> None:
     )
 
 
-def _run_backup() -> str:
-    """Run a Mongo backup script. Returns the filename on success."""
-    if not BACKUP_SCRIPT.exists():
-        # If no backup script available (e.g. minimal Emergent prod), return empty (non-fatal).
-        return ""
-    os.chmod(BACKUP_SCRIPT, 0o755)
-    result = subprocess.run(
-        ["/bin/bash", str(BACKUP_SCRIPT)],
-        capture_output=True, text=True, timeout=180,
-    )
-    if result.returncode != 0:
+def _run_backup(db) -> str:
+    """Create a document backup from the exact live store before destructive work."""
+    from routes.backups import _do_backup
+    try:
+        return _do_backup(db, trigger="safety").name
+    except Exception as exc:
         raise HTTPException(status_code=500,
-                            detail=f"فشل النسخ الاحتياطي قبل المسح: {result.stderr[:300]}")
-    backup_dir = Path(os.environ.get("BACKUP_DIR", "/app/backups"))
-    if not backup_dir.exists():
-        return ""
-    files = sorted(list(backup_dir.glob("market_db_*.sql.gz")) +
-                   list(backup_dir.glob("market_db_*.archive.gz")), reverse=True)
-    return files[0].name if files else ""
+                            detail=f"فشل النسخ الاحتياطي قبل المسح: {str(exc)[:300]}")
 
 
 def _wipe_business_data(db) -> None:
@@ -246,7 +235,7 @@ def reset_demo_data(payload: ResetConfirm, request: Request,
                     db = Depends(get_db), current = Depends(require_admin)):
     if payload.confirm != "DELETE_ALL_DEMO_DATA":
         raise HTTPException(status_code=400, detail="عبارة التأكيد غير صحيحة")
-    backup_name = _run_backup()
+    backup_name = _run_backup(db)
     try:
         _wipe_business_data(db)
         log_action(db, current["_id"], "demo_data_wiped", "system", None,
@@ -277,7 +266,7 @@ def activate_production(payload: ActivateProductionPayload, request: Request,
     if not verify_password(payload.current_password, current["password_hash"]):
         raise HTTPException(status_code=401, detail="كلمة المرور الحالية غير صحيحة")
 
-    backup_name = _run_backup()
+    backup_name = _run_backup(db)
 
     if payload.wipe_business_data:
         try:

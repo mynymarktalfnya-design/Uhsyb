@@ -13,6 +13,11 @@ node_modules
 
 # Local runtime state and credentials — never commit database/Telegram settings
 market-backend/data/*.json
+market-backend/data/backups/
+market-backend/data/*.json.gz
+market-backend/data/*.sql.gz
+market-backend/data/*.archive.gz
+attached_assets/*.pdf
 **/__pycache__/
 
 # IDEs and editors

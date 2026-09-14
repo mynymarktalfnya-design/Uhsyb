@@ -143,7 +143,7 @@ class TestPOSExpiryBlock:
                f"true, NULL, true, false, 0, NOW(), NOW());")
         res = subprocess.run(
             ["psql", "-h", "localhost", "-U", "market_admin", "-d", "market_db", "-c", sql],
-            env={**os.environ, "PGPASSWORD": "MarketSecure2026"},
+            env=os.environ.copy(),
             capture_output=True, text=True, timeout=10,
         )
         if res.returncode != 0:
@@ -246,7 +246,7 @@ class TestAccountLockout:
         subprocess.run(
             ["psql", "-h", "localhost", "-U", "market_admin", "-d", "market_db", "-c",
              "UPDATE users SET failed_login_attempts=0, locked_until=NULL WHERE username='cashier';"],
-            env={**os.environ, "PGPASSWORD": "MarketSecure2026"}, capture_output=True, text=True, timeout=10,
+            env=os.environ.copy(), capture_output=True, text=True, timeout=10,
         )
 
 

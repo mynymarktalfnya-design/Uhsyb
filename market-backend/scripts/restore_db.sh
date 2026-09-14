@@ -6,9 +6,11 @@
 set -e
 
 BACKUP_FILE="${1:-}"
-DB_NAME="market_db"
-DB_USER="market_admin"
-DB_HOST="localhost"
+DB_NAME="${DB_NAME:-market_db}"
+DB_USER="${DB_USER:-market_admin}"
+DB_HOST="${DB_HOST:-localhost}"
+
+: "${PGPASSWORD:?PGPASSWORD must be provided by the deployment environment}"
 
 if [ -z "$BACKUP_FILE" ]; then
   echo "ERROR: backup file path required" >&2
@@ -18,8 +20,6 @@ if [ ! -f "$BACKUP_FILE" ]; then
   echo "ERROR: file not found: $BACKUP_FILE" >&2
   exit 2
 fi
-
-export PGPASSWORD="MarketSecure2026"
 
 echo "[$(date)] Restoring $BACKUP_FILE → $DB_NAME"
 

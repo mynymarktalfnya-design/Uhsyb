@@ -391,6 +391,21 @@ class PostgresCollection:
         self._save(changed)
         return type("UpdateResult", (), {"matched_count": 1, "modified_count": int(changed != current), "upserted_id": None})()
 
+    def find_one_and_update(self, query, update, upsert=False, return_document=True):
+        # The adapter is document-compatible rather than a full Mongo driver.
+        # Serialize this read-modify-write so invoice counters remain unique.
+        with self.store._cache_lock:
+            current = self.find_one(query)
+            if current is None:
+                if not upsert:
+                    return None
+                base = {k: v for k, v in query.items() if not k.startswith("$") and not isinstance(v, dict)}
+                current = _apply_update(base, update, inserting=True)
+            else:
+                current = _apply_update(current, update)
+            self._save(current)
+            return copy.deepcopy(current)
+
     def update_many(self, query, update, upsert=False):
         matches = [doc for doc in self._all() if _matches(doc, query)]
         for document in matches:

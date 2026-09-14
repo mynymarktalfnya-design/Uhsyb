@@ -94,7 +94,16 @@ def _seed_data():
     now = datetime.now(timezone.utc)
 
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@market.com")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "Admin@2026")
+    deployment_mode = os.environ.get("APP_ENV", os.environ.get("ENVIRONMENT", "")).lower()
+    mode_setting = db[C.settings].find_one({"key": "system_mode"})
+    mode = "test"
+    if mode_setting and mode_setting.get("value"):
+        value = mode_setting["value"]
+        mode = (value.get("mode") if isinstance(value, dict) else value) or "test"
+    admin_password = os.environ.get("ADMIN_PASSWORD")
+    if (deployment_mode == "production" or mode == "production") and not admin_password:
+        raise RuntimeError("ADMIN_PASSWORD must be set before starting production")
+    admin_password = admin_password or "Admin@2026"
 
     # 1. Admin (always seeded if missing)
     if not db[C.users].find_one({"email": admin_email}):
@@ -109,13 +118,7 @@ def _seed_data():
         logger.info(f"Seeded admin user: {admin_email}")
 
     # 2. Demo accounts — only in test mode
-    mode_setting = db[C.settings].find_one({"key": "system_mode"})
-    mode = "test"
-    if mode_setting and mode_setting.get("value"):
-        v = mode_setting["value"]
-        mode = (v.get("mode") if isinstance(v, dict) else v) or "test"
-
-    if mode != "production":
+    if mode != "production" and deployment_mode != "production":
         for username, email, role, pw, full_name in [
             ("manager", "manager@market.com", "manager", "Manager@2026", "مشرف الفرع"),
             ("cashier", "cashier@market.com", "cashier", "Cashier@2026", "كاشير"),

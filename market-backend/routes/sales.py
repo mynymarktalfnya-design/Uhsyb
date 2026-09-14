@@ -2,7 +2,12 @@
 we use atomic per-doc updates + best-effort consistency for the in-store flow."""
 from datetime import datetime, timezone, date as _date
 from decimal import Decimal
+from threading import Lock
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi import Header
+from pymongo.errors import DuplicateKeyError
+from pymongo import ReturnDocument
 from typing import List, Optional
 
 from database import get_db, C
@@ -19,6 +24,7 @@ router = APIRouter(prefix="/api", tags=["sales"])
 
 VALID_PAYMENT_METHODS = {"cash", "jaib", "fluusak", "hasib", "banki",
                           "bank_transfer", "credit", "card"}
+_invoice_counter_lock = Lock()
 
 
 def _stock_quantity(item, product) -> float:
@@ -31,8 +37,21 @@ def _stock_quantity(item, product) -> float:
 def _generate_invoice_no(db) -> str:
     today = business_now().strftime("%Y%m%d")
     prefix = f"INV-{today}-"
-    count = db[C.sales].count_documents({"invoice_no": {"$regex": f"^{prefix}"}})
-    return f"{prefix}{count + 1:05d}"
+    # `$inc` is atomic in MongoDB. The process lock also protects the
+    # document-compatible PostgreSQL adapter, whose update API is not atomic.
+    with _invoice_counter_lock:
+        counter = db[C.invoice_counters].find_one({"_id": today})
+        if counter is None:
+            count = db[C.sales].count_documents({"invoice_no": {"$regex": f"^{prefix}"}})
+            db[C.invoice_counters].update_one(
+                {"_id": today}, {"$set": {"value": count}}, upsert=True
+            )
+        counter = db[C.invoice_counters].find_one_and_update(
+            {"_id": today}, {"$inc": {"value": 1}},
+            upsert=True, return_document=ReturnDocument.AFTER,
+        )
+        number = int(counter.get("value", 1))
+    return f"{prefix}{number:05d}"
 
 
 def _sale_to_out(s, db) -> dict:
@@ -63,7 +82,34 @@ def _sale_to_out(s, db) -> dict:
 
 @router.post("/sales", response_model=SaleOut, status_code=201)
 def create_sale(payload: SaleCreate, request: Request,
-                db = Depends(get_db), current = Depends(require_cashier)):
+                db = Depends(get_db), current = Depends(require_cashier),
+                idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key")):
+    key = (idempotency_key or str(uuid.uuid4())).strip()
+    if not key or len(key) > 200:
+        raise HTTPException(status_code=400, detail="Invalid Idempotency-Key")
+    try:
+        db[C.idempotency_keys].insert_one({
+            "_id": new_id(), "user_id": current["_id"], "key": key,
+            "operation": "sale", "status": "processing", "created_at": datetime.now(timezone.utc),
+        })
+    except DuplicateKeyError:
+        prior = db[C.idempotency_keys].find_one({"user_id": current["_id"], "key": key})
+        if prior and prior.get("sale_id"):
+            existing = db[C.sales].find_one({"_id": prior["sale_id"]})
+            if existing:
+                return _sale_to_out(existing, db)
+        raise HTTPException(status_code=409, detail="العملية نفسها قيد التنفيذ، أعد المحاولة لاحقاً")
+    reservation = {"user_id": current["_id"], "key": key}
+    try:
+        return _create_sale_reserved(payload, request, db, current, reservation)
+    except Exception:
+        existing_key = db[C.idempotency_keys].find_one(reservation)
+        if not existing_key or not existing_key.get("sale_id"):
+            db[C.idempotency_keys].delete_one(reservation)
+        raise
+
+
+def _create_sale_reserved(payload: SaleCreate, request: Request, db, current, reservation):
     if payload.payment_method not in VALID_PAYMENT_METHODS:
         raise HTTPException(status_code=400, detail="Invalid payment method")
     if payload.payment_method == "credit" and not payload.customer_id:
@@ -186,6 +232,7 @@ def create_sale(payload: SaleCreate, request: Request,
         "created_at": now, "updated_at": now, "deleted_at": None,
     }
     db[C.sales].insert_one(sale_doc)
+    db[C.idempotency_keys].update_one(reservation, {"$set": {"sale_id": sale_id}})
     db[C.sale_items].insert_many(item_docs)
 
     # Decrement product stock + inventory movements
@@ -235,6 +282,8 @@ def create_sale(payload: SaleCreate, request: Request,
                after={"invoice_no": invoice_no, "total": str(total),
                       "payment_method": payload.payment_method,
                       "customer_id": payload.customer_id}, request=request)
+
+    db[C.idempotency_keys].update_one(reservation, {"$set": {"status": "completed"}})
 
     s = db[C.sales].find_one({"_id": sale_id})
     return _sale_to_out(s, db)

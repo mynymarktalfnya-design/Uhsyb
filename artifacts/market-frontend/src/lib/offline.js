@@ -80,9 +80,12 @@ export async function flushQueue() {
   let success = 0, failed = 0;
   for (const item of items) {
     try {
+      const headers = { ...(item.headers || {}), 'Content-Type': 'application/json' };
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mm_token') : null;
+      if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch(item.url, {
         method: item.method,
-        headers: item.headers || { 'Content-Type': 'application/json' },
+        headers,
         body: item.body,
       });
       if (res.ok) {

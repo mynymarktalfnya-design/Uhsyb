@@ -6,7 +6,9 @@ import os
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-2024")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SESSION_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError("يجب تعيين JWT_SECRET_KEY أو SESSION_SECRET")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
