@@ -12,6 +12,12 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from reportlab.pdfgen import canvas as canvas_module
+try:
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+except Exception:  # pragma: no cover - optional only for minimal installs
+    arabic_reshaper = None
+    get_display = None
 
 from database import C
 
@@ -41,7 +47,7 @@ class _NumberedCanvas(canvas_module.Canvas):
         canvas_module.Canvas.save(self)
     def _draw_footer(self, total):
         self.saveState(); self.setFont(FONT, 8); self.setFillColor(colors.grey)
-        self.drawCentredString(A4[0] / 2, 8 * mm, f"ميني ماركت الفنية   |   صفحة {self._pageNumber} من {total}")
+        self.drawCentredString(A4[0] / 2, 8 * mm, _rtl(f"ميني ماركت الفنية   |   صفحة {self._pageNumber} من {total}"))
         self.restoreState()
 
 
@@ -78,7 +84,17 @@ def build_inventory_snapshot(db, *, audit_no, actor_name, branch="ميني ما�
 
 
 def _p(text, style):
-    return Paragraph(str(text).replace("&", "&amp;"), style)
+    value = str(text)
+    if arabic_reshaper and get_display and any("\u0600" <= ch <= "\u06ff" for ch in value):
+        value = get_display(arabic_reshaper.reshape(value))
+    return Paragraph(value.replace("&", "&amp;"), style)
+
+
+def _rtl(text):
+    value = str(text)
+    if arabic_reshaper and get_display and any("\u0600" <= ch <= "\u06ff" for ch in value):
+        return get_display(arabic_reshaper.reshape(value))
+    return value
 
 
 def render_inventory_pdf(snapshot):
