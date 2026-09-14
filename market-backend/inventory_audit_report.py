@@ -21,8 +21,9 @@ except Exception:  # pragma: no cover - optional only for minimal installs
 
 from database import C
 
-FONT_PATH = "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf"
-FONT_BOLD_PATH = "/usr/share/fonts/truetype/noto/NotoSansArabic-Bold.ttf"
+_FONT_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
+FONT_PATH = str(_FONT_DIR / "NotoSansArabic-Regular.ttf") if (_FONT_DIR / "NotoSansArabic-Regular.ttf").exists() else "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf"
+FONT_BOLD_PATH = str(_FONT_DIR / "NotoSansArabic-Bold.ttf") if (_FONT_DIR / "NotoSansArabic-Bold.ttf").exists() else "/usr/share/fonts/truetype/noto/NotoSansArabic-Bold.ttf"
 try:
     pdfmetrics.registerFont(TTFont("InventoryArabic", FONT_PATH))
     pdfmetrics.registerFont(TTFont("InventoryArabicBold", FONT_BOLD_PATH))
