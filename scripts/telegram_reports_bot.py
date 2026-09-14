@@ -45,12 +45,14 @@ def api(method: str, payload: dict | None = None, files: dict | None = None):
         body = bytearray()
         fields = {**(payload or {}), **files}
         for key, value in fields.items():
-            raw = value if isinstance(value, tuple) else (f"{key}.bin", value, "application/octet-stream")
-            filename, data, mime = raw
             body.extend(b"--" + boundary + b"\r\n")
-            body.extend(f'Content-Disposition: form-data; name="{key}"; filename="{filename}"\r\n'.encode())
-            body.extend(f"Content-Type: {mime}\r\n\r\n".encode())
-            body.extend(data)
+            if isinstance(value, tuple):
+                filename, data, mime = value
+                body.extend(f'Content-Disposition: form-data; name="{key}"; filename="{filename}"\r\n'.encode())
+                body.extend(f"Content-Type: {mime}\r\n\r\n".encode())
+                body.extend(data)
+            else:
+                body.extend(f'Content-Disposition: form-data; name="{key}"\r\n\r\n{value}'.encode())
             body.extend(b"\r\n")
         body.extend(b"--" + boundary + b"--\r\n")
         request = Request(url, data=bytes(body), headers={"Content-Type": f"multipart/form-data; boundary={boundary.decode()}"}, method="POST")
@@ -93,15 +95,24 @@ def menu():
     ]}
 
 
+def configure_commands():
+    api("setMyCommands", {"commands": json.dumps([
+        {"command": "inventory", "description": "جرد المخزون PDF"},
+        {"command": "sales_today", "description": "مبيعات اليوم"},
+        {"command": "purchases_today", "description": "مشتريات اليوم"},
+        {"command": "suppliers", "description": "حسابات التجار"},
+    ], ensure_ascii=False)})
+
+
 def sales_today():
     start, end, day = day_range()
-    sales = list(db.sales.find({"created_at": {"$gte": start, "$lt": end}, "status": "completed", "deleted_at": None}))
+    sales = list(db["sales"].find({"created_at": {"$gte": start, "$lt": end}, "status": "completed", "deleted_at": None}))
     total = sum(float(s.get("total", 0) or 0) for s in sales)
     rows, cogs = [], 0.0
     for sale in sales:
         names, sale_cogs = [], 0.0
-        for item in db.sale_items.find({"sale_id": sale["_id"]}):
-            product = db.products.find_one({"_id": item.get("product_id")}, {"name": 1}) or {}
+        for item in db["sale_items"].find({"sale_id": sale["_id"]}):
+            product = db["products"].find_one({"_id": item.get("product_id")}, {"name": 1}) or {}
             name = product.get("name", "غير معروف")
             names.append(name)
             sale_cogs += float(item.get("unit_cost", 0) or 0) * float(item.get("quantity", 0) or 0)
@@ -113,27 +124,27 @@ def sales_today():
 
 def purchases_today():
     start, end, day = day_range()
-    purchases = list(db.purchases.find({"created_at": {"$gte": start, "$lt": end}, "deleted_at": None}))
+    purchases = list(db["purchases"].find({"created_at": {"$gte": start, "$lt": end}, "deleted_at": None}))
     total = sum(float(p.get("total", 0) or 0) for p in purchases)
     rows = []
     for purchase in purchases:
-        supplier = db.suppliers.find_one({"_id": purchase.get("supplier_id")}, {"name": 1}) or {}
+        supplier = db["suppliers"].find_one({"_id": purchase.get("supplier_id")}, {"name": 1}) or {}
         rows.append(f"• {supplier.get('name', 'غير معروف')} — {money(purchase.get('total'))} ر.ي")
     send(f"🧾 مشتريات اليوم {day}\nعدد الفواتير: {len(purchases)}\nالإجمالي: {money(total)} ر.ي\n\n" + ("\n".join(rows[:40]) or "لا توجد مشتريات اليوم"), menu())
 
 
 def supplier_list():
     buttons = []
-    for supplier in db.suppliers.find({"deleted_at": None}, {"name": 1}).sort("name", 1).limit(40):
+    for supplier in db["suppliers"].find({"deleted_at": None}, {"name": 1}).sort("name", 1).limit(40):
         buttons.append([{"text": supplier.get("name", "بدون اسم"), "callback_data": f"supplier:{supplier['_id']}"}])
     send("اختر التاجر لعرض كشف الحساب:", {"inline_keyboard": buttons or [[{"text": "لا يوجد تجار", "callback_data": "noop"}]]})
 
 
 def supplier_report(supplier_id: str):
-    supplier = db.suppliers.find_one({"_id": supplier_id})
+    supplier = db["suppliers"].find_one({"_id": supplier_id})
     if not supplier:
         send("التاجر غير موجود.", menu()); return
-    entries = list(db.supplier_accounts.find({"supplier_id": supplier_id}).sort("created_at", 1))
+    entries = list(db["supplier_accounts"].find({"supplier_id": supplier_id}).sort("created_at", 1))
     balance = sum(float(e.get("debit", 0) or 0) - float(e.get("credit", 0) or 0) for e in entries)
     purchases = sum(float(e.get("debit", 0) or 0) for e in entries if e.get("type") == "purchase")
     paid = sum(float(e.get("credit", 0) or 0) for e in entries)
@@ -141,7 +152,7 @@ def supplier_report(supplier_id: str):
 
 
 def inventory_pdf():
-    products = list(db.products.find({"deleted_at": None, "is_active": True}).sort("name", 1))
+    products = list(db["products"].find({"deleted_at": None, "is_active": True}).sort("name", 1))
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=18, leftMargin=18, topMargin=18, bottomMargin=18)
     styles = getSampleStyleSheet(); styles.add(ParagraphStyle(name="Arabic", parent=styles["Normal"], alignment=TA_RIGHT, fontName="Helvetica", fontSize=8))
@@ -176,7 +187,9 @@ def handle(update):
         elif data.startswith("supplier:"): supplier_report(data.split(":", 1)[1])
         return
     text = (message.get("text") or "").strip().lower()
-    if text in {"/start", "/menu", "القائمة"}: send("مرحبًا بك في تقارير ميني ماركت الفنية. اختر التقرير:", menu())
+    if text in {"/start", "/menu", "القائمة"}:
+        send("تم تحديث القائمة وإزالة الخيارات القديمة.", {"remove_keyboard": True})
+        send("اختر التقرير المطلوب:", menu())
     elif text in {"/sales", "/sales_today", "مبيعات اليوم"}: sales_today()
     elif text in {"/purchases", "/purchases_today", "مشتريات اليوم"}: purchases_today()
     elif text in {"/suppliers", "حسابات التجار"}: supplier_list()
@@ -186,6 +199,7 @@ def handle(update):
 
 def main():
     offset = 0
+    configure_commands()
     while True:
         try:
             updates = api("getUpdates", {"timeout": 45, "offset": offset}) or []
