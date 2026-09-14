@@ -2,7 +2,7 @@
 """Private Telegram reports bot for Mabna Market.
 
 Required environment:
-  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, MONGO_URL, DB_NAME
+  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, and the app database settings
 Optional: REPORTS_TIMEZONE=Asia/Aden
 
 The bot only serves the configured chat ID. It supports /menu, daily sales,
@@ -19,22 +19,23 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
-from pymongo import MongoClient
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_RIGHT
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "market-backend"))
+from database import get_db
+
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 CHAT_ID = str(os.environ.get("TELEGRAM_CHAT_ID", "")).strip()
-DB_NAME = os.environ.get("DB_NAME", "market_db")
 TZ = ZoneInfo(os.environ.get("REPORTS_TIMEZONE", "Asia/Aden"))
-if not TOKEN or not CHAT_ID or not os.environ.get("MONGO_URL"):
-    raise SystemExit("TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID and MONGO_URL are required")
+if not TOKEN or not CHAT_ID:
+    raise SystemExit("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required")
 
-client = MongoClient(os.environ["MONGO_URL"], tz_aware=True, serverSelectionTimeoutMS=5000)
-db = client[DB_NAME]
+db = get_db()
 
 
 def api(method: str, payload: dict | None = None, files: dict | None = None):
