@@ -187,14 +187,16 @@ def handle(update):
         elif data.startswith("supplier:"): supplier_report(data.split(":", 1)[1])
         return
     text = (message.get("text") or "").strip().lower()
-    if text in {"/start", "/menu", "القائمة"}:
+    if text in {"/start", "/menu", "//menu", "menu", "القائمة", "القائمة الرئيسية"}:
         send("تم تحديث القائمة وإزالة الخيارات القديمة.", {"remove_keyboard": True})
         send("اختر التقرير المطلوب:", menu())
     elif text in {"/sales", "/sales_today", "مبيعات اليوم"}: sales_today()
     elif text in {"/purchases", "/purchases_today", "مشتريات اليوم"}: purchases_today()
     elif text in {"/suppliers", "حسابات التجار"}: supplier_list()
     elif text in {"/inventory", "جرد المخزون"}: inventory_pdf()
-    else: send("الأوامر المتاحة: /menu /sales_today /purchases_today /suppliers /inventory", menu())
+    else:
+        send("هذه الأوامر الأربعة فقط: /inventory /sales_today /purchases_today /suppliers", {"remove_keyboard": True})
+        send("اختر التقرير المطلوب:", menu())
 
 
 def main():
