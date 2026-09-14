@@ -28,11 +28,18 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "market-backend"))
 from database import get_db
+from inventory_audit_report import build_inventory_snapshot, render_inventory_pdf
 
-TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-CHAT_ID = str(os.environ.get("TELEGRAM_CHAT_ID", "")).strip()
+SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "..", "market-backend", "data", "telegram_settings.json")
+try:
+    with open(SETTINGS_FILE, encoding="utf-8") as fh:
+        _saved_telegram = json.load(fh)
+except Exception:
+    _saved_telegram = {}
+TOKEN = str(_saved_telegram.get("bot_token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")).strip()
+CHAT_ID = str(_saved_telegram.get("chat_id") or os.environ.get("TELEGRAM_CHAT_ID", "")).strip()
 TZ = ZoneInfo(os.environ.get("REPORTS_TIMEZONE", "Asia/Aden"))
-if not TOKEN or not CHAT_ID:
+if _saved_telegram.get("enabled") is False or not TOKEN or not CHAT_ID:
     raise SystemExit("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required")
 
 db = get_db()
@@ -152,23 +159,10 @@ def supplier_report(supplier_id: str):
 
 
 def inventory_pdf():
-    products = list(db["products"].find({"deleted_at": None, "is_active": True}).sort("name", 1))
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=18, leftMargin=18, topMargin=18, bottomMargin=18)
-    styles = getSampleStyleSheet(); styles.add(ParagraphStyle(name="Arabic", parent=styles["Normal"], alignment=TA_RIGHT, fontName="Helvetica", fontSize=8))
-    data = [["المنتج", "الكمية", "تكلفة الوحدة", "سعر البيع", "قيمة التكلفة", "قيمة البيع", "الربح المتوقع"]]
-    total_cost = total_sale = 0.0
-    for product in products:
-        qty = float(product.get("stock", product.get("quantity", 0)) or 0)
-        cost = float(product.get("cost_price", product.get("purchase_price", 0)) or 0)
-        sale = float(product.get("sale_price", product.get("selling_price", 0)) or 0)
-        cv, sv = qty * cost, qty * sale; total_cost += cv; total_sale += sv
-        data.append([str(product.get("name", "—")), money(qty), money(cost), money(sale), money(cv), money(sv), money(sv-cv)])
-    data.append(["الإجمالي", "", "", "", money(total_cost), money(total_sale), money(total_sale-total_cost)])
-    table = Table(data, repeatRows=1, colWidths=[190, 60, 80, 80, 90, 90, 90])
-    table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0f2948")), ("TEXTCOLOR", (0,0), (-1,0), colors.white), ("GRID", (0,0), (-1,-1), .3, colors.grey), ("ALIGN", (0,0), (-1,-1), "RIGHT"), ("FONTSIZE", (0,0), (-1,-1), 8), ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#fef3c7"))]))
-    doc.build([Paragraph("جرد المخزون — ميني ماركت الفنية", styles["Title"]), Spacer(1, 8), table])
-    send_pdf("inventory_report.pdf", buffer.getvalue(), f"جرد المخزون: {len(products)} منتج | قيمة البيع {money(total_sale)} ر.ي | الربح المتوقع {money(total_sale-total_cost)} ر.ي")
+    now = datetime.now(TZ)
+    snapshot = build_inventory_snapshot(db, audit_no=f"AUD-{now.strftime('%Y%m%d-%H%M%S')}", actor_name="Telegram", branch="ميني ماركت الفنية", created_at=now)
+    pdf = render_inventory_pdf(snapshot)
+    send_pdf(f"جرد المخزون - ميني ماركت الفنية - {now.strftime('%Y-%m-%d')}.pdf", pdf, "كشف جرد المخزون الحالي")
 
 
 def handle(update):
