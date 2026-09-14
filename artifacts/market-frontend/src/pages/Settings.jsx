@@ -640,7 +640,8 @@ const TelegramBotSettingsCard = () => {
   const save = async () => {
     setBusy(true);
     try {
-      const { data } = await api.put('/admin/backups/telegram', form);
+      const payload = { ...form, enabled: true };
+      const { data } = await api.put('/admin/backups/telegram', payload);
       setConfigured(Boolean(data.configured));
       setMaskedToken(data.masked_token || '');
       setForm((current) => ({ ...current, bot_token: '' }));
