@@ -72,7 +72,7 @@ const DashboardLayout = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-50" dir="rtl">
-      {sidebarOpen && <Sidebar />}
+      {!isPosPage && sidebarOpen && <Sidebar />}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto">
