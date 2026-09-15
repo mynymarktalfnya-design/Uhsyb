@@ -106,12 +106,18 @@ def list_products(q: Optional[str] = None, category_id: Optional[str] = None,
             {"sku": {"$regex": q, "$options": "i"}},
             {"_id": {"$in": barcode_matches}},
         ]
-    rows = list(db[C.products].find(filt).sort("name", 1).limit(limit))
     if low_stock:
         threshold = get_alert_settings(db)["low_stock_threshold"]
-        rows = [r for r in rows if
-                float(r.get("current_stock", 0) or 0) <= threshold or
-                float(r.get("current_stock", 0) or 0) <= float(r.get("min_stock_level", 0) or 0)]
+        stock_condition = {"$or": [
+            {"$expr": {"$lte": ["$current_stock", threshold]}},
+            {"$expr": {"$lte": ["$current_stock", "$min_stock_level"]}},
+        ]}
+        if "$or" in filt:
+            search_condition = {"$or": filt.pop("$or")}
+            filt["$and"] = [search_condition, stock_condition]
+        else:
+            filt.update(stock_condition)
+    rows = list(db[C.products].find(filt).sort("name", 1).limit(limit))
     return [ProductOut.model_validate(_product_out(p, db, current.role)) for p in rows]
 
 

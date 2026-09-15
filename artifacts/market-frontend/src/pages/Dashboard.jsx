@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expiry, setExpiry] = useState(null);
+  const [alerts, setAlerts] = useState(null);
   const { user } = useAuth();
   const canViewPurchases = user?.role !== 'cashier';
   const isCashier = user?.role === 'cashier';
@@ -27,6 +28,7 @@ const Dashboard = () => {
       .then((r) => alive && setSummary(r.data))
       .finally(() => alive && setLoading(false));
     load();
+    api.get('/dashboard/alerts').then((r) => alive && setAlerts(r.data)).catch(() => {});
     const refreshId = setInterval(load, 30000);
     if (!isCashier) {
       api.get('/products/expiry-report')
@@ -191,6 +193,25 @@ const Dashboard = () => {
         })}
       </div>
 
+      {isCashier && (
+        <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4" data-testid="cashier-monthly-sales">
+          <h2 className="mb-3 text-sm font-bold text-indigo-900">مبيعاتي هذا الشهر</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              ['إجمالي المبيعات', summary?.sales_month],
+              ['إجمالي المرتجعات', summary?.returns_month],
+              ['صافي المبيعات', summary?.net_sales_month],
+              ['المبيعات الآجلة', summary?.sales_month_credit],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg bg-white p-3 shadow-sm">
+                <p className="text-xs text-slate-500">{label}</p>
+                <p className="mt-1 text-lg font-bold text-indigo-900">{loading ? '...' : formatMoney(value)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ─── صف 2: تفصيل طرق الدفع ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
         {methodCards.map((s) => {
@@ -298,6 +319,23 @@ const Dashboard = () => {
               </div>
               <span className="text-amber-600 text-sm underline">عرض ←</span>
             </div>
+          </Link>
+        </div>
+      )}
+
+      {alerts && (
+        <div className="mb-6 grid gap-4 md:grid-cols-2" data-testid="dashboard-alerts">
+          <Link to="/dashboard/stock-alerts" className="rounded-xl border border-amber-200 bg-amber-50 p-4 hover:bg-amber-100">
+            <h3 className="mb-2 font-bold text-amber-900">📦 منتجات شارفت على النفاذ</h3>
+            {alerts.low_stock?.length ? alerts.low_stock.slice(0, 8).map((p) => (
+              <p key={p.id} className="text-sm text-amber-800">{p.name} — الكمية: {formatNum(p.current_stock)}</p>
+            )) : <p className="text-sm text-emerald-700">لا توجد منتجات شارفت على النفاذ حاليًا</p>}
+          </Link>
+          <Link to="/dashboard/stock-alerts" className="rounded-xl border border-rose-200 bg-rose-50 p-4 hover:bg-rose-100">
+            <h3 className="mb-2 font-bold text-rose-900">⚠️ منتجات شارفت على الانتهاء</h3>
+            {alerts.expiring?.length ? alerts.expiring.slice(0, 8).map((p) => (
+              <p key={p.id} className="text-sm text-rose-800">{p.name} — {p.days_left < 0 ? `منتهي منذ ${Math.abs(p.days_left)} يوم` : `متبقي ${p.days_left} يوم`}</p>
+            )) : <p className="text-sm text-emerald-700">لا توجد منتجات شارفت على الانتهاء حاليًا</p>}
           </Link>
         </div>
       )}

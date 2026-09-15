@@ -16,30 +16,10 @@ const StockAlerts = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [expRes, prodRes] = await Promise.all([
-        api.get('/products/expiry-report', { params: { days: 90 } }),
-        api.get('/pos/products', { params: { limit: 2000 } }),
-      ]);
-
-      // منتجات الصلاحية — الاستجابة كائن يحتوي على soon[] و expired[]
-      const expiryData = expRes.data || {};
-      const allExpiry = [
-        ...(expiryData.expired || []),
-        ...(expiryData.soon || []),
-      ].sort((a, b) => {
-        const dA = new Date(a.expiry_date) - new Date();
-        const dB = new Date(b.expiry_date) - new Date();
-        return dA - dB; // الأقرب انتهاءً أولاً
-      });
-      setExpiryProducts(allExpiry);
-
-      // منتجات نفد مخزونها أو مخزونها منخفض
-      const all = prodRes.data || [];
-      setLowStockProducts(
-        all
-          .filter((p) => Number(p.current_stock) <= Math.max(0, Number(p.min_stock_level) || 0) || Number(p.current_stock) <= 0)
-          .sort((a, b) => Number(a.current_stock) - Number(b.current_stock))
-      );
+      const { data } = await api.get('/dashboard/alerts');
+      const alerts = data || {};
+      setExpiryProducts((alerts.expiring || []).map((p) => ({ ...p, severity: p.days_left < 0 ? 'expired' : 'warning' })));
+      setLowStockProducts(alerts.low_stock || []);
     } catch (e) {
       console.error('StockAlerts load error', e);
     }
@@ -122,9 +102,7 @@ const StockAlerts = () => {
                   <tr>
                     <th className="px-4 py-3 text-right font-semibold">اسم المنتج</th>
                     <th className="px-4 py-3 text-center font-semibold">المخزون الحالي</th>
-                    <th className="px-4 py-3 text-center font-semibold">الحد الأدنى</th>
-                    <th className="px-4 py-3 text-center font-semibold">سعر البيع</th>
-                    <th className="px-4 py-3 text-center font-semibold">الحالة</th>
+                                        <th className="px-4 py-3 text-center font-semibold">الحالة</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -146,12 +124,6 @@ const StockAlerts = () => {
                           <span className={`text-2xl font-extrabold ${isOut ? 'text-rose-700' : 'text-amber-600'}`}>
                             {fmt(stock)}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-center text-slate-500 font-semibold">
-                          {fmt(p.min_stock_level)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-bold text-emerald-700">
-                          {fmt(p.sale_price)} ر.ي
                         </td>
                         <td className="px-4 py-3 text-center">
                           {isOut ? (

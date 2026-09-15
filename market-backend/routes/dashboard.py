@@ -220,9 +220,12 @@ def _sum_purchases(db, start, end):
     return (a[0]["total"], a[0]["count"]) if a else (0, 0)
 
 
-def _sum_expenses(db, start, end):
+def _sum_expenses(db, start, end, created_by=None):
+    match = {"created_at": {"$gte": start, "$lt": end}, "deleted_at": None}
+    if created_by:
+        match["created_by"] = created_by
     pipeline = [
-        {"$match": {"created_at": {"$gte": start, "$lt": end}, "deleted_at": None}},
+        {"$match": match},
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
     ]
     a = list(db[C.expenses].aggregate(pipeline))
@@ -239,7 +242,7 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
     sales_month, invoices_month = _sum_sales(db, month_start, month_end, cashier_id)
     purchases_today, _ = _sum_purchases(db, today_start, today_end + timedelta(microseconds=1))
     purchases_month, _ = _sum_purchases(db, month_start, month_end)
-    expenses_month = _sum_expenses(db, month_start, month_end)
+    expenses_month = _sum_expenses(db, month_start, month_end, cashier_id)
 
     # Returns (approved only)
     scoped_sale_ids = None
@@ -254,8 +257,10 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
     # Payment cards are gross completed invoice values. Returns are displayed
     # separately and only reduce net sales, so each card reconciles to invoices.
     by_method_today = _sales_method_breakdown(db, today_start, today_end, cashier_id)
+    by_method_month = _sales_method_breakdown(db, month_start, month_end, cashier_id)
     gross_today_cash = sum(float(x["total"]) for x in by_method_today if x["_id"] == "cash")
     gross_today_credit = sum(float(x["total"]) for x in by_method_today if x["_id"] == "credit")
+    gross_month_credit = sum(float(x["total"]) for x in by_method_month if x["_id"] == "credit")
 
     # Payment-method constants
     WALLET_METHODS = {"jaib", "fluusak", "hasib"}
@@ -299,6 +304,7 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
         "sales_today_banks": round(sales_today_banks, 2),
         "sales_today_card": round(gross_today_card, 2),
         "sales_month": sales_month, "invoices_month": invoices_month,
+        "sales_month_credit": round(gross_month_credit, 2),
         # Returns (approved)
         "returns_today": round(returns_today, 2),
         "returns_today_count": returns_today_count,
@@ -320,6 +326,40 @@ def dashboard_summary(db = Depends(get_db), current = Depends(get_current_user))
         "low_stock_count": low_stock_count,
         "expiring_soon_count": expiring_soon,
         "alert_settings": alert_settings,
+    }
+
+
+@router.get("/alerts")
+def dashboard_alerts(db=Depends(get_db), _current=Depends(get_current_user)):
+    """Return only actionable stock/expiry alerts; never load the catalog."""
+    settings = get_alert_settings(db)
+    low_threshold = settings["low_stock_threshold"]
+    low_rows = list(db[C.products].find({
+        "deleted_at": None, "is_active": True,
+        "$or": [
+            {"$expr": {"$lte": ["$current_stock", low_threshold]}},
+            {"$expr": {"$lte": ["$current_stock", "$min_stock_level"]}},
+        ],
+    }, {"_id": 1, "name": 1, "current_stock": 1}).sort("current_stock", 1).limit(100))
+    today = business_today()
+    threshold = today + timedelta(days=settings["expiry_alert_days"])
+    threshold_dt = datetime.combine(threshold, datetime.min.time())
+    expiry_rows = list(db[C.products].find({
+        "deleted_at": None, "is_active": True,
+        "expiry_date": {"$ne": None, "$lte": threshold_dt},
+    }, {"_id": 1, "name": 1, "expiry_date": 1}).sort("expiry_date", 1).limit(100))
+    expiring = []
+    for product in expiry_rows:
+        value = product.get("expiry_date")
+        expiry_date = value.date() if hasattr(value, "date") else value
+        if not expiry_date:
+            continue
+        days_left = (expiry_date - today).days
+        expiring.append({"id": product["_id"], "name": product.get("name", "—"), "expiry_date": expiry_date.isoformat(), "days_left": days_left})
+    return {
+        "low_stock": [{"id": p["_id"], "name": p.get("name", "—"), "current_stock": float(p.get("current_stock", 0) or 0)} for p in low_rows],
+        "expiring": expiring,
+        "settings": {"low_stock_threshold": low_threshold, "expiry_alert_days": settings["expiry_alert_days"]},
     }
 
 
