@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { ClipboardList, FileDown, History, Printer, Save, RefreshCw } from 'lucide-react';
 import api, { formatApiError } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
@@ -10,10 +10,11 @@ export default function InventoryAudits() {
   const { user } = useAuth();
   const [products, setProducts] = useState([]); const [rows, setRows] = useState([]); const [audits, setAudits] = useState([]);
   const [branch, setBranch] = useState('ميني ماركت الفنية'); const [notes, setNotes] = useState(''); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false);
+  const saveLockRef = useRef(false);
   const load = async () => { setLoading(true); try { const [p, a] = await Promise.all([api.get('/products', { params: { limit: 1000 } }), api.get('/admin/inventory-audits')]); setProducts(p.data); setRows(p.data.map(x => ({ product_id: x.id, actual_quantity: Number(x.current_stock || 0) }))); setAudits(a.data); } catch (e) { toast({ title: 'تعذر تحميل الجرد', description: formatApiError(e), variant: 'destructive' }); } finally { setLoading(false); } };
   useEffect(() => { load(); }, []);
   const setActual = (id, value) => setRows(prev => prev.map(x => x.product_id === id ? { ...x, actual_quantity: value === '' ? '' : Math.max(0, Number(value)) } : x));
-  const save = async () => { setSaving(true); try { const r = await api.post('/admin/inventory-audits', { branch, notes, items: rows.map(x => ({ product_id: x.product_id, actual_quantity: Number(x.actual_quantity || 0) })) }); toast({ title: 'تم حفظ الجرد', description: r.data.audit_no }); await load(); } catch (e) { toast({ title: 'فشل حفظ الجرد', description: formatApiError(e), variant: 'destructive' }); } finally { setSaving(false); } };
+  const save = async () => { if (saveLockRef.current) return; saveLockRef.current = true; setSaving(true); try { const r = await api.post('/admin/inventory-audits', { branch, notes, items: rows.map(x => ({ product_id: x.product_id, actual_quantity: Number(x.actual_quantity || 0) })) }); toast({ title: 'تم حفظ الجرد', description: r.data.audit_no }); await load(); } catch (e) { toast({ title: 'فشل حفظ الجرد', description: formatApiError(e), variant: 'destructive' }); } finally { saveLockRef.current = false; setSaving(false); } };
   const pdf = async (url, name, print = false) => { const popup = print ? window.open('', '_blank') : null; try { const r = await api.get(url, { responseType: 'blob' }); const href = URL.createObjectURL(r.data); if (popup) { popup.location.href = href; } else { const a = document.createElement('a'); a.href = href; a.download = name; document.body.appendChild(a); a.click(); a.remove(); } setTimeout(() => URL.revokeObjectURL(href), 60000); } catch (e) { if (popup) popup.close(); toast({ title: 'فشل إنشاء PDF', description: formatApiError(e), variant: 'destructive' }); } };
   const actualTotal = useMemo(() => rows.reduce((s, r) => s + Number(r.actual_quantity || 0), 0), [rows]);
   if (!['admin', 'manager'].includes(user?.role)) return <div className="p-8 text-center text-slate-600">لا تملك صلاحية الوصول إلى الجرد.</div>;

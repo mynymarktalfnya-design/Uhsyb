@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   ArrowRight, Printer, FileDown, Wallet, Receipt, Calendar,
@@ -68,6 +68,7 @@ const CustomerDetail = () => {
 
   const [payOpen, setPayOpen] = useState(searchParams.get('action') === 'pay');
   const [payForm, setPayForm] = useState({ amount: '', payment_method: 'cash', notes: '' });
+  const paymentLockRef = useRef(false);
 
   const [rowDetail, setRowDetail] = useState(null);
   const [receiptModal, setReceiptModal] = useState(null);
@@ -102,9 +103,11 @@ const CustomerDetail = () => {
   }, [searchParams, statement]);
 
   const recordPayment = async () => {
+    if (paymentLockRef.current) return;
     try {
       const amt = Number(payForm.amount);
       if (!amt || amt <= 0) { toast({ title: 'أدخل مبلغاً صحيحاً', variant: 'destructive' }); return; }
+      paymentLockRef.current = true;
       const { data } = await api.post(`/customers/${id}/payments`, {
         amount: amt, payment_method: payForm.payment_method, notes: payForm.notes || null,
       });
@@ -114,6 +117,7 @@ const CustomerDetail = () => {
       loadDetail(); loadStatement(); loadPayments();
       setReceiptModal(data);
     } catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' }); }
+    finally { paymentLockRef.current = false; }
   };
 
   const openRowDetail = async (row) => {
