@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowRight, Printer, Wallet, Calendar as CalendarIcon, TrendingUp, TrendingDown,
@@ -483,6 +483,7 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const [paidAmount, setPaidAmount] = useState('');
   const [saving, setSaving] = useState(false);
+  const saveLockRef = useRef(false);
   // إضافة منتج جديد inline
   const [newProductOpen, setNewProductOpen] = useState(false);
   const [prefillBarcode, setPrefillBarcode] = useState('');
@@ -574,11 +575,13 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
   const remaining = grand - paidNow;
 
   const save = async () => {
+    if (saveLockRef.current) return;
     if (!supplierInvoiceNo.trim()) {
       toast({ title: 'رقم فاتورة التاجر مطلوب', description: 'أدخل الرقم المطبوع في فاتورة التاجر قبل الحفظ.', variant: 'destructive' });
       return;
     }
     if (items.length === 0) { toast({ title: 'أضف منتجاً واحداً على الأقل', variant: 'destructive' }); return; }
+    saveLockRef.current = true;
     setSaving(true);
     try {
       const payload = {
@@ -601,7 +604,7 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
       onClose();
       onSaved(data);
     } catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' }); }
-    finally { setSaving(false); }
+    finally { saveLockRef.current = false; setSaving(false); }
   };
 
   return (
@@ -1177,15 +1180,19 @@ const Row = ({ k, v, mono, bold }) => (
 // ============== Payment Dialog ==============
 const SupplierPaymentDialog = ({ open, onClose, supplierId, balance, onSaved }) => {
   const [form, setForm] = useState({ amount: '', payment_method: 'cash', notes: '' });
+  const saveLockRef = useRef(false);
   const save = async () => {
+    if (saveLockRef.current) return;
     const amt = Number(form.amount);
     if (!amt || amt <= 0) { toast({ title: 'أدخل مبلغاً صحيحاً', variant: 'destructive' }); return; }
+    saveLockRef.current = true;
     try {
       const { data } = await api.post(`/suppliers/${supplierId}/payments`, { ...form, amount: amt });
       toast({ title: '✅ تم تسجيل السند', description: data.voucher_no });
       onClose(); onSaved(data);
       setForm({ amount: '', payment_method: 'cash', notes: '' });
     } catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' }); }
+    finally { saveLockRef.current = false; }
   };
   return (
     <Dialog open={open} onOpenChange={onClose}>

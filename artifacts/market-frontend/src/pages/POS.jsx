@@ -93,6 +93,8 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
   /* sale */
   const [submitting,       setSubmitting]       = useState(false);
   const [lastInvoice,      setLastInvoice]      = useState(null);
+  const saleLockRef = useRef(false);
+  const barcodeTimerRef = useRef(null);
 
   /* clock */
   const [now,              setNow]              = useState(new Date());
@@ -228,14 +230,18 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
     setQuery(val);
     if (!val.trim()) { setShowProducts(false); return; }
     setShowProducts(true);
+    if (barcodeTimerRef.current) window.clearTimeout(barcodeTimerRef.current);
     // Try barcode lookup if looks like barcode (no spaces, ≥6 chars)
     if (val.trim().length >= 6 && !val.includes(' ')) {
-      try {
-        const { data } = await api.get(`/products/by-barcode/${encodeURIComponent(val.trim())}`);
-        addToCart(data);
-        setQuery('');
-        setShowProducts(false);
-      } catch { /* not a barcode, show search results */ }
+      const barcode = val.trim();
+      barcodeTimerRef.current = window.setTimeout(async () => {
+        try {
+          const { data } = await api.get(`/products/by-barcode/${encodeURIComponent(barcode)}`);
+          addToCart(data);
+          setQuery('');
+          setShowProducts(false);
+        } catch { /* not a barcode, show search results */ }
+      }, 180);
     }
   };
 
@@ -289,8 +295,11 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
 
   /* ── complete sale ──────────────────────────────────────────────────── */
   const completeSale = async () => {
+    // React state updates are asynchronous; a double click can otherwise send two requests.
+    if (saleLockRef.current) return;
     if (!cart.length) { toast({ title: 'السلة فارغة', variant: 'destructive' }); return; }
     if (payMethod === 'credit' && !creditCustomer) { toast({ title: 'اختر عميلاً', variant: 'destructive' }); return; }
+    saleLockRef.current = true;
     setSubmitting(true);
     try {
       const { data } = await api.post('/sales', {
@@ -310,7 +319,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       searchRef.current?.focus();
     } catch (e) {
       toast({ title: 'فشل البيع', description: formatApiError(e), variant: 'destructive' });
-    } finally { setSubmitting(false); }
+    } finally { saleLockRef.current = false; setSubmitting(false); }
   };
 
   /* ═══════════════════════════════════════════════════════════════════

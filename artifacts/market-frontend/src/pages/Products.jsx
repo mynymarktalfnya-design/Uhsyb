@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Plus, Search, Edit2, Trash2, Package, AlertTriangle, Star,
   Calendar as CalendarIcon,
@@ -29,6 +29,7 @@ const Products = () => {
   const [loading, setLoading]       = useState(true);
   const [open, setOpen]             = useState(false);
   const [editing, setEditing]       = useState(null);
+  const saveLockRef = useRef(false);
   const canEdit = can('admin');
 
   const empty = {
@@ -89,6 +90,8 @@ const Products = () => {
   };
 
   const save = async () => {
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
     try {
       const payload = {
         ...form,
@@ -120,6 +123,7 @@ const Products = () => {
       setOpen(false);
       load();
     } catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' }); }
+    finally { saveLockRef.current = false; }
   };
 
   const del = async (p) => {
