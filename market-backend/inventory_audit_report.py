@@ -5,7 +5,7 @@ from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
@@ -48,7 +48,8 @@ class _NumberedCanvas(canvas_module.Canvas):
         canvas_module.Canvas.save(self)
     def _draw_footer(self, total):
         self.saveState(); self.setFont(FONT, 8); self.setFillColor(colors.grey)
-        self.drawCentredString(A4[0] / 2, 8 * mm, _rtl(f"ميني ماركت الفنية   |   صفحة {self._pageNumber} من {total}"))
+        page_width, _ = self._pagesize
+        self.drawCentredString(page_width / 2, 4 * mm, _rtl(f"صفحة {self._pageNumber} من {total}"))
         self.restoreState()
 
 
@@ -108,31 +109,32 @@ def _rtl(text):
 
 def render_inventory_pdf(snapshot):
     out = BytesIO()
-    doc = SimpleDocTemplate(out, pagesize=A4, rightMargin=12 * mm, leftMargin=12 * mm, topMargin=12 * mm, bottomMargin=16 * mm, title="جرد المخزون - ميني ماركت الفنية")
+    page = landscape(A4)
+    doc = SimpleDocTemplate(out, pagesize=page, rightMargin=6 * mm, leftMargin=6 * mm, topMargin=6 * mm, bottomMargin=9 * mm, title="جرد المخزون - ميني ماركت الفنية")
     styles = getSampleStyleSheet()
-    normal = ParagraphStyle("InventoryNormal", parent=styles["Normal"], fontName=FONT, fontSize=8, leading=11, alignment=TA_RIGHT)
-    bold = ParagraphStyle("InventoryBold", parent=normal, fontName=FONT_BOLD, fontSize=10, leading=13)
-    title = ParagraphStyle("InventoryTitle", parent=bold, fontSize=16, leading=20, alignment=TA_RIGHT)
-    story = [_p("ميني ماركت الفنية", title), _p("كشف جرد المخزون", bold), Spacer(1, 4)]
+    normal = ParagraphStyle("InventoryNormal", parent=styles["Normal"], fontName=FONT, fontSize=6.4, leading=7.2, alignment=TA_RIGHT, spaceAfter=0, spaceBefore=0)
+    bold = ParagraphStyle("InventoryBold", parent=normal, fontName=FONT_BOLD, fontSize=7.2, leading=8.2, spaceAfter=0, spaceBefore=0)
+    title = ParagraphStyle("InventoryTitle", parent=bold, fontSize=10.5, leading=11.5, alignment=TA_RIGHT)
+    story = [_p("ميني ماركت الفنية — كشف جرد المخزون", title), Spacer(1, 1.5 * mm)]
     dt = snapshot["created_at"].astimezone(timezone.utc)
     meta = [[_p("رقم الجرد", bold), _p(snapshot["audit_no"], normal), _p("التاريخ والوقت", bold), _p(dt.strftime("%Y-%m-%d %H:%M UTC"), normal)],
             [_p("المستودع / الفرع", bold), _p(snapshot["branch"], normal), _p("مسؤول الجرد", bold), _p(snapshot["actor_name"], normal)]]
-    meta_table = Table(meta, colWidths=[28*mm, 52*mm, 28*mm, 72*mm], repeatRows=2)
-    meta_table.setStyle(TableStyle([("GRID", (0,0), (-1,-1), .35, colors.grey), ("BACKGROUND", (0,0), (-1,-1), colors.whitesmoke), ("VALIGN", (0,0), (-1,-1), "MIDDLE")]))
-    story += [meta_table, Spacer(1, 8)]
+    meta_table = Table(meta, colWidths=[24*mm, 70*mm, 24*mm, 70*mm], repeatRows=2, rowHeights=[6.5*mm, 6.5*mm])
+    meta_table.setStyle(TableStyle([("GRID", (0,0), (-1,-1), .25, colors.grey), ("BACKGROUND", (0,0), (-1,-1), colors.whitesmoke), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("LEFTPADDING", (0,0), (-1,-1), 2), ("RIGHTPADDING", (0,0), (-1,-1), 2), ("TOPPADDING", (0,0), (-1,-1), 1), ("BOTTOMPADDING", (0,0), (-1,-1), 1)]))
+    story += [meta_table, Spacer(1, 2 * mm)]
     headers = ["م", "الباركود (كود المنتج)", "اسم المنتج", "الوحدة", "الكمية الفعلية", "كمية النظام", "تكلفة الوحدة"]
     data = [[_p(h, bold) for h in headers]]
     for row in snapshot["rows"]:
         data.append([_p(row["line_no"], normal), _p(row["barcode"], normal), _p(row["name"], normal), _p(row["unit"], normal), _p(f'{row["actual_quantity"]:,.2f}', normal), _p(f'{row["system_quantity"]:,.2f}', normal), _p(f'{row["unit_cost"]:,.2f}', normal)])
     # Keep the table within A4 printable width (210 - 24 = 186 mm).
-    table = Table(data, colWidths=[8*mm, 29*mm, 46*mm, 19*mm, 27*mm, 27*mm, 30*mm], repeatRows=1, splitByRow=1)
-    table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0f2948")), ("TEXTCOLOR", (0,0), (-1,0), colors.white), ("GRID", (0,0), (-1,-1), .3, colors.grey), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("ALIGN", (0,0), (-1,-1), "RIGHT"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f8fafc")]), ("FONTNAME", (0,0), (-1,-1), FONT)]))
-    story += [table, Spacer(1, 8)]
-    totals = [[_p("إجمالي عدد الأصناف", bold), _p(snapshot["total_items"], normal), _p("إجمالي الكمية الفعلية", bold), _p(f'{snapshot["total_actual"]:,.2f}', normal), _p("إجمالي كمية النظام", bold), _p(f'{snapshot["total_system"]:,.2f}', normal)]]
-    totals_table = Table(totals, colWidths=[31*mm, 18*mm, 35*mm, 20*mm, 31*mm, 20*mm])
-    totals_table.setStyle(TableStyle([("GRID", (0,0), (-1,-1), .35, colors.grey), ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#fef3c7"))]))
-    story += [totals_table, Spacer(1, 8), _p("ملاحظات الجرد", bold), Spacer(1, 14)]
-    signatures = [[_p("مسؤول الجرد:", bold), _p("الاسم: ____________________\nالتوقيع: ____________________\nالتاريخ: ____________________", normal)], [_p("المراجع:", bold), _p("الاسم: ____________________\nالتوقيع: ____________________\nالتاريخ: ____________________", normal)], [_p("مدير النظام:", bold), _p("الاسم: ____________________\nالتوقيع: ____________________\nالتاريخ: ____________________", normal)]]
-    story.append(Table(signatures, colWidths=[35*mm, 140*mm], rowHeights=[18*mm]*3, style=[("GRID", (0,0), (-1,-1), .35, colors.grey), ("VALIGN", (0,0), (-1,-1), "TOP")]))
+    table = Table(data, colWidths=[10*mm, 35*mm, 88*mm, 27*mm, 34*mm, 34*mm, 45*mm], repeatRows=1, splitByRow=1, rowSplitRange=(1, -1))
+    table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0f2948")), ("TEXTCOLOR", (0,0), (-1,0), colors.white), ("GRID", (0,0), (-1,-1), .2, colors.grey), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("ALIGN", (0,0), (-1,-1), "RIGHT"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f8fafc")]), ("FONTNAME", (0,0), (-1,-1), FONT), ("LEFTPADDING", (0,0), (-1,-1), 1.5), ("RIGHTPADDING", (0,0), (-1,-1), 1.5), ("TOPPADDING", (0,0), (-1,-1), 1), ("BOTTOMPADDING", (0,0), (-1,-1), 1)]))
+    story += [table, Spacer(1, 2 * mm)]
+    totals = [[_p("عدد الأصناف", bold), _p(snapshot["total_items"], normal), _p("الكمية الفعلية", bold), _p(f'{snapshot["total_actual"]:,.2f}', normal), _p("كمية النظام", bold), _p(f'{snapshot["total_system"]:,.2f}', normal)]]
+    totals_table = Table(totals, colWidths=[25*mm, 20*mm, 30*mm, 25*mm, 25*mm, 25*mm], rowHeights=[7*mm])
+    totals_table.setStyle(TableStyle([("GRID", (0,0), (-1,-1), .25, colors.grey), ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#fef3c7")), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("LEFTPADDING", (0,0), (-1,-1), 2), ("RIGHTPADDING", (0,0), (-1,-1), 2)]))
+    story += [totals_table, Spacer(1, 2 * mm), _p("ملاحظات الجرد: " + (snapshot.get("notes") or "—"), normal)]
+    signatures = [[_p("مسؤول الجرد", bold), _p("المراجع", bold), _p("مدير النظام", bold)], [_p("الاسم: __________  التوقيع: __________  التاريخ: ______", normal), _p("الاسم: __________  التوقيع: __________  التاريخ: ______", normal), _p("الاسم: __________  التوقيع: __________  التاريخ: ______", normal)]]
+    story.append(Table(signatures, colWidths=[82*mm, 82*mm, 82*mm], rowHeights=[5*mm, 8*mm], style=[("GRID", (0,0), (-1,-1), .25, colors.grey), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("LEFTPADDING", (0,0), (-1,-1), 2), ("RIGHTPADDING", (0,0), (-1,-1), 2)]))
     doc.build(story, canvasmaker=_NumberedCanvas)
     return out.getvalue()
