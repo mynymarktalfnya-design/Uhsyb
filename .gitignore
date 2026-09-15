@@ -59,3 +59,5 @@ Thumbs.db
 local-service/*.sqlite3
 local-service/*.sqlite3-*
 .mmf/
+
+config/telegram-reports.env

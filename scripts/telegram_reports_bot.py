@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -27,7 +28,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "market-backend"))
-from database import get_db, C
+from database import get_db, C, DB_BACKEND
 from inventory_audit_report import build_inventory_snapshot, render_inventory_pdf, _p, _rtl, FONT, FONT_BOLD
 from routes.reports import daily_sales, monthly_sales, profits, _purchase_report_row
 from routes.customer_accounts import customer_statement
@@ -51,6 +52,8 @@ PAGE_SIZE = 8
 PENDING_SEARCH: dict[str, str] = {}
 CALLBACK_GUARD: dict[tuple[str, str], float] = {}
 REPORT_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="telegram-report")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s telegram-reports %(message)s")
+logger = logging.getLogger("telegram-reports")
 
 
 def api(method: str, payload: dict | None = None, files: dict | None = None):
@@ -326,15 +329,18 @@ def _run_callback(data, chat_id):
 
 def configure_commands():
     api("setMyCommands", {"commands": json.dumps([{"command": "menu", "description": "القائمة الرئيسية"}, {"command": "inventory", "description": "جرد المخزون PDF"}], ensure_ascii=False)})
+    logger.info("Telegram commands configured; database_backend=%s", DB_BACKEND)
 
 
 def main():
-    offset = 0; configure_commands()
+    offset = 0
+    configure_commands()
+    logger.info("Telegram reports bot started; polling enabled")
     while True:
         try:
             for update in api("getUpdates", {"timeout": 45, "offset": offset}) or []:
                 offset = update["update_id"] + 1; handle(update)
         except Exception as exc:
-            print(f"telegram reports bot error: {exc}", flush=True); time.sleep(5)
+            logger.error("Telegram polling error; retrying: %s", str(exc)[:300]); time.sleep(5)
 
 if __name__ == "__main__": main()
