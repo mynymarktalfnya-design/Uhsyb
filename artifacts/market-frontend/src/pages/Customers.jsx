@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Users, Phone, Receipt, Eye, Printer, Wallet,
@@ -24,6 +24,7 @@ const Customers = () => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const saveLockRef = useRef(false);
   const empty = { code: '', full_name: '', phone: '', email: '', address: '', credit_limit: 0 };
   const [form, setForm] = useState(empty);
 
@@ -38,6 +39,8 @@ const Customers = () => {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
   const save = async () => {
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
     try {
       const payload = { ...form, credit_limit: Number(form.credit_limit) };
       if (!payload.email) delete payload.email;
@@ -46,6 +49,7 @@ const Customers = () => {
       toast({ title: editing ? 'تم التحديث' : 'تمت الإضافة' });
       setOpen(false); load();
     } catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' }); }
+    finally { saveLockRef.current = false; }
   };
 
   const del = async (c) => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Plus, Wallet, Calendar, TrendingDown, BarChart3, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -21,6 +21,7 @@ const Expenses = () => {
     .toISOString().split('T')[0];
 
   const [items, setItems]       = useState([]);
+  const saveLockRef = useRef(false);
   const [cats, setCats]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [open, setOpen]         = useState(false);
@@ -86,9 +87,11 @@ const Expenses = () => {
 
   // ─── save ─────────────────────────────────────────────────────────
   const save = async () => {
+    if (saveLockRef.current) return;
     if (!form.amount || Number(form.amount) <= 0) {
       toast({ title: 'المبلغ مطلوب ويجب أن يكون أكبر من صفر', variant: 'destructive' }); return;
     }
+    saveLockRef.current = true;
     try {
       await api.post('/expenses', {
         ...form,
@@ -101,6 +104,8 @@ const Expenses = () => {
       load();
     } catch (e) {
       toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' });
+    } finally {
+      saveLockRef.current = false;
     }
   };
 

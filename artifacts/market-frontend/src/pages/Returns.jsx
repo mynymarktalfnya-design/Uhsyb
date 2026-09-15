@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Search, FileText, CheckCircle, XCircle, Printer, RefreshCw,
   AlertTriangle, Receipt, User, Filter, TrendingDown,
@@ -37,6 +37,7 @@ export default function Returns() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeReturn, setActiveReturn] = useState(null);
   const [rejectOpen, setRejectOpen] = useState(false);
+  const actionLockRef = useRef(false);
   const [rejectReason, setRejectReason] = useState('');
 
   // إحصائيات اليوم والشهر
@@ -112,7 +113,9 @@ export default function Returns() {
   };
 
   const approve = async (ret) => {
+    if (actionLockRef.current) return;
     if (!window.confirm(`هل تريد اعتماد المرتجع ${ret.return_no || ''} بقيمة ${Number(ret.total).toFixed(2)} ر.ي ؟\nسيتم استرجاع المخزون وتعديل الحسابات تلقائياً.`)) return;
+    actionLockRef.current = true;
     try {
       await api.post(`/sales-returns/${ret.id}/approve`);
       toast({ title: '✅ تم اعتماد المرتجع' });
@@ -120,18 +123,22 @@ export default function Returns() {
       load();
       loadStats();
     } catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' }); }
+    finally { actionLockRef.current = false; }
   };
 
   const submitReject = async () => {
+    if (actionLockRef.current) return;
     if (!rejectReason.trim() || rejectReason.trim().length < 3) {
       toast({ title: 'سبب الرفض إجباري', variant: 'destructive' }); return;
     }
+    actionLockRef.current = true;
     try {
       await api.post(`/sales-returns/${activeReturn.id}/reject`, { reason: rejectReason });
       toast({ title: 'تم رفض الطلب' });
       setRejectOpen(false); setDetailOpen(false); setRejectReason('');
       load();
-    } catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' }); }
+    } catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' });
+    } finally { actionLockRef.current = false; }
   };
 
   const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(n ?? 0);

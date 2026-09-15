@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, Store, Phone, Eye, Printer, Wallet, Edit2, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
@@ -20,6 +20,7 @@ const Suppliers = () => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const saveLockRef = useRef(false);
   const empty = { code: '', name: '', contact_person: '', phone: '', email: '', address: '' };
   const [form, setForm] = useState(empty);
 
@@ -32,6 +33,8 @@ const Suppliers = () => {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
   const save = async () => {
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
     try {
       const payload = { ...form };
       if (!payload.email) delete payload.email;
@@ -40,6 +43,7 @@ const Suppliers = () => {
       toast({ title: editing ? 'تم التحديث' : 'تمت الإضافة' });
       setOpen(false); load();
     } catch (e) { toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' }); }
+    finally { saveLockRef.current = false; }
   };
 
   const del = async (s) => {

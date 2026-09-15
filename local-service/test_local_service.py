@@ -55,6 +55,18 @@ class LocalQueueTests(unittest.TestCase):
         self.assertNotIn("raw-secret-token", stored["headers"])
         self.assertNotIn("Authorization", stored["headers"])
 
+    def test_sync_does_not_send_row_claimed_by_another_worker(self):
+        row = service.enqueue({
+            "operation_id": "op-claimed", "url": "http://127.0.0.1:9/unreachable",
+            "method": "POST", "body": {}, "headers": {},
+        })
+        with service._db_lock:
+            conn = service.db()
+            conn.execute("UPDATE operations SET state='syncing' WHERE id=?", (row["id"],))
+            conn.commit(); conn.close()
+        self.assertIsNone(service.sync_one(row))
+        self.assertEqual(service.list_operations()[0]["state"], "syncing")
+
 
 if __name__ == "__main__":
     unittest.main()

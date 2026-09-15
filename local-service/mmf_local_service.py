@@ -119,9 +119,16 @@ def list_operations(limit=100):
 def sync_one(row, transient_auth=None):
     with _db_lock:
         conn = db()
-        conn.execute("UPDATE operations SET state='syncing', updated_at=? WHERE id=? AND state IN ('pending','failed')", (now(), row["id"]))
+        claimed = conn.execute(
+            "UPDATE operations SET state='syncing', updated_at=? WHERE id=? AND state IN ('pending','failed')",
+            (now(), row["id"]),
+        ).rowcount
         conn.commit()
         conn.close()
+    # Another worker/request may have claimed this row between listing and
+    # sending. Never send an operation unless this worker owns the claim.
+    if claimed != 1:
+        return None
     saved = json.loads(row["headers"] or "{}")
     headers = dict(saved.get("headers") or {})
     auth = transient_auth or _unprotect_auth(saved.get("auth_protected"))

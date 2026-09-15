@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Search, ArrowRight, ArrowLeft, RotateCcw, Repeat,
   AlertCircle, CheckCircle2, Receipt, Banknote, CreditCard, UserCheck,
@@ -32,6 +32,7 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
   const [returnQtys, setReturnQtys] = useState({});      // { sale_item_id: qty }
   const [reason, setReason] = useState('');
   const [mode, setMode] = useState(null);                // 'return' | 'exchange'
+  const submitLockRef = useRef(false);
 
   // exchange state
   const [products, setProducts] = useState([]);
@@ -165,6 +166,8 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
 
   // === Submit handlers ===
   const submitReturnOnly = async () => {
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
     setSubmitting(true);
     try {
       const items = Object.entries(returnQtys)
@@ -187,10 +190,11 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
       onCompleted?.();
     } catch (e) {
       toast({ title: 'فشل تنفيذ المرتجع', description: formatApiError(e), variant: 'destructive' });
-    } finally { setSubmitting(false); }
+    } finally { submitLockRef.current = false; setSubmitting(false); }
   };
 
   const submitExchange = async () => {
+    if (submitLockRef.current) return;
     if (diff > 0 && !cashPaidConfirmed) {
       toast({
         title: 'يجب تأكيد استلام فرق السعر',
@@ -199,6 +203,7 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
       });
       return;
     }
+    submitLockRef.current = true;
     setSubmitting(true);
     try {
       const return_items = Object.entries(returnQtys)
@@ -228,7 +233,7 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
       onCompleted?.();
     } catch (e) {
       toast({ title: 'فشل تنفيذ الاستبدال', description: formatApiError(e), variant: 'destructive' });
-    } finally { setSubmitting(false); }
+    } finally { submitLockRef.current = false; setSubmitting(false); }
   };
 
   // === RENDER ===

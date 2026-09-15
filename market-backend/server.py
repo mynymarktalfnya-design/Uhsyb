@@ -44,25 +44,49 @@ class OperationReceiptMiddleware(BaseHTTPMiddleware):
         # Avoid a second database write on the cashier's critical payment path.
         if request.url.path == "/api/sales":
             return await call_next(request)
-        prior = db[C.operation_receipts].find_one({"operation_id": operation_id, "method": request.method, "path": request.url.path})
+        identity = {"operation_id": operation_id, "method": request.method, "path": request.url.path}
+        prior = db[C.operation_receipts].find_one(identity)
         if prior:
+            if prior.get("status") == "processing":
+                return JSONResponse(
+                    content={"detail": "العملية نفسها قيد التنفيذ، أعد المحاولة لاحقاً"},
+                    status_code=409,
+                    headers={"X-Idempotent-Processing": "true"},
+                )
             return JSONResponse(content=prior.get("body", {}), status_code=int(prior.get("status_code", 200)), headers={"X-Idempotent-Replay": "true"})
-        response = await call_next(request)
-        if response.status_code < 400 and "application/json" in (response.headers.get("content-type") or ""):
-            chunks = [chunk async for chunk in response.body_iterator]
-            raw = b"".join(chunks)
-            try:
-                body = json.loads(raw.decode("utf-8") or "{}")
-                db[C.operation_receipts].insert_one({
-                    "_id": new_id(), "operation_id": operation_id,
-                    "method": request.method, "path": request.url.path,
-                    "status_code": response.status_code, "body": body,
-                    "created_at": datetime.now(timezone.utc),
-                })
-            except Exception as exc:
-                logger.warning("operation receipt skipped: %s", exc)
-            return Response(content=raw, status_code=response.status_code, headers=dict(response.headers), media_type="application/json")
-        return response
+        # Claim the operation before running the handler. The unique index on
+        # operation_id makes this atomic across concurrent requests/workers.
+        try:
+            db[C.operation_receipts].insert_one({
+                "_id": new_id(), **identity, "status": "processing",
+                "created_at": datetime.now(timezone.utc),
+            })
+        except Exception:
+            prior = db[C.operation_receipts].find_one(identity)
+            if prior and prior.get("status") == "completed":
+                return JSONResponse(content=prior.get("body", {}), status_code=int(prior.get("status_code", 200)), headers={"X-Idempotent-Replay": "true"})
+            return JSONResponse(content={"detail": "العملية نفسها قيد التنفيذ، أعد المحاولة لاحقاً"}, status_code=409, headers={"X-Idempotent-Processing": "true"})
+        try:
+            response = await call_next(request)
+            if response.status_code < 400:
+                chunks = [chunk async for chunk in response.body_iterator]
+                raw = b"".join(chunks)
+                try:
+                    body = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    body = {}
+                db[C.operation_receipts].update_one(identity, {"$set": {
+                    "status": "completed", "status_code": response.status_code,
+                    "body": body, "completed_at": datetime.now(timezone.utc),
+                }})
+                return Response(content=raw, status_code=response.status_code, headers=dict(response.headers))
+            # A failed request is retryable with the same operation ID; release the claim.
+            db[C.operation_receipts].delete_one(identity)
+            return response
+        except Exception:
+            # Do not leave a failed handler permanently marked as processing.
+            db[C.operation_receipts].delete_one(identity)
+            raise
 
 app.add_middleware(
     CORSMiddleware,

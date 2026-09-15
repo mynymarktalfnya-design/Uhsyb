@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Lock, Calendar, Banknote, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -27,6 +27,7 @@ export default function DayClose() {
   const [actualCash, setActualCash] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const submitLockRef = useRef(false);
 
   const loadPreview = async () => {
     setLoading(true);
@@ -47,10 +48,12 @@ export default function DayClose() {
   useEffect(() => { loadPreview(); loadHistory(); /* eslint-disable-next-line */ }, [businessDate]);
 
   const submit = async () => {
+    if (submitLockRef.current) return;
     if (actualCash === '' || isNaN(Number(actualCash))) {
       toast({ title: 'أدخل النقد الفعلي المعدود', variant: 'destructive' });
       return;
     }
+    submitLockRef.current = true;
     setSaving(true);
     try {
       await api.post('/day-closes', {
@@ -64,6 +67,7 @@ export default function DayClose() {
     } catch (e) {
       toast({ title: 'خطأ', description: formatApiError(e), variant: 'destructive' });
     }
+    submitLockRef.current = false;
     setSaving(false);
   };
 
