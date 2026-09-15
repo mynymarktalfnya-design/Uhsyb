@@ -59,7 +59,10 @@ export async function listQueue() {
   try {
     if (await localServiceAvailable()) {
       const response = await fetch(`${LOCAL_SERVICE_URL}/queue`, { signal: AbortSignal.timeout(1200) });
-      if (response.ok) return (await response.json()).operations || [];
+      if (response.ok) {
+        const rows = (await response.json()).operations || [];
+        return rows.filter((row) => ['pending', 'failed', 'syncing'].includes(row.state));
+      }
     }
   } catch {}
   try {
@@ -82,10 +85,16 @@ export async function removeFromQueue(id) {
 }
 
 /** Replay browser fallback queue; local-service queues are synced by their own process. */
+let flushInFlight = null;
+
 export async function flushQueue() {
+  if (flushInFlight) return flushInFlight;
+  flushInFlight = (async () => {
   if (await localServiceAvailable()) {
     try {
-      const response = await fetch(`${LOCAL_SERVICE_URL}/sync`, { method: 'POST', signal: AbortSignal.timeout(30000) });
+      const auth = typeof localStorage !== 'undefined' ? localStorage.getItem('mm_token') : null;
+      const headers = auth ? { Authorization: `Bearer ${auth}` } : {};
+      const response = await fetch(`${LOCAL_SERVICE_URL}/sync`, { method: 'POST', headers, signal: AbortSignal.timeout(30000) });
       if (response.ok) {
         const rows = (await response.json()).operations || [];
         return { success: rows.filter(x => x.state === 'synced').length, failed: rows.filter(x => x.state === 'failed').length, source: 'local-service' };
@@ -107,6 +116,8 @@ export async function flushQueue() {
     } catch { failed += 1; }
   }
   return { success, failed, source: 'indexeddb' };
+  })();
+  try { return await flushInFlight; } finally { flushInFlight = null; }
 }
 
 let onlineListeners = [];
@@ -114,8 +125,17 @@ export function onConnectivityChange(cb) { onlineListeners.push(cb); return () =
 function emit() { onlineListeners.forEach(cb => { try { cb(navigator.onLine); } catch {} }); }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', async () => { emit(); const result = await flushQueue(); if (result.success || result.failed) window.dispatchEvent(new CustomEvent('offline-sync', { detail: result })); });
+  const syncNow = async () => {
+    emit();
+    if (!navigator.onLine) return;
+    const result = await flushQueue();
+    window.dispatchEvent(new CustomEvent('offline-sync', { detail: result }));
+  };
+  window.addEventListener('online', syncNow);
   window.addEventListener('offline', emit);
+  // navigator.onLine can remain true while the API/server is temporarily down.
+  // Retry quietly so queued work is eventually delivered without a manual click.
+  window.setInterval(() => { if (navigator.onLine) syncNow(); }, 10000);
 }
 
 export function registerServiceWorker() {

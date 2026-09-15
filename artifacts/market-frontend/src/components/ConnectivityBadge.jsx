@@ -19,7 +19,10 @@ const ConnectivityBadge = () => {
 
   useEffect(() => {
     refreshPending();
-    const off = onConnectivityChange((isOn) => setOnline(isOn));
+    const off = onConnectivityChange((isOn) => {
+      setOnline(isOn);
+      if (isOn) flushQueue().then(refreshPending).catch(() => {});
+    });
     const onSync = (e) => {
       const { success, failed } = e.detail || {};
       if (success > 0) {

@@ -48,6 +48,7 @@ api.interceptors.response.use(
           method,
           body: cfg.data,
           headers: safeHeaders,
+          operation_id: safeHeaders['X-Operation-ID'] || safeHeaders['x-operation-id'],
         });
         // Resolve as if successful (the UI updates optimistically); will sync when online
         return Promise.resolve({
