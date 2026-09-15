@@ -11,6 +11,7 @@ import io
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, time as dt_time, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlencode
@@ -48,6 +49,8 @@ if SAVED.get("enabled") is False or not TOKEN or not CHAT_ID:
 db = get_db()
 PAGE_SIZE = 8
 PENDING_SEARCH: dict[str, str] = {}
+CALLBACK_GUARD: dict[tuple[str, str], float] = {}
+REPORT_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="telegram-report")
 
 
 def api(method: str, payload: dict | None = None, files: dict | None = None):
@@ -120,10 +123,13 @@ def list_menu(kind, page=0, query=""):
     collection = C.suppliers if kind == "supplier" else C.customers
     name_field = "name" if kind == "supplier" else "full_name"
     filt = {"deleted_at": None}
-    if query: filt[name_field] = {"$regex": query, "$options": "i"}
-    rows = list(db[collection].find(filt).sort(name_field, 1))
-    pages = max(1, (len(rows) + PAGE_SIZE - 1) // PAGE_SIZE)
+    if query:
+        rx = {"$regex": query, "$options": "i"}
+        filt["$or"] = [{name_field: rx}, {"phone": rx}, {"code": rx}]
+    total = db[collection].count_documents(filt)
+    pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
     page = max(0, min(page, pages - 1))
+    rows = list(db[collection].find(filt).sort(name_field, 1).skip(page * PAGE_SIZE).limit(PAGE_SIZE))
     buttons = []
     for row in rows[page * PAGE_SIZE:(page + 1) * PAGE_SIZE]:
         label = str(row.get(name_field) or "بدون اسم")[:45]
@@ -146,13 +152,13 @@ def account_period_menu(kind, entity_id):
     ]}
 
 
-def inventory_pdf():
+def inventory_pdf(chat_id=CHAT_ID):
     now = datetime.now(TZ)
     snapshot = build_inventory_snapshot(db, audit_no=f"AUD-{now.strftime('%Y%m%d-%H%M%S')}", actor_name="Telegram", branch="ميني ماركت الفنية", created_at=now)
-    return send_pdf(f"جرد المخزون - ميني ماركت الفنية - {now:%Y-%m-%d}.pdf", render_inventory_pdf(snapshot), "كشف جرد المخزون الحالي")
+    return send_pdf(f"جرد المخزون - ميني ماركت الفنية - {now:%Y-%m-%d}.pdf", render_inventory_pdf(snapshot), "كشف جرد المخزون الحالي", chat_id)
 
 
-def sales_report(kind):
+def sales_report(kind, chat_id=CHAT_ID):
     start, end, today = period_range(kind)
     if kind == "day":
         report = daily_sales(date=today.isoformat(), db=db, _u=None)
@@ -162,7 +168,7 @@ def sales_report(kind):
         title = f"📊 المبيعات الشهرية — {today:%Y-%m}"
     credit = 0.0
     for sale in db[C.sales].find({"created_at": {"$gte": start, "$lt": end}, "status": "completed", "deleted_at": None, "payment_method": "credit"}, {"total": 1}): credit += float(sale.get("total", 0) or 0)
-    send(f"{title}\n\nإجمالي المبيعات: {money(report['total_sales'])}\nإجمالي المرتجعات: {money(report['total_returns'])}\nإجمالي مبيعات الأجل: {money(credit)}\nصافي المبيعات بعد خصم المرتجعات: {money(report['net_sales'])}\nعدد الفواتير: {report['transactions_count']}\nعدد المرتجعات: {report['returns_count']}", back_menu())
+    send(f"{title}\n\nإجمالي المبيعات: {money(report['total_sales'])}\nإجمالي المرتجعات: {money(report['total_returns'])}\nإجمالي مبيعات الأجل: {money(credit)}\nصافي المبيعات بعد خصم المرتجعات: {money(report['net_sales'])}\nعدد الفواتير: {report['transactions_count']}\nعدد المرتجعات: {report['returns_count']}", back_menu(), chat_id)
 
 
 def purchase_rows(kind):
@@ -171,11 +177,11 @@ def purchase_rows(kind):
     return [_purchase_report_row(db, row) for row in rows]
 
 
-def purchases_report(kind):
+def purchases_report(kind, chat_id=CHAT_ID):
     rows = purchase_rows(kind)
     title = "🛒 مشتريات اليوم" if kind == "day" else "🛒 المشتريات الشهرية"
     if kind == "month" and len(rows) > 4:
-        return send_pdf(f"مشتريات-{business_today():%Y-%m}.pdf", build_purchase_pdf(rows, title), title)
+        return send_pdf(f"مشتريات-{business_today():%Y-%m}.pdf", build_purchase_pdf(rows, title), title, chat_id)
     chunks = [title]
     for invoice in rows:
         chunks.append(f"\nالتاجر: {invoice['supplier_name']}\nالفاتورة: {invoice['ref_no']}\nالتاريخ: {str(invoice['date'])[:19]}")
@@ -183,7 +189,7 @@ def purchases_report(kind):
             chunks.append(f"{i}. {item['product_name']} — الكمية: {item['quantity']:,.2f} — سعر الشراء: {money(item['unit_cost'])} — الإجمالي: {money(item['total'])}")
         chunks.append(f"إجمالي الفاتورة: {money(invoice['total'])}")
     chunks.append(f"\nإجمالي المشتريات: {money(sum(x['total'] for x in rows))}\nعدد الفواتير: {len(rows)}")
-    send("\n".join(chunks)[:3900], back_menu())
+    send("\n".join(chunks)[:3900], back_menu(), chat_id)
 
 
 def expense_rows(kind):
@@ -197,17 +203,17 @@ def expense_rows(kind):
     return out
 
 
-def expenses_report(kind):
+def expenses_report(kind, chat_id=CHAT_ID):
     rows = expense_rows(kind)
     title = "💸 مصروفات اليوم" if kind == "day" else "💸 مصروفات الشهر"
     text = [title]
     for row in rows: text.append(f"\nالتاريخ: {row.get('expense_date') or '—'}\nالنوع: {row['category_name']}\nالوصف: {row.get('description') or '—'}\nالمبلغ: {money(row.get('amount'))}")
     text.append(f"\nإجمالي المصروفات: {money(sum(float(x.get('amount', 0) or 0) for x in rows))}")
-    if len("".join(text)) > 3900: return send_pdf(f"مصروفات-{business_today():%Y-%m}.pdf", build_expense_pdf(rows, title), title)
-    send("".join(text), back_menu())
+    if len("".join(text)) > 3900: return send_pdf(f"مصروفات-{business_today():%Y-%m}.pdf", build_expense_pdf(rows, title), title, chat_id)
+    send("".join(text), back_menu(), chat_id)
 
 
-def profit_report(kind):
+def profit_report(kind, chat_id=CHAT_ID):
     start, end = period_range(kind)
     report = profits(date_from=start.strftime("%Y-%m-%d"), date_to=(end - timedelta(days=1)).strftime("%Y-%m-%d"), db=db, _u=None)
     expenses = sum(float(x.get("amount", 0) or 0) for x in expense_rows(kind))
@@ -215,13 +221,13 @@ def profit_report(kind):
     text = (f"💰 الأرباح {'اليومية' if kind == 'day' else 'الشهرية'}\n\n"
             f"إجمالي المبيعات: {money(report['revenue'])}\nإجمالي المرتجعات: {money(report['total_returns'])}\nصافي المبيعات: {money(report['net_revenue'])}\n"
             f"تكلفة المنتجات المباعة: {money(report['cost'])}\nإجمالي الربح قبل المصروفات: {money(gross)}\nإجمالي المصروفات: {money(expenses)}\nصافي الربح بعد المصروفات: {money(gross - expenses)}")
-    if kind == "month" and report.get("items_count", 0) > 20: return send_pdf(f"أرباح-{business_today():%Y-%m}.pdf", build_profit_pdf(report, expenses), "تقرير الأرباح التفصيلي")
-    send(text, back_menu())
+    if kind == "month" and report.get("items_count", 0) > 20: return send_pdf(f"أرباح-{business_today():%Y-%m}.pdf", build_profit_pdf(report, expenses), "تقرير الأرباح التفصيلي", chat_id)
+    send(text, back_menu(), chat_id)
 
 
-def statement(kind, entity_id, period):
+def statement(kind, entity_id, period, chat_id=CHAT_ID):
     entity = db[C.suppliers if kind == "supplier" else C.customers].find_one({"_id": entity_id, "deleted_at": None})
-    if not entity: return send("السجل غير موجود.", back_menu())
+    if not entity: return send("السجل غير موجود.", back_menu(), chat_id)
     today = business_today(); start, end = period_range(period) if period != "all" else (None, None)
     if kind == "supplier":
         data = supplier_statement(entity_id, db=db, _u=None)
@@ -233,12 +239,12 @@ def statement(kind, entity_id, period):
         data = customer_statement(entity_id, date_from=start.strftime("%Y-%m-%d") if start else None, date_to=(end - timedelta(days=1)).strftime("%Y-%m-%d") if end else None, db=db, _u=None)
         name = entity.get("full_name", "—"); entries = data.get("entries", []); summary = {"balance": data.get("closing_balance", 0)}
     title = f"كشف حساب {'التاجر' if kind == 'supplier' else 'العميل'}: {name}"
-    if len(entries) > 12: return send_pdf(f"كشف-{entity_id}.pdf", build_statement_pdf(title, entries, summary), title)
+    if len(entries) > 12: return send_pdf(f"كشف-{entity_id}.pdf", build_statement_pdf(title, entries, summary), title, chat_id)
     lines = [title, f"الفترة: {'كامل' if period == 'all' else ('اليوم' if period == 'day' else 'الشهر')}\n"]
     for entry in entries:
         lines.append(f"\n{str(entry.get('date'))[:10]} — {entry.get('op_no', '—')} — {entry.get('description', '—')} — مدين: {money(entry.get('debit'))} — دائن: {money(entry.get('credit'))} — الرصيد: {money(entry.get('balance'))}")
     lines.append(f"\nالرصيد: {money(summary.get('balance', data.get('closing_balance', 0)))}")
-    send("".join(lines)[:3900], back_menu())
+    send("".join(lines)[:3900], back_menu(), chat_id)
 
 
 def build_pdf(title, headers, rows, filename):
@@ -274,15 +280,18 @@ def handle(update):
     callback = update.get("callback_query")
     if callback:
         data = callback.get("data", ""); api("answerCallbackQuery", {"callback_query_id": callback["id"]})
-        try: handle_callback(data, chat_id)
-        except Exception as exc: send(f"تعذر إنشاء التقرير: {str(exc)[:300]}", back_menu(), chat_id)
+        now = time.monotonic(); guard_key = (chat_id, data)
+        if now - CALLBACK_GUARD.get(guard_key, 0) < 0.75:
+            return
+        CALLBACK_GUARD[guard_key] = now
+        REPORT_EXECUTOR.submit(_run_callback, data, chat_id)
         return
     text = (message.get("text") or "").strip()
     if PENDING_SEARCH.get(chat_id):
         kind = PENDING_SEARCH.pop(chat_id); title, keyboard = list_menu(kind, 0, text); send(title, keyboard, chat_id); return
     if text.lower() in {"/start", "/menu", "menu", "القائمة", "القائمة الرئيسية"}:
         send("اختر التقرير المطلوب من النظام:", main_menu(), chat_id)
-    elif text.lower() in {"/inventory", "جرد المخزون"}: inventory_pdf()
+    elif text.lower() in {"/inventory", "جرد المخزون"}: inventory_pdf(chat_id)
     else: send("استخدم القائمة التفاعلية لاختيار التقرير.", main_menu(), chat_id)
 
 
@@ -294,18 +303,25 @@ def handle_callback(data, chat_id):
         if menu in {"sales", "purchases", "profits", "expenses"}: send("اختر الفترة:", period_menu(menu), chat_id)
         elif menu in {"customers", "suppliers"}:
             title, keyboard = list_menu("customer" if menu == "customers" else "supplier"); send(title, keyboard, chat_id)
-    elif data == "report:inventory": inventory_pdf()
+    elif data == "report:inventory": inventory_pdf(chat_id)
     elif parts[0] == "report":
         action, period = parts[1], parts[2]
-        if action == "sales": sales_report(period)
-        elif action == "purchases": purchases_report(period)
-        elif action == "profits": profit_report(period)
-        elif action == "expenses": expenses_report(period)
+        if action == "sales": sales_report(period, chat_id)
+        elif action == "purchases": purchases_report(period, chat_id)
+        elif action == "profits": profit_report(period, chat_id)
+        elif action == "expenses": expenses_report(period, chat_id)
     elif parts[0] == "list":
         title, keyboard = list_menu(parts[1], int(parts[2])); send(title, keyboard, chat_id)
     elif parts[0] == "search": PENDING_SEARCH[chat_id] = parts[1]; send("اكتب جزءًا من الاسم للبحث:", back_menu(), chat_id)
     elif parts[0] == "select": send("اختر الفترة المطلوبة:", account_period_menu(parts[1], parts[2]), chat_id)
-    elif parts[0] == "statement": statement(parts[1], parts[2], parts[3])
+    elif parts[0] == "statement": statement(parts[1], parts[2], parts[3], chat_id)
+
+
+def _run_callback(data, chat_id):
+    try:
+        handle_callback(data, chat_id)
+    except Exception as exc:
+        send(f"تعذر إنشاء التقرير: {str(exc)[:300]}", back_menu(), chat_id)
 
 
 def configure_commands():

@@ -33,6 +33,14 @@ def main():
     assert expenses.startswith(b'%PDF-')
     statement = bot.build_statement_pdf('اختبار كشف الحساب', [], {})
     assert statement.startswith(b'%PDF-')
+    bot.db[bot.C.customers].delete_many({})
+    bot.db[bot.C.customers].insert_many([
+        {'_id': f'customer-{i}', 'full_name': f'عميل {i}', 'deleted_at': None}
+        for i in range(19)
+    ])
+    title, keyboard = bot.list_menu('customer', 0)
+    assert 'صفحة 1/3' in title and len(keyboard['inline_keyboard'][0]) == 1
+    assert any(button.get('callback_data') == 'list:customer:1' for row in keyboard['inline_keyboard'] for button in row)
     print('PASS telegram import and PDF generators', len(inventory), len(purchases), len(expenses), len(statement))
 
 
