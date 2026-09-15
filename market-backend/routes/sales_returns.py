@@ -39,6 +39,13 @@ class SaleReturnCreate(BaseModel):
     return_type: str = Field(default="cash", description="cash | credit")
 
 
+class ProductReturnCreate(BaseModel):
+    product_id: str
+    quantity: float = Field(..., gt=0)
+    reason: Optional[str] = None
+    return_type: str = Field(default="cash")
+
+
 class RejectPayload(BaseModel):
     reason: str = Field(..., min_length=3)
 
@@ -133,6 +140,32 @@ def _already_returned_qty(db, sale_item_id: str) -> float:
         {"$group": {"_id": None, "total": {"$sum": "$quantity"}}},
     ]))
     return float(agg[0]["total"]) if agg else 0.0
+
+
+def _product_return_sources(db, product_id: str):
+    """Return real sale lines with remaining quantity, newest first."""
+    lines = list(db[C.sale_items].find({"product_id": product_id}))
+    sale_ids = [line.get("sale_id") for line in lines if line.get("sale_id")]
+    sales = {s["_id"]: s for s in db[C.sales].find({
+        "_id": {"$in": sale_ids}, "status": "completed", "deleted_at": None,
+    }, {"invoice_no": 1, "created_at": 1})} if sale_ids else {}
+    out = []
+    for line in lines:
+        sale = sales.get(line.get("sale_id"))
+        if not sale:
+            continue
+        sold = float(line.get("quantity", 0) or 0)
+        returned = _already_returned_qty(db, line["_id"])
+        available = max(0.0, sold - returned)
+        if available <= 1e-9:
+            continue
+        out.append({
+            "sale_id": line["sale_id"], "sale_item_id": line["_id"],
+            "invoice_no": sale.get("invoice_no"), "created_at": sale.get("created_at"),
+            "sold_quantity": sold, "returned_quantity": returned,
+            "available_quantity": available, "unit_price": float(line.get("unit_price", 0) or 0),
+        })
+    return sorted(out, key=lambda x: x.get("created_at") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
 
 
 def _apply_return_stock(db, return_id: str, current_user_id: str):
@@ -310,6 +343,78 @@ def instant_return(
                after={"return_no": return_no, "total": str(subtotal)})
 
     result = _enrich_return(db, db[C.sale_returns].find_one({"_id": rid}))
+    return result
+
+
+# ──────────────── Product-based return flow ─────────────────────────
+
+@router.get("/sales-returns/search-products")
+def search_products_for_return(
+    q: Optional[str] = None,
+    limit: int = Query(20, le=50),
+    db=Depends(get_db),
+    _u=Depends(require_cashier),
+):
+    """Search only products that have a real, still-returnable sale quantity."""
+    product_filter = {"deleted_at": None, "is_active": True}
+    if q:
+        barcodes = [b["product_id"] for b in db[C.barcodes].find({"barcode": {"$regex": q, "$options": "i"}}, {"product_id": 1})]
+        product_filter["$or"] = [{"name": {"$regex": q, "$options": "i"}}, {"sku": {"$regex": q, "$options": "i"}}, {"_id": {"$in": barcodes}}]
+    products = list(db[C.products].find(product_filter, {"name": 1, "sku": 1, "sale_price": 1}).sort("name", 1).limit(limit))
+    output = []
+    for product in products:
+        sources = _product_return_sources(db, product["_id"])
+        if not sources:
+            continue
+        codes = [b.get("barcode") for b in db[C.barcodes].find({"product_id": product["_id"]}, {"barcode": 1})]
+        output.append({"id": product["_id"], "name": product.get("name", "—"), "sku": product.get("sku"), "barcodes": codes, "sale_price": product.get("sale_price", 0), "sold_quantity": sum(x["sold_quantity"] for x in sources), "returned_quantity": sum(x["returned_quantity"] for x in sources), "available_quantity": sum(x["available_quantity"] for x in sources), "sources": sources})
+    return output
+
+
+@router.post("/sales-returns/instant-by-product", status_code=201)
+def instant_product_return(
+    payload: ProductReturnCreate,
+    db=Depends(get_db),
+    current=Depends(require_cashier),
+):
+    """Return a product quantity across newest real sale lines first."""
+    if payload.return_type not in {"cash", "credit"}:
+        raise HTTPException(400, "نوع المرتجع يجب أن يكون cash أو credit")
+    product = db[C.products].find_one({"_id": payload.product_id, "deleted_at": None})
+    if not product:
+        raise HTTPException(404, "المنتج غير موجود")
+    sources = _product_return_sources(db, payload.product_id)
+    available = sum(x["available_quantity"] for x in sources)
+    if payload.quantity > available + 1e-9:
+        raise HTTPException(400, f"الكمية المتاحة للإرجاع لهذا المنتج هي {available:.2f} فقط.")
+    remaining = float(payload.quantity)
+    allocations = []
+    for source in sources:
+        if remaining <= 1e-9:
+            break
+        quantity = min(remaining, source["available_quantity"])
+        allocations.append((source, quantity))
+        remaining -= quantity
+    now = datetime.now(timezone.utc)
+    rid = new_id(); return_no = _next_return_no(db)
+    item_docs = []
+    for source, quantity in allocations:
+        sale_item = db[C.sale_items].find_one({"_id": source["sale_item_id"]}) or {}
+        sold = float(sale_item.get("quantity", 0) or 0)
+        ppc = int(sale_item.get("pieces_per_carton", 1) or 1)
+        item_docs.append({"_id": new_id(), "return_id": rid, "sale_item_id": source["sale_item_id"], "product_id": payload.product_id, "quantity": quantity, "stock_quantity": quantity * (ppc if sale_item.get("sale_unit") == "carton" else 1), "unit_price": source["unit_price"], "total": round(quantity * (float(sale_item.get("total", 0) or 0) / sold if sold else 0), 2), "cost_price": float(sale_item.get("cost_price", 0) or 0), "cost_total": float(sale_item.get("cost_total", 0) or 0) * quantity / sold if sale_item.get("cost_total") is not None and sold else None})
+    total = round(sum(x["total"] for x in item_docs), 2)
+    first_sale = db[C.sales].find_one({"_id": allocations[0][0]["sale_id"]})
+    source_sale_ids = list({source["sale_id"] for source, _ in allocations})
+    db[C.sale_return_items].insert_many(item_docs)
+    db[C.sale_returns].insert_one({"_id": rid, "return_no": return_no, "sale_id": allocations[0][0]["sale_id"], "source_sale_ids": source_sale_ids, "customer_id": first_sale.get("customer_id") if first_sale else None, "subtotal": total, "total": total, "reason": payload.reason or "مرتجع حسب المنتج", "return_type": payload.return_type, "status": "approved", "created_by": current["_id"], "approved_by": current["_id"], "approved_at": now, "created_at": now, "updated_at": now, "deleted_at": None})
+    _apply_return_stock(db, rid, current["_id"])
+    if first_sale and first_sale.get("payment_method") == "credit" and first_sale.get("customer_id"):
+        balance = customer_account_totals(db, first_sale["customer_id"])["balance"]
+        db[C.customers].update_one({"_id": first_sale["customer_id"]}, {"$set": {"balance": balance, "updated_at": now}})
+    log_action(db, current["_id"], "sale_return_instant_by_product", "sale_returns", rid, after={"return_no": return_no, "total": str(total), "source_sale_ids": source_sale_ids})
+    result = _enrich_return(db, db[C.sale_returns].find_one({"_id": rid}))
+    result.update({"source_sale_ids": source_sale_ids, "source_invoice_nos": [s.get("invoice_no") for s in db[C.sales].find({"_id": {"$in": source_sale_ids}}, {"invoice_no": 1})]})
     return result
 
 

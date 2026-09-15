@@ -28,6 +28,10 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
   const [query, setQuery] = useState('');
   const [sales, setSales] = useState([]);
   const [selectedSale, setSelectedSale] = useState(null);
+  const [returnMode, setReturnMode] = useState('sale');
+  const [productResults, setProductResults] = useState([]);
+  const [selectedReturnProduct, setSelectedReturnProduct] = useState(null);
+  const [productReturnQty, setProductReturnQty] = useState(1);
   const [returnable, setReturnable] = useState(null);   // { items: [...], ... }
   const [returnQtys, setReturnQtys] = useState({});      // { sale_item_id: qty }
   const [reason, setReason] = useState('');
@@ -51,6 +55,10 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
       setQuery('');
       setSales([]);
       setSelectedSale(null);
+      setReturnMode('sale');
+      setProductResults([]);
+      setSelectedReturnProduct(null);
+      setProductReturnQty(1);
       setReturnable(null);
       setReturnQtys({});
       setReason('');
@@ -77,6 +85,15 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
     }, 250);
     return () => clearTimeout(t);
   }, [query, open, step]);
+
+  useEffect(() => {
+    if (!open || step !== STEPS.PICK_SALE || returnMode !== 'product') return;
+    const t = setTimeout(() => {
+      api.get('/sales-returns/search-products', { params: { q: query, limit: 20 } })
+        .then((r) => setProductResults(r.data || [])).catch(() => setProductResults([]));
+    }, 180);
+    return () => clearTimeout(t);
+  }, [query, open, step, returnMode]);
 
   // === Step 1 → 2 : pick sale & load returnable items ===
   const pickSale = async (s) => {
@@ -162,6 +179,22 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
         ? { ...x, quantity: Math.max(0, Math.min(x.stock, x.quantity + delta)) }
         : x)
       .filter((x) => x.quantity > 0));
+  };
+
+  const submitProductReturn = async () => {
+    if (submitLockRef.current || !selectedReturnProduct) return;
+    const quantity = Number(productReturnQty);
+    if (!quantity || quantity <= 0 || quantity > Number(selectedReturnProduct.available_quantity)) {
+      toast({ title: 'الكمية غير متاحة', description: `الكمية المتاحة للإرجاع لهذا المنتج هي ${fmt(selectedReturnProduct.available_quantity)} فقط.`, variant: 'destructive' });
+      return;
+    }
+    submitLockRef.current = true; setSubmitting(true);
+    try {
+      const { data } = await api.post('/sales-returns/instant-by-product', { product_id: selectedReturnProduct.id, quantity, reason: reason || 'مرتجع حسب المنتج', return_type: 'cash' });
+      setResultReceipt({ kind: 'return', return_no: data.return_no, total: data.total, return_type: data.return_type, items: data.items, invoice_no: (data.source_invoice_nos || []).join('، ') });
+      setStep(STEPS.RECEIPT); onCompleted?.();
+    } catch (e) { toast({ title: 'فشل تنفيذ المرتجع', description: formatApiError(e), variant: 'destructive' }); }
+    finally { submitLockRef.current = false; setSubmitting(false); }
   };
 
   // === Submit handlers ===
@@ -275,44 +308,59 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
           {/* === STEP 1: Pick sale === */}
           {step === STEPS.PICK_SALE && (
             <div className="space-y-4" data-testid="step-pick-sale">
+              <div className="flex gap-2">
+                <Button type="button" variant={returnMode === 'product' ? 'default' : 'outline'} onClick={() => { setReturnMode('product'); setQuery(''); }} data-testid="returns-by-product">مرتجع حسب المنتج</Button>
+                <Button type="button" variant={returnMode === 'sale' ? 'default' : 'outline'} onClick={() => { setReturnMode('sale'); setQuery(''); }}>مرتجع حسب الفاتورة</Button>
+              </div>
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="ابحث برقم الفاتورة أو اسم العميل أو الهاتف..."
+                  placeholder={returnMode === 'product' ? 'ابحث بالباركود أو اسم المنتج أو SKU...' : 'ابحث برقم الفاتورة أو اسم العميل أو الهاتف...'}
                   className="pr-10 h-11 bg-white"
                   autoFocus
                   data-testid="returns-search-sale"
                 />
               </div>
+              {returnMode === 'product' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {productResults.map((p) => (
+                  <button key={p.id} type="button" onClick={() => { setSelectedReturnProduct(p); setProductReturnQty(1); }} className={`text-right bg-white border-2 rounded-xl p-4 ${selectedReturnProduct?.id === p.id ? 'border-amber-500' : 'border-slate-200'}`}>
+                    <p className="font-bold text-slate-900">{p.name}</p>
+                    <p className="text-xs text-slate-500">{(p.barcodes || []).join(' • ') || p.sku || '—'}</p>
+                    <p className="mt-2 text-sm text-amber-800">المباع: {fmt(p.sold_quantity)} — المرتجع: {fmt(p.returned_quantity)} — المتاح: {fmt(p.available_quantity)}</p>
+                  </button>
+                ))}
+                {selectedReturnProduct && (
+                  <div className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <Label>كمية المرتجع</Label>
+                    <Input type="number" min="1" max={selectedReturnProduct.available_quantity} value={productReturnQty} onChange={(e) => setProductReturnQty(e.target.value)} className="mt-2 max-w-xs bg-white" />
+                    <Button type="button" disabled={submitting} onClick={submitProductReturn} className="mt-3">{submitting ? 'جارٍ التنفيذ...' : 'تأكيد استرجاع المبلغ'}</Button>
+                  </div>
+                )}
+                {!productResults.length && <p className="col-span-2 text-center text-slate-400 py-8">لا توجد كميات قابلة للإرجاع</p>}
+              </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {sales.length === 0 && (
                   <p className="col-span-2 text-center text-slate-400 py-8">لا توجد فواتير مطابقة</p>
                 )}
                 {sales.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => pickSale(s)}
-                    data-testid={`returns-sale-row-${s.invoice_no}`}
-                    className="text-right bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-amber-400 hover:shadow-lg transition-all group"
-                  >
+                  <button key={s.id} onClick={() => pickSale(s)} data-testid={`returns-sale-row-${s.invoice_no}`} className="text-right bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-amber-400 hover:shadow-lg transition-all group">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-mono font-bold text-amber-700 text-base">{s.invoice_no}</span>
-                      <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">
-                        {s.payment_method}
-                      </span>
+                      <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">{s.payment_method}</span>
                     </div>
                     <p className="text-sm text-slate-700">{s.customer_name || '— بدون عميل —'}</p>
                     <div className="flex justify-between items-end mt-2">
-                      <span className="text-xs text-slate-400">
-                        {new Date(s.created_at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
-                      </span>
+                      <span className="text-xs text-slate-400">{new Date(s.created_at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</span>
                       <span className="text-xl font-extrabold text-emerald-600">{fmt(s.total)} ر.ي</span>
                     </div>
                   </button>
                 ))}
               </div>
+              )}
             </div>
           )}
 
