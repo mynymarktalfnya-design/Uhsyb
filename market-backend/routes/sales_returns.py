@@ -46,6 +46,14 @@ class ProductReturnCreate(BaseModel):
     return_type: str = Field(default="cash")
 
 
+class ProductExchangeCreate(BaseModel):
+    product_id: str
+    quantity: float = Field(..., gt=0)
+    new_items: List[dict] = Field(..., min_length=1)
+    settlement: str = Field(default="cash")
+    reason: Optional[str] = None
+
+
 class RejectPayload(BaseModel):
     reason: str = Field(..., min_length=3)
 
@@ -418,6 +426,62 @@ def instant_product_return(
     return result
 
 
+@router.post("/sales-exchanges/by-product", status_code=201)
+def product_exchange(payload: ProductExchangeCreate, db=Depends(get_db), current=Depends(require_cashier)):
+    """Atomic-style product exchange: allocate real sale lines newest-first, then create replacement sale."""
+    from decimal import Decimal as D
+    if payload.settlement not in {"cash", "cash_refund", "credit"}:
+        raise HTTPException(400, "طريقة التسوية غير صحيحة")
+    product = db[C.products].find_one({"_id": payload.product_id, "deleted_at": None})
+    if not product:
+        raise HTTPException(404, "المنتج المرتجع غير موجود")
+    sources = _product_return_sources(db, payload.product_id)
+    available = sum(x["available_quantity"] for x in sources)
+    if payload.quantity > available + 1e-9:
+        raise HTTPException(400, f"الكمية المتاحة للإرجاع لهذا المنتج هي {available:.2f} فقط.")
+    remaining = float(payload.quantity); allocations=[]
+    for source in sources:
+        if remaining <= 1e-9: break
+        q=min(remaining, source["available_quantity"]); allocations.append((source,q)); remaining-=q
+    new_stock={}; replacement={}; new_item_docs=[]; new_total=D("0")
+    for raw in payload.new_items:
+        pid=str(raw.get("product_id")); qty=float(raw.get("quantity",0)); unit=raw.get("sale_unit","piece")
+        if qty <= 0 or unit not in {"piece","carton"}: raise HTTPException(400,"بيانات المنتج البديل غير صحيحة")
+        prod=db[C.products].find_one({"_id":pid,"deleted_at":None})
+        if not prod: raise HTTPException(404,f"منتج {pid} غير موجود")
+        ppc=int(prod.get("pieces_per_carton",1) or 1) if unit=="carton" else 1
+        stock=qty*ppc; new_stock[pid]=new_stock.get(pid,0)+stock; replacement[pid]=prod
+    for pid,stock in new_stock.items():
+        if float(replacement[pid].get("current_stock",0) or 0) < stock: raise HTTPException(400,f"المخزون غير كافٍ للمنتج {replacement[pid].get('name',pid)}")
+    return_items=[]; return_value=0.0
+    for source,q in allocations:
+        si=db[C.sale_items].find_one({"_id":source["sale_item_id"]}) or {}; sold=float(si.get("quantity",0) or 0); ppc=int(si.get("pieces_per_carton",1) or 1)
+        total=round(q*(float(si.get("total",0) or 0)/sold if sold else 0),2); return_value+=total
+        return_items.append({"_id":new_id(),"return_id":None,"sale_item_id":source["sale_item_id"],"product_id":payload.product_id,"quantity":q,"stock_quantity":q*(ppc if si.get("sale_unit")=="carton" else 1),"unit_price":source["unit_price"],"total":total,"cost_price":float(si.get("cost_price",0) or 0),"cost_total":float(si.get("cost_total",0) or 0)*q/sold if si.get("cost_total") is not None and sold else None})
+    now=datetime.now(timezone.utc); rid=new_id(); return_no=_next_return_no(db); new_sale_id=new_id()
+    for raw in payload.new_items:
+        prod=replacement[str(raw["product_id"])] ; qty=D(str(raw["quantity"])); unit=raw.get("sale_unit","piece"); ppc=int(prod.get("pieces_per_carton",1) or 1) if unit=="carton" else 1; line=D(str(prod.get("sale_price",0)))*qty*ppc; new_total+=line
+        new_item_docs.append({"_id":new_id(),"sale_id":new_sale_id,"product_id":str(raw["product_id"]),"quantity":float(qty),"unit_price":float(prod.get("sale_price",0)),"discount":0.0,"tax":0.0,"total":float(line),"sale_unit":unit,"pieces_per_carton":ppc if unit=="carton" else None,"created_at":now})
+    diff=round(float(new_total)-return_value,4); first_sale=db[C.sales].find_one({"_id":allocations[0][0]["sale_id"]}); customer_id=first_sale.get("customer_id") if first_sale else None
+    new_pm="credit" if diff<0 and payload.settlement=="credit" and customer_id else "cash"
+    today=now.strftime("%Y%m%d"); invoice=f"INV-{today}-{db[C.sales].count_documents({'invoice_no': {'$regex': '^INV-'+today+'-'}})+1:05d}"
+    for item in return_items: item["return_id"]=rid
+    source_ids=list({x[0]["sale_id"] for x in allocations})
+    db[C.sale_return_items].insert_many(return_items)
+    db[C.sale_returns].insert_one({"_id":rid,"return_no":return_no,"sale_id":source_ids[0],"source_sale_ids":source_ids,"customer_id":customer_id,"subtotal":return_value,"total":return_value,"reason":payload.reason or "استبدال حسب المنتج","return_type":"cash","status":"approved","created_by":current["_id"],"approved_by":current["_id"],"approved_at":now,"created_at":now,"updated_at":now,"deleted_at":None})
+    _apply_return_stock(db,rid,current["_id"])
+    db[C.sales].insert_one({"_id":new_sale_id,"invoice_no":invoice,"shift_id":None,"cashier_id":current["_id"],"customer_id":customer_id if new_pm=="credit" else None,"subtotal":float(new_total),"discount_amount":0.0,"tax_amount":0.0,"total":float(new_total),"paid_amount":float(new_total) if new_pm!="credit" else 0.0,"change_amount":0.0,"payment_method":new_pm,"status":"completed","notes":"استبدال حسب المنتج","created_at":now,"updated_at":now,"deleted_at":None})
+    db[C.sale_items].insert_many(new_item_docs)
+    for pid,stock in new_stock.items():
+        if db[C.products].update_one({"_id":pid,"current_stock":{"$gte":stock}},{"$inc":{"current_stock":-stock},"$set":{"updated_at":now}}).matched_count==0: raise HTTPException(409,"تغيّر مخزون البديل أثناء العملية")
+        db[C.inventory_movements].insert_one({"_id":new_id(),"product_id":pid,"movement_type":"sale","quantity":-stock,"reference_table":"sales","reference_id":new_sale_id,"user_id":current["_id"],"notes":f"استبدال {invoice}","created_at":now})
+    if diff<0 and payload.settlement=="credit" and customer_id: db[C.customers].update_one({"_id":customer_id},{"$inc":{"balance":diff},"$set":{"updated_at":now}})
+    db[C.sale_payments].insert_one({"_id":new_id(),"sale_id":new_sale_id,"method":new_pm,"amount":float(new_total),"created_at":now})
+    msg=f"العميل يدفع فرق {diff:.2f} ر.ي" if diff>0 else (f"المحل يرد {abs(diff):.2f} ر.ي" if diff<0 else "استبدال بدون فرق سعر")
+    log_action(db,current["_id"],"sale_exchange_by_product","sale_returns",rid,after={"return_no":return_no,"new_invoice_no":invoice,"diff":diff,"source_sale_ids":source_ids})
+    return {"return_no":return_no,"new_invoice_no":invoice,"return_value":return_value,"new_total":float(new_total),"diff":diff,"settlement":payload.settlement,"message":msg,"source_sale_ids":source_ids}
+
+
 # ──────────────── GET /api/sales-returns ─────────────────────────────
 
 @router.get("/sales-returns")
@@ -630,7 +694,7 @@ class ExchangeNewItemIn(BaseModel):
 class ExchangePayloadV2(BaseModel):
     sale_id: str
     return_items: List[ExchangeReturnItemIn] = Field(..., min_length=1)
-    new_items: List[ExchangeNewItemIn] = Field(..., min_length=1)
+    new_items: List[dict] = Field(..., min_length=1)
     settlement: str = Field(default="cash")   # cash | cash_refund | credit
     reason: Optional[str] = None
 

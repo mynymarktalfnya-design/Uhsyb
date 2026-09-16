@@ -32,6 +32,8 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
   const [productResults, setProductResults] = useState([]);
   const [selectedReturnProduct, setSelectedReturnProduct] = useState(null);
   const [productReturnQty, setProductReturnQty] = useState(1);
+  const [productExchangeMode, setProductExchangeMode] = useState('return');
+  const [productNewCart, setProductNewCart] = useState([]);
   const [returnable, setReturnable] = useState(null);   // { items: [...], ... }
   const [returnQtys, setReturnQtys] = useState({});      // { sale_item_id: qty }
   const [reason, setReason] = useState('');
@@ -59,6 +61,8 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
       setProductResults([]);
       setSelectedReturnProduct(null);
       setProductReturnQty(1);
+      setProductExchangeMode('return');
+      setProductNewCart([]);
       setReturnable(null);
       setReturnQtys({});
       setReason('');
@@ -194,6 +198,30 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
       setResultReceipt({ kind: 'return', return_no: data.return_no, total: data.total, return_type: data.return_type, items: data.items, invoice_no: (data.source_invoice_nos || []).join('، ') });
       setStep(STEPS.RECEIPT); onCompleted?.();
     } catch (e) { toast({ title: 'فشل تنفيذ المرتجع', description: formatApiError(e), variant: 'destructive' }); }
+    finally { submitLockRef.current = false; setSubmitting(false); }
+  };
+
+  const productReturnValue = Number(selectedReturnProduct?.sale_price || 0) * Number(productReturnQty || 0);
+  const productNewTotal = productNewCart.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
+  const productExchangeDiff = productNewTotal - productReturnValue;
+  const addProductExchangeItem = (p) => setProductNewCart((prev) => {
+    const found = prev.find((x) => x.product_id === p.id);
+    if (found) return prev.map((x) => x.product_id === p.id ? { ...x, quantity: Math.min(x.quantity + 1, Number(p.current_stock || 0)) } : x);
+    if (Number(p.current_stock || 0) <= 0) return prev;
+    return [...prev, { product_id: p.id, name: p.name, sale_price: Number(p.sale_price || 0), quantity: 1 }];
+  });
+  const submitProductExchange = async () => {
+    if (submitLockRef.current || !selectedReturnProduct || !productNewCart.length) return;
+    submitLockRef.current = true; setSubmitting(true);
+    try {
+      const { data } = await api.post('/sales-exchanges/by-product', {
+        product_id: selectedReturnProduct.id, quantity: Number(productReturnQty),
+        new_items: productNewCart.map((x) => ({ product_id: x.product_id, quantity: x.quantity, sale_unit: 'piece' })),
+        settlement: productExchangeDiff < 0 ? 'cash_refund' : 'cash', reason: 'استبدال حسب المنتج',
+      });
+      setResultReceipt({ kind: 'exchange', return_no: data.return_no, new_invoice_no: data.new_invoice_no, return_value: data.return_value, new_total: data.new_total, diff: data.diff, settlement: data.settlement, message: data.message });
+      setStep(STEPS.RECEIPT); onCompleted?.();
+    } catch (e) { toast({ title: 'فشل تنفيذ الاستبدال', description: formatApiError(e), variant: 'destructive' }); }
     finally { submitLockRef.current = false; setSubmitting(false); }
   };
 
@@ -336,7 +364,28 @@ const PosReturnsDialog = ({ open, onClose, onCompleted }) => {
                   <div className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
                     <Label>كمية المرتجع</Label>
                     <Input type="number" min="1" max={selectedReturnProduct.available_quantity} value={productReturnQty} onChange={(e) => setProductReturnQty(e.target.value)} className="mt-2 max-w-xs bg-white" />
-                    <Button type="button" disabled={submitting} onClick={submitProductReturn} className="mt-3">{submitting ? 'جارٍ التنفيذ...' : 'تأكيد استرجاع المبلغ'}</Button>
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" variant={productExchangeMode === 'return' ? 'default' : 'outline'} onClick={() => setProductExchangeMode('return')}>استرجاع نقدي</Button>
+                      <Button type="button" variant={productExchangeMode === 'exchange' ? 'default' : 'outline'} onClick={() => setProductExchangeMode('exchange')}>استبدال</Button>
+                    </div>
+                    {productExchangeMode === 'return' ? (
+                      <Button type="button" disabled={submitting} onClick={submitProductReturn} className="mt-3">{submitting ? 'جارٍ التنفيذ...' : 'تأكيد استرجاع المبلغ'}</Button>
+                    ) : (
+                      <div className="mt-3 space-y-3">
+                        <p className="text-sm font-bold text-emerald-800">اختر منتجًا أو أكثر كبديل:</p>
+                        <div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto">
+                          {filteredProducts.filter((p) => p.id !== selectedReturnProduct.id).slice(0, 30).map((p) => (
+                            <button key={p.id} type="button" onClick={() => addProductExchangeItem(p)} className="rounded border bg-white p-2 text-right text-xs hover:border-emerald-500">{p.name}<br /><span className="text-emerald-700">{fmt(p.sale_price)} ر.ي</span></button>
+                          ))}
+                        </div>
+                        <div className="rounded bg-slate-900 p-3 text-white text-sm">
+                          <p>قيمة المرتجع: {fmt(productReturnValue)} ر.ي</p>
+                          <p>قيمة البدائل: {fmt(productNewTotal)} ر.ي</p>
+                          <p className="mt-1 font-bold">{productExchangeDiff > 0 ? `المبلغ المطلوب من العميل: ${fmt(productExchangeDiff)} ر.ي` : productExchangeDiff < 0 ? `المبلغ المستحق للعميل: ${fmt(Math.abs(productExchangeDiff))} ر.ي` : 'لا يوجد فرق'}</p>
+                        </div>
+                        <Button type="button" disabled={submitting || !productNewCart.length} onClick={submitProductExchange}>{submitting ? 'جارٍ التنفيذ...' : 'تأكيد الاستبدال'}</Button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {!productResults.length && <p className="col-span-2 text-center text-slate-400 py-8">لا توجد كميات قابلة للإرجاع</p>}
