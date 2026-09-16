@@ -165,4 +165,5 @@ overrides:
 
 allowBuilds:
   core-js: true
+  electron: true
   esbuild: true

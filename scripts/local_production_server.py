@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
-STATIC_ROOT = ROOT / "artifacts" / "market-frontend" / "dist" / "public"
+STATIC_ROOT = Path(os.environ.get("MMF_STATIC_ROOT", str(ROOT / "artifacts" / "market-frontend" / "dist" / "public")))
 BACKEND = os.environ.get("MMF_BACKEND_URL", "http://127.0.0.1:8080").rstrip("/")
 HOST = os.environ.get("MMF_FRONTEND_HOST", "127.0.0.1")
 PORT = int(os.environ.get("MMF_FRONTEND_PORT", "5173"))
