@@ -53,6 +53,13 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+      - name: Verify Windows x64 installer exists
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem -Path release -Filter 'MiniMarketAlfnya-Setup-*.exe' -File -ErrorAction SilentlyContinue)
+          if ($installers.Count -eq 0) { throw 'No real MiniMarketAlfnya-Setup-*.exe was produced.' }
+          $installers | ForEach-Object { Write-Host ("Installer: {0} ({1} bytes)" -f $_.FullName, $_.Length) }
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
