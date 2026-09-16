@@ -59,9 +59,16 @@ def create_category(payload: CategoryCreate, request: Request,
 
 
 # ─── Products ───
-def _product_out(p, db, role: str) -> dict:
-    bcodes = [b["barcode"] for b in db[C.barcodes].find({"product_id": p["_id"]}, {"barcode": 1})]
-    cat = db[C.categories].find_one({"_id": p.get("category_id")}) if p.get("category_id") else None
+def _product_out(p, db, role: str, category_by_id=None, barcodes_by_product=None) -> dict:
+    # List endpoints pass preloaded maps to avoid one category/barcode query per product.
+    if barcodes_by_product is None:
+        bcodes = [b["barcode"] for b in db[C.barcodes].find({"product_id": p["_id"]}, {"barcode": 1})]
+    else:
+        bcodes = barcodes_by_product.get(p["_id"], [])
+    if category_by_id is None:
+        cat = db[C.categories].find_one({"_id": p.get("category_id")}) if p.get("category_id") else None
+    else:
+        cat = category_by_id.get(p.get("category_id"))
     is_admin = role == "admin"
     return {
         "id": p["_id"], "sku": p.get("sku"), "name": p["name"],
@@ -85,6 +92,27 @@ def _product_out(p, db, role: str) -> dict:
         "barcodes": bcodes,
         "created_at": p.get("created_at"),
     }
+
+
+def _products_out(rows, db, role: str) -> list:
+    """Serialize a product list with bounded enrichment queries, not N+1."""
+    category_ids = {p.get("category_id") for p in rows if p.get("category_id")}
+    category_by_id = {
+        c["_id"]: c for c in db[C.categories].find(
+            {"_id": {"$in": list(category_ids)}}, {"_id": 1, "name": 1}
+        )
+    } if category_ids else {}
+    product_ids = [p["_id"] for p in rows]
+    barcodes_by_product = {}
+    if product_ids:
+        for b in db[C.barcodes].find(
+            {"product_id": {"$in": product_ids}}, {"product_id": 1, "barcode": 1}
+        ):
+            barcodes_by_product.setdefault(b["product_id"], []).append(b.get("barcode"))
+    return [
+        ProductOut.model_validate(_product_out(p, db, role, category_by_id, barcodes_by_product))
+        for p in rows
+    ]
 
 
 @router.get("/products", response_model=List[ProductOut])
@@ -116,7 +144,7 @@ def list_products(q: Optional[str] = None, category_id: Optional[str] = None,
         else:
             filt.update(stock_condition)
     rows = list(db[C.products].find(filt).sort("name", 1).limit(limit))
-    return [ProductOut.model_validate(_product_out(p, db, current.role)) for p in rows]
+    return _products_out(rows, db, current.role)
 
 
 @router.get("/inventory/products")
@@ -164,7 +192,7 @@ def list_products_for_pos(q: Optional[str] = None,
         rows = list(db[C.products].find(filt).sort([("featured_order", 1), ("name", 1)]).limit(limit))
     else:
         rows = list(db[C.products].find(filt).sort("name", 1).limit(limit))
-    return [ProductOut.model_validate(_product_out(p, db, current.role)) for p in rows]
+    return _products_out(rows, db, current.role)
 
 
 @router.patch("/products/{product_id}/featured", response_model=ProductOut)
