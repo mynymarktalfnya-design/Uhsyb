@@ -1,0 +1,72 @@
+name: Windows x64 Desktop Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Installer version, for example 1.0.0'
+        required: true
+        default: '0.0.0'
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    env:
+      ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Enable pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.24.0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set build version
+        run: pnpm pkg set version=${{ inputs.version }}
+
+      - name: Install Windows runtime build dependencies
+        run: python -m pip install --disable-pip-version-check pyinstaller pywin32
+
+      - name: Build frontend and packaged runtime
+        run: pnpm run desktop:prepare
+
+      - name: Build Windows x64 NSIS installer
+        run: pnpm exec electron-builder --win nsis --x64 --config electron-builder.yml --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiniMarketAlfnya-Windows-x64-${{ inputs.version }}
+          if-no-files-found: error
+          path: release/MiniMarketAlfnya-Setup-*.exe
+
+      - name: Upload build metadata
+        shell: pwsh
+        run: |
+          @(
+            "Architecture: Windows x64",
+            "Version: ${{ inputs.version }}",
+            "Installer is an unsigned CI artifact.",
+            "GitHub Release must not be created until real Windows installation, restart, offline/sync, POS, Telegram, and uninstall/reinstall tests are completed."
+          ) | Set-Content release/BUILD-STATUS.txt
+          Get-Content release/BUILD-STATUS.txt
