@@ -262,7 +262,7 @@ const Dashboard = () => {
                 <CalendarX className="w-6 h-6 text-rose-600" />
                 <h3 className="text-base font-bold text-rose-900">تنبيهات تواريخ الصلاحية</h3>
               </div>
-              <Link to="/dashboard/products" className="text-xs text-rose-700 underline">عرض الكل ←</Link>
+              <Link to="/dashboard/stock-alerts" className="text-xs text-rose-700 underline">عرض الكل ←</Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
               {expiry.expired_count > 0 && (

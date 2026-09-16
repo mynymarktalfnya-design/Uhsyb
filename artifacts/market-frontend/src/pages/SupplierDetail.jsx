@@ -489,7 +489,7 @@ const PurchaseDialog = ({ open, onClose, supplierId, supplierName, onSaved }) =>
   const [prefillBarcode, setPrefillBarcode] = useState('');
 
   const reload = useCallback(() => {
-    api.get('/products', { params: { limit: 1000 } }).then((r) => setProducts(r.data));
+    api.get('/inventory/products').then((r) => setProducts(r.data));
   }, []);
 
   useEffect(() => {

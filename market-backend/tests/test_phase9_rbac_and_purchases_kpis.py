@@ -112,6 +112,21 @@ class TestManagerDashboardPurchases:
 
 # ============== Hard RBAC on Products (Phase 9) ==============
 class TestProductHardRBAC:
+    def test_manager_cannot_list_full_catalog(self, manager_s):
+        r = manager_s.get(f"{BASE_URL}/api/products", params={"limit": 10})
+        assert r.status_code == 403, f"manager product list expected 403, got {r.status_code} {r.text}"
+
+    def test_cashier_cannot_list_full_catalog(self, cashier_s):
+        r = cashier_s.get(f"{BASE_URL}/api/products", params={"limit": 10})
+        assert r.status_code == 403, f"cashier product list expected 403, got {r.status_code} {r.text}"
+
+    def test_manager_inventory_view_is_limited(self, manager_s):
+        r = manager_s.get(f"{BASE_URL}/api/inventory/products")
+        assert r.status_code == 200, f"manager inventory view failed: {r.status_code} {r.text}"
+        for row in r.json()[:10]:
+            assert "name" in row and "current_stock" in row
+            assert "cost_price" not in row
+
     def test_manager_patch_name_blocked(self, manager_s, product_id):
         r = manager_s.patch(f"{BASE_URL}/api/products/{product_id}", json={"name": "تعديل ممنوع"})
         assert r.status_code == 403, f"expected 403 got {r.status_code} {r.text}"
@@ -140,14 +155,10 @@ class TestProductHardRBAC:
         assert r.status_code == 403, f"{r.status_code} {r.text}"
         assert GENERIC_BLOCK_MSG_PART in r.json().get("detail", "")
 
-    def test_manager_patch_did_not_change_product(self, manager_s, product_id):
-        """Confirm previous PATCH attempts did NOT mutate the product."""
+    def test_manager_cannot_read_full_catalog_product(self, manager_s, product_id):
+        """Full catalog/detail access is reserved for the admin role."""
         r = manager_s.get(f"{BASE_URL}/api/products/{product_id}")
-        assert r.status_code == 200
-        d = r.json()
-        assert d["name"].startswith("TEST_P9_")
-        assert float(d["sale_price"]) == 20.0
-        assert d["is_active"] is True
+        assert r.status_code == 403, f"manager product detail expected 403, got {r.status_code} {r.text}"
 
     def test_manager_delete_blocked_by_require_admin(self, manager_s, product_id):
         r = manager_s.delete(f"{BASE_URL}/api/products/{product_id}")

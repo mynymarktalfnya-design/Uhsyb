@@ -53,6 +53,13 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const RoleRoute = ({ roles, children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center">جاري التحميل...</div>;
+  if (!user || !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
 const CashierGuardOrDashboard = () => {
   const { user } = useAuth();
   if (user?.role === 'admin')   return <ManagerDashboard />;  // Advanced financial dashboard for admin
@@ -138,9 +145,9 @@ function App() {
             path="/dashboard/products"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <Products />
-                </DashboardLayout>
+                <RoleRoute roles={['admin']}>
+                  <DashboardLayout><Products /></DashboardLayout>
+                </RoleRoute>
               </ProtectedRoute>
             }
           />
@@ -295,7 +302,7 @@ function App() {
           <Route path="/dashboard/backups"
             element={<ProtectedRoute><DashboardLayout><Backups /></DashboardLayout></ProtectedRoute>} />
           <Route path="/dashboard/inventory-audits"
-            element={<ProtectedRoute><DashboardLayout><InventoryAudits /></DashboardLayout></ProtectedRoute>} />
+            element={<ProtectedRoute><RoleRoute roles={['admin', 'manager']}><DashboardLayout><InventoryAudits /></DashboardLayout></RoleRoute></ProtectedRoute>} />
           
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

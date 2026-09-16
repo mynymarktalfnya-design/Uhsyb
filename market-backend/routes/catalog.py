@@ -90,9 +90,7 @@ def _product_out(p, db, role: str) -> dict:
 @router.get("/products", response_model=List[ProductOut])
 def list_products(q: Optional[str] = None, category_id: Optional[str] = None,
                   low_stock: bool = False, limit: int = Query(200, le=1000),
-                  db = Depends(get_db), current = Depends(get_current_user)):
-    if current.role == "cashier":
-        raise HTTPException(status_code=403, detail="لا تملك صلاحية الوصول للمنتجات")
+                  db = Depends(get_db), current = Depends(require_admin)):
 
     filt = {"deleted_at": None}
     if category_id:
@@ -119,6 +117,31 @@ def list_products(q: Optional[str] = None, category_id: Optional[str] = None,
             filt.update(stock_condition)
     rows = list(db[C.products].find(filt).sort("name", 1).limit(limit))
     return [ProductOut.model_validate(_product_out(p, db, current.role)) for p in rows]
+
+
+@router.get("/inventory/products")
+def list_inventory_products(db = Depends(get_db), current = Depends(require_manager)):
+    """Inventory-audit view: only fields needed for an authorized stock count."""
+    rows = list(db[C.products].find(
+        {"deleted_at": None, "is_active": True},
+        {"_id": 1, "sku": 1, "name": 1, "unit": 1, "current_stock": 1,
+         "barcodes": 1},
+    ).sort("name", 1))
+    barcode_rows = list(db[C.barcodes].find(
+        {"product_id": {"$in": [p["_id"] for p in rows]}},
+        {"product_id": 1, "barcode": 1, "is_primary": 1},
+    ))
+    barcode_by_product = {}
+    for row in barcode_rows:
+        pid = row.get("product_id")
+        if pid not in barcode_by_product or row.get("is_primary", False):
+            barcode_by_product[pid] = row.get("barcode") or "—"
+    return [{
+        "id": p["_id"], "sku": p.get("sku"), "name": p["name"],
+        "unit": p.get("unit", "piece"),
+        "current_stock": _dec(p.get("current_stock", 0)),
+        "barcodes": [barcode_by_product[p["_id"]]] if p["_id"] in barcode_by_product else [],
+    } for p in rows]
 
 
 @router.get("/pos/products", response_model=List[ProductOut])
@@ -209,7 +232,7 @@ def get_by_barcode(barcode: str, db = Depends(get_db), current = Depends(get_cur
 
 
 @router.get("/products/{product_id}", response_model=ProductOut)
-def get_product(product_id: str, db = Depends(get_db), current = Depends(get_current_user)):
+def get_product(product_id: str, db = Depends(get_db), current = Depends(require_admin)):
     p = db[C.products].find_one({"_id": product_id, "deleted_at": None})
     if not p:
         raise HTTPException(status_code=404, detail="Product not found")
