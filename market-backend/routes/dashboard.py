@@ -18,6 +18,20 @@ def _today_range():
     return day_range_utc(business_today())
 
 
+def _invoice_product_names(db, sale_id):
+    """Return product names for one invoice, preserving item order."""
+    names = []
+    for item in db[C.sale_items].find({"sale_id": sale_id}):
+        product_id = item.get("product_id")
+        product = (
+            db[C.products].find_one({"_id": product_id}, {"name": 1})
+            if product_id
+            else None
+        )
+        names.append((product or {}).get("name") or item.get("product_name") or "—")
+    return names
+
+
 def _month_range():
     today = business_today()
     return month_range_utc(today.year, today.month)
@@ -418,6 +432,7 @@ def cashier_daily_report(
         "invoices": [{
             "id": s["_id"],
             "invoice_no": s.get("invoice_no"),
+            "product_names": _invoice_product_names(db, s["_id"]),
             "total": float(s.get("total", 0) or 0),
             "payment_method": s.get("payment_method") or "cash",
             "created_at": s.get("created_at"),

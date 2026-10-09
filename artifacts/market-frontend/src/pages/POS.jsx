@@ -143,6 +143,9 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
   /* ── derived products ───────────────────────────────────────────────── */
   const displayProducts = useMemo(() => {
     let list = allProducts;
+    if (cartonMode) {
+      list = list.filter((p) => p.allow_carton_sale !== false && Number(p.pieces_per_carton || 1) > 1);
+    }
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter((p) =>
@@ -158,22 +161,29 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       list = [...feat, ...rest];
     }
     return list;
-  }, [allProducts, query, selectedCat]);
+  }, [allProducts, query, selectedCat, cartonMode]);
 
   const featuredProducts = useMemo(
     () => allProducts
-      .filter((product) => product.is_featured && product.is_active !== false)
+      .filter((product) => product.is_featured && product.is_active !== false && (!cartonMode || (product.allow_carton_sale !== false && Number(product.pieces_per_carton || 1) > 1)))
       .sort((a, b) => (
         Number(a.featured_order || 0) - Number(b.featured_order || 0) ||
         String(a.name || '').localeCompare(String(b.name || ''), 'ar')
       )),
-    [allProducts],
+    [allProducts, cartonMode],
   );
 
   /* ── cart helpers ───────────────────────────────────────────────────── */
   const addToCart = useCallback((p) => {
     const piecesPerCarton = Math.max(1, Number(p.pieces_per_carton) || 1);
-    const saleUnit = cartonMode ? 'carton' : 'piece';
+    const useCarton = cartonMode && p.allow_carton_sale !== false && piecesPerCarton > 1;
+    if (cartonMode && !useCarton) {
+      toast({ title: 'البيع بالكرتون غير مسموح', description: `المدير لم يفعّل البيع بالكرتون للمنتج: ${p.name}`, variant: 'destructive' });
+      return;
+    }
+    const saleUnit = useCarton ? 'carton' : 'piece';
+    const cartonPrice = Number(p.carton_sale_price) > 0 ? Number(p.carton_sale_price) : Number(p.sale_price) * piecesPerCarton;
+    const unitPrice = useCarton ? cartonPrice / piecesPerCarton : Number(p.sale_price);
     const stockPerUnit = cartonMode ? piecesPerCarton : 1;
     const stock = Number(p.current_stock ?? 0);
     if (stock <= 0) {
@@ -187,12 +197,12 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       const idx = prev.findIndex((x) => x.product_id === p.id);
       if (idx >= 0) {
         const c = [...prev];
-        c[idx] = { ...c[idx], quantity: c[idx].quantity + 1, sale_unit: saleUnit, pieces_per_carton: piecesPerCarton };
+        c[idx] = { ...c[idx], quantity: c[idx].quantity + 1, sale_unit: saleUnit, pieces_per_carton: piecesPerCarton, unit_price: unitPrice, carton_price: cartonPrice };
         return c;
       }
       return [...prev, {
         product_id: p.id, name: p.name, sku: p.sku, unit: p.unit,
-        quantity: 1, unit_price: Number(p.sale_price), stock,
+        quantity: 1, unit_price: unitPrice, carton_price: cartonPrice, stock,
         sale_unit: saleUnit, pieces_per_carton: piecesPerCarton,
       }];
     });
@@ -654,7 +664,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
                 </div>
                 {/* Unit price */}
                 <div className="w-20 flex-shrink-0 text-center">
-                  <p className="text-base font-extrabold text-slate-200 tabular-nums">{fmt(it.unit_price)}</p>
+                  <p className="text-base font-extrabold text-slate-200 tabular-nums">{fmt(it.sale_unit === 'carton' ? (it.carton_price || it.unit_price * (it.pieces_per_carton || 1)) : it.unit_price)}</p>
                   <p className="text-[10px] text-slate-600">ريال</p>
                 </div>
                 {/* Line total */}

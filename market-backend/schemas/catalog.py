@@ -46,6 +46,9 @@ class ProductCreate(BaseModel):
     category_id: Optional[str] = None
     unit: str = "piece"
     pieces_per_carton: int = Field(default=1, ge=1, le=10000)
+    allow_carton_sale: bool = False
+    carton_cost_price: Optional[Decimal] = Field(default=None, ge=0)
+    carton_sale_price: Optional[Decimal] = Field(default=None, ge=0)
     cost_price: Decimal = Decimal("0")
     sale_price: Decimal = Decimal("0")
     tax_rate: Decimal = Decimal("0")
@@ -72,6 +75,9 @@ class ProductUpdate(BaseModel):
     category_id: Optional[str] = None
     unit: Optional[str] = None
     pieces_per_carton: Optional[int] = Field(default=None, ge=1, le=10000)
+    allow_carton_sale: Optional[bool] = None
+    carton_cost_price: Optional[Decimal] = Field(default=None, ge=0)
+    carton_sale_price: Optional[Decimal] = Field(default=None, ge=0)
     cost_price: Optional[Decimal] = None
     sale_price: Optional[Decimal] = None
     tax_rate: Optional[Decimal] = None
@@ -101,6 +107,9 @@ class ProductOut(BaseModel):
     category_name: Optional[str] = None
     unit: str
     pieces_per_carton: int = 1
+    allow_carton_sale: bool = False
+    carton_cost_price: Optional[Decimal] = None
+    carton_sale_price: Optional[Decimal] = None
     cost_price: Decimal
     sale_price: Decimal
     tax_rate: Decimal

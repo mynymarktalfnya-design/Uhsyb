@@ -16,7 +16,7 @@ from utils.time import business_today
 
 router = APIRouter(prefix="/api", tags=["catalog"])
 
-NUMERIC_FIELDS = {"cost_price", "sale_price", "tax_rate", "current_stock"}
+NUMERIC_FIELDS = {"cost_price", "carton_cost_price", "sale_price", "carton_sale_price", "tax_rate", "current_stock"}
 
 
 def _dec(v) -> Decimal:
@@ -63,13 +63,17 @@ def _product_out(p, db, role: str) -> dict:
     bcodes = [b["barcode"] for b in db[C.barcodes].find({"product_id": p["_id"]}, {"barcode": 1})]
     cat = db[C.categories].find_one({"_id": p.get("category_id")}) if p.get("category_id") else None
     is_admin = role == "admin"
+    pieces_per_carton = int(p.get("pieces_per_carton", 1) or 1)
     return {
         "id": p["_id"], "sku": p.get("sku"), "name": p["name"],
         "description": p.get("description"),
         "category_id": p.get("category_id"),
         "category_name": cat["name"] if cat else None,
         "unit": p.get("unit", "piece"),
-        "pieces_per_carton": int(p.get("pieces_per_carton", 1) or 1),
+        "pieces_per_carton": pieces_per_carton,
+        "allow_carton_sale": bool(p.get("allow_carton_sale", pieces_per_carton > 1)),
+        "carton_cost_price": (_dec(p.get("carton_cost_price")) if is_admin and p.get("carton_cost_price") is not None else None),
+        "carton_sale_price": (_dec(p.get("carton_sale_price")) if p.get("carton_sale_price") is not None else None),
         "cost_price": _dec(p.get("cost_price")) if is_admin else Decimal("0"),
         "sale_price": _dec(p.get("sale_price")),
         "tax_rate": _dec(p.get("tax_rate", 0)),
@@ -227,6 +231,9 @@ def create_product(payload: ProductCreate, request: Request,
         "description": payload.description, "category_id": payload.category_id,
         "unit": payload.unit, "cost_price": cost,
         "pieces_per_carton": payload.pieces_per_carton,
+        "allow_carton_sale": payload.allow_carton_sale,
+        "carton_cost_price": (float(payload.carton_cost_price) if is_admin and payload.carton_cost_price is not None else None),
+        "carton_sale_price": (float(payload.carton_sale_price) if payload.carton_sale_price is not None else None),
         "sale_price": float(payload.sale_price), "tax_rate": float(payload.tax_rate or 0),
         "min_stock_level": payload.min_stock_level,
         "max_stock_level": payload.max_stock_level,
