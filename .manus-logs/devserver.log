@@ -1901,3 +1901,47 @@
 [2026-09-13T21:28:27.941Z] INFO:     10.45.192.1:46160 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
 [2026-09-13T21:28:28.109Z] INFO:     10.45.192.1:46174 - "GET /api/notifications/unread-count HTTP/1.1" 200 OK
 [2026-09-13T21:28:32.939Z] INFO:     10.45.192.1:46178 - "GET /api/pos/products?limit=500 HTTP/1.1" 200 OK
+[2026-10-09T17:51:14.894Z] Starting dev server with command: pnpm run dev
+[2026-10-09T17:51:16.190Z] Scope: all 9 workspace projects
+[2026-10-09T17:51:16.292Z] ✓ Lockfile passes supply-chain policies (verified 22s ago)
+[2026-10-09T17:51:16.307Z] Lockfile is up to date, resolution step is skipped
+[2026-10-09T17:51:16.408Z] Already up to date
+[2026-10-09T17:51:17.057Z] . preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+[2026-10-09T17:51:17.069Z] . preinstall: Done
+[2026-10-09T17:51:17.190Z] [ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: core-js@3.49.0, esbuild@0.27.3
+[2026-10-09T17:51:17.190Z] Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+[2026-10-09T17:51:17.247Z] [ERROR] Command failed with exit code 1: pnpm install
+[2026-10-09T17:51:17.247Z] pnpm: Command failed with exit code 1: pnpm install
+[2026-10-09T17:51:17.247Z] at getFinalError (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:89986:14)
+[2026-10-09T17:51:17.247Z] at makeError (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:92293:21)
+[2026-10-09T17:51:17.247Z] at getSyncResult (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:94137:10)
+[2026-10-09T17:51:17.247Z] at spawnSubprocessSync (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:94097:14)
+[2026-10-09T17:51:17.247Z] at execaCoreSync (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:94027:23)
+[2026-10-09T17:51:17.247Z] at callBoundExeca (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:96555:23)
+[2026-10-09T17:51:17.247Z] at boundExeca (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:96532:49)
+[2026-10-09T17:51:17.247Z] at sync2 (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:96687:14)
+[2026-10-09T17:51:17.247Z] at runPnpmCli (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:276906:5)
+[2026-10-09T17:51:17.248Z] at runDepsStatusCheck (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:278122:7)
+[2026-10-09T17:51:17.271Z] Dev server exited with code 1
+[2026-10-09T17:52:59.360Z] Starting dev server with command: pnpm run dev
+[2026-10-09T17:53:00.860Z] Scope: all 9 workspace projects
+[2026-10-09T17:53:00.963Z] ✓ Lockfile passes supply-chain policies (verified 2m ago)
+[2026-10-09T17:53:00.979Z] Lockfile is up to date, resolution step is skipped
+[2026-10-09T17:53:01.083Z] Already up to date
+[2026-10-09T17:53:01.767Z] . preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+[2026-10-09T17:53:01.780Z] . preinstall: Done
+[2026-10-09T17:53:01.908Z] [ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: core-js@3.49.0, esbuild@0.27.3
+[2026-10-09T17:53:01.908Z] Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+[2026-10-09T17:53:01.980Z] [ERROR] Command failed with exit code 1: pnpm install
+[2026-10-09T17:53:01.980Z] pnpm: Command failed with exit code 1: pnpm install
+[2026-10-09T17:53:01.980Z] at getFinalError (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:89986:14)
+[2026-10-09T17:53:01.980Z] at makeError (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:92293:21)
+[2026-10-09T17:53:01.980Z] at getSyncResult (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:94137:10)
+[2026-10-09T17:53:01.980Z] at spawnSubprocessSync (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:94097:14)
+[2026-10-09T17:53:01.980Z] at execaCoreSync (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:94027:23)
+[2026-10-09T17:53:01.980Z] at callBoundExeca (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:96555:23)
+[2026-10-09T17:53:01.980Z] at boundExeca (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:96532:49)
+[2026-10-09T17:53:01.980Z] at sync2 (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:96687:14)
+[2026-10-09T17:53:01.980Z] at runPnpmCli (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:276906:5)
+[2026-10-09T17:53:01.980Z] at runDepsStatusCheck (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:278122:7)
+[2026-10-09T17:53:02.008Z] Dev server exited with code 1
