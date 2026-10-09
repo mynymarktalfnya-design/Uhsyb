@@ -83,7 +83,7 @@ class Handler(BaseHTTPRequestHandler):
                 payload = response.read() if not head_only else b""
                 self.send_response(response.status)
                 for key, value in response.headers.items():
-                    if key.lower() not in {"transfer-encoding", "connection"}:
+                    if key.lower() not in {"transfer-encoding", "connection", "content-length"}:
                         self.send_header(key, value)
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()
