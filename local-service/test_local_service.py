@@ -67,6 +67,29 @@ class LocalQueueTests(unittest.TestCase):
         self.assertIsNone(service.sync_one(row))
         self.assertEqual(service.list_operations()[0]["state"], "syncing")
 
+    def test_operation_summary_excludes_headers_and_body(self):
+        row = service.enqueue({
+            "operation_id": "op-summary", "url": "http://127.0.0.1:9/unreachable",
+            "method": "POST", "body": {"customer_name": "private"},
+            "headers": {"X-Operation-ID": "op-summary"},
+        })
+        summary = service.operation_summary(row)
+        self.assertNotIn("headers", summary)
+        self.assertNotIn("body", summary)
+        self.assertNotIn("private", str(summary))
+
+    def test_sensitive_body_and_query_are_rejected(self):
+        with self.assertRaises(ValueError):
+            service.enqueue({
+                "operation_id": "op-password", "url": "http://127.0.0.1:9/unreachable",
+                "method": "POST", "body": {"password": "not-for-queue"}, "headers": {},
+            })
+        with self.assertRaises(ValueError):
+            service.enqueue({
+                "operation_id": "op-query-token", "url": "http://127.0.0.1:9/unreachable?access_token=raw",
+                "method": "POST", "body": {}, "headers": {},
+            })
+
 
 if __name__ == "__main__":
     unittest.main()

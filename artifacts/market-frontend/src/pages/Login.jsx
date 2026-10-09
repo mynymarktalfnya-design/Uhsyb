@@ -41,8 +41,7 @@ const Login = () => {
     setLoading(false);
     if (result.success) {
       toast({ title: 'تم تسجيل الدخول بنجاح', description: 'مرحباً بك في نظام الميني ماركت' });
-      const role = JSON.parse(localStorage.getItem('mm_user') || '{}').role;
-      navigate(role === 'cashier' ? '/dashboard/pos' : '/dashboard');
+      navigate(result.user?.role === 'cashier' ? '/dashboard/pos' : '/dashboard');
     } else {
       toast({ title: 'فشل تسجيل الدخول', description: result.message, variant: 'destructive' });
     }

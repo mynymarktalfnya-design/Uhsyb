@@ -12,6 +12,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import api, { formatApiError } from '../lib/api';
 import { toast } from '../hooks/use-toast';
+import { clearSession } from '../lib/session';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const formatAge = (s) => {
@@ -194,7 +195,7 @@ export default function Backups() {
       toast({ title: '✅ تمت الاستعادة', description: `نسخة أمان: ${data.safety_backup_created || '—'}` });
       setRestoreOf(null); setRestorePw(''); setRestoreConfirm('');
       setTimeout(() => {
-        localStorage.removeItem('mm_token'); localStorage.removeItem('mm_user');
+        clearSession();
         window.location.href = '/';
       }, 2000);
     } catch (e) {

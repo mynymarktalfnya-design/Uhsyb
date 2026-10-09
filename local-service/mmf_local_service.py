@@ -8,23 +8,48 @@ configured API. The queue is append-only until an operation is confirmed by a
 from __future__ import annotations
 
 import json
+import hmac
 import os
 import sqlite3
 import threading
 import time
 import uuid
 import base64
+from pathlib import Path
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 HOST = os.environ.get("MMF_LOCAL_HOST", "127.0.0.1")
 PORT = int(os.environ.get("MMF_LOCAL_PORT", "8765"))
 DB_PATH = os.environ.get("MMF_LOCAL_DB", os.path.join(os.path.expanduser("~"), ".mmf", "offline-queue.sqlite3"))
 SYNC_INTERVAL = max(1, int(os.environ.get("MMF_SYNC_INTERVAL_SECONDS", "5")))
 MAX_RETRIES = max(1, int(os.environ.get("MMF_MAX_RETRIES", "0")))  # 0 = unlimited
+ALLOWED_ORIGINS = {
+    value.strip().rstrip("/") for value in os.environ.get(
+        "MMF_LOCAL_ALLOWED_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173"
+    ).split(",") if value.strip()
+}
+LOCAL_TOKEN_FILE = os.environ.get(
+    "MMF_LOCAL_TOKEN_FILE",
+    os.path.join(os.environ.get("ProgramData", os.path.expanduser("~/.mmf")), "MMF", "offline", "local-service.token")
+    if os.name == "nt" else os.path.join(os.path.expanduser("~/.mmf"), "local-service.token"),
+)
+
+
+def _load_local_auth_token():
+    configured = os.environ.get("MMF_LOCAL_AUTH_TOKEN", "").strip()
+    if configured:
+        return configured
+    try:
+        return Path(LOCAL_TOKEN_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+LOCAL_AUTH_TOKEN = _load_local_auth_token()
 
 _db_lock = threading.RLock()
 _stop = threading.Event()
@@ -85,13 +110,33 @@ def enqueue(item):
     operation_id = str(item.get("operation_id") or uuid.uuid4())
     url = str(item.get("url") or "")
     method = str(item.get("method") or "POST").upper()
-    if not url or urlparse(url).scheme not in {"http", "https"}:
+    parsed_url = urlparse(url)
+    if not url or parsed_url.scheme not in {"http", "https"}:
         raise ValueError("A valid http(s) URL is required")
+    if any(key.lower() in {"token", "access_token", "refresh_token", "password", "secret", "api_key"} for key, _ in parse_qsl(parsed_url.query)):
+        raise ValueError("Sensitive query parameters are not allowed in offline requests")
     headers = dict(item.get("headers") or {})
     auth = headers.pop("Authorization", None) or headers.pop("authorization", None)
     auth_protected = _protect_auth(auth)
     headers["X-Operation-ID"] = operation_id
-    payload = json.dumps(item.get("body"), ensure_ascii=False) if not isinstance(item.get("body"), str) else item.get("body")
+    body = item.get("body")
+    def has_sensitive_key(value):
+        if isinstance(value, dict):
+            if any(str(key).lower() in {"authorization", "cookie", "password", "access_token", "refresh_token", "secret", "api_key"} for key in value):
+                return True
+            return any(has_sensitive_key(child) for child in value.values())
+        if isinstance(value, list):
+            return any(has_sensitive_key(child) for child in value)
+        return False
+    body_for_check = body
+    if isinstance(body, str):
+        try:
+            body_for_check = json.loads(body)
+        except json.JSONDecodeError:
+            body_for_check = None
+    if has_sensitive_key(body_for_check):
+        raise ValueError("Sensitive fields are not allowed in offline request bodies")
+    payload = json.dumps(body, ensure_ascii=False) if not isinstance(body, str) else body
     stamp = now()
     with _db_lock:
         conn = db()
@@ -114,6 +159,20 @@ def list_operations(limit=100):
         rows = [dict(x) for x in conn.execute("SELECT * FROM operations ORDER BY created_at LIMIT ?", (limit,))]
         conn.close()
         return rows
+
+
+def operation_summary(row):
+    """Expose queue state only; never return headers, auth, or operation body."""
+    return {
+        "id": row.get("id"),
+        "operation_id": row.get("operation_id"),
+        "state": row.get("state"),
+        "retries": int(row.get("retries") or 0),
+        "last_error": row.get("last_error"),
+        "created_at": row.get("created_at"),
+        "updated_at": row.get("updated_at"),
+        "synced_at": row.get("synced_at"),
+    }
 
 
 def sync_one(row, transient_auth=None):
@@ -179,10 +238,19 @@ class Handler(BaseHTTPRequestHandler):
         data = json.dumps(payload, ensure_ascii=False).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Operation-ID, Authorization")
+        origin = self.headers.get("Origin", "").rstrip("/")
+        if origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Operation-ID, Authorization, X-MMF-Local-Auth")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.end_headers(); self.wfile.write(data)
+
+    def _authorized(self):
+        if not LOCAL_AUTH_TOKEN:
+            return True  # Development/standalone mode; packaged Electron sets this token.
+        supplied = self.headers.get("X-MMF-Local-Auth", "")
+        return bool(supplied) and hmac.compare_digest(supplied, LOCAL_AUTH_TOKEN)
 
     def do_OPTIONS(self):
         self._send(204, {})
@@ -193,7 +261,9 @@ class Handler(BaseHTTPRequestHandler):
             counts = {state: sum(1 for row in rows if row["state"] == state) for state in ("pending", "syncing", "synced", "failed")}
             return self._send(200, {"status": "ok", "service": "mmf-local", "queue": counts})
         if self.path.startswith("/queue"):
-            return self._send(200, {"operations": list_operations()})
+            if not self._authorized():
+                return self._send(403, {"detail": "Local authentication required"})
+            return self._send(200, {"operations": [operation_summary(row) for row in list_operations()]})
         self._send(404, {"detail": "Not found"})
 
     def do_POST(self):
@@ -201,12 +271,16 @@ class Handler(BaseHTTPRequestHandler):
         try:
             payload = json.loads(self.rfile.read(length) or b"{}")
             if self.path == "/queue":
-                return self._send(202, enqueue(payload))
+                if not self._authorized():
+                    return self._send(403, {"detail": "Local authentication required"})
+                return self._send(202, operation_summary(enqueue(payload)))
             if self.path == "/sync":
+                if not self._authorized():
+                    return self._send(403, {"detail": "Local authentication required"})
                 transient_auth = self.headers.get("Authorization") or self.headers.get("authorization")
                 for row in list_operations(100):
                     if row["state"] in {"pending", "failed"}: sync_one(row, transient_auth=transient_auth)
-                return self._send(200, {"operations": list_operations()})
+                return self._send(200, {"operations": [operation_summary(row) for row in list_operations()]})
         except Exception as exc:
             return self._send(400, {"detail": str(exc)[:300]})
         self._send(404, {"detail": "Not found"})

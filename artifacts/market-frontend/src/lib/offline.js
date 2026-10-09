@@ -5,11 +5,22 @@
  * Fallback path: IndexedDB when the local service is not installed.
  * Both paths keep operations until the server confirms a 2xx response.
  */
+import { getAccessToken } from './session';
 
 const DB_NAME = 'mmf-offline-db';
 const DB_VERSION = 2;
 const QUEUE_STORE = 'sync_queue';
 const LOCAL_SERVICE_URL = process.env.REACT_APP_LOCAL_SERVICE_URL || 'http://127.0.0.1:8765';
+const LOCAL_SERVICE_HEADERS = () => {
+  const token = typeof window !== 'undefined' ? window.mmfLocal?.localAuthToken : null;
+  return token ? { 'X-MMF-Local-Auth': token } : {};
+};
+
+function safeQueueHeaders(headers = {}) {
+  return Object.fromEntries(
+    Object.entries(headers).filter(([key]) => !['authorization', 'cookie', 'set-cookie'].includes(key.toLowerCase())),
+  );
+}
 
 function operationId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -29,19 +40,19 @@ function openDB() {
 
 async function localServiceAvailable() {
   try {
-    const res = await fetch(`${LOCAL_SERVICE_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(800) });
+    const res = await fetch(`${LOCAL_SERVICE_URL}/health`, { method: 'GET', headers: LOCAL_SERVICE_HEADERS(), signal: AbortSignal.timeout(800) });
     return res.ok;
   } catch { return false; }
 }
 
 /** Queue a mutation in the persistent local service, then fall back to IndexedDB. */
 export async function enqueueRequest({ url, method, body, headers, operation_id }) {
-  const item = { operation_id: operation_id || operationId(), url, method, body, headers: { ...(headers || {}) } };
+  const item = { operation_id: operation_id || operationId(), url, method, body, headers: safeQueueHeaders(headers) };
   item.headers['X-Operation-ID'] = item.operation_id;
   try {
     if (await localServiceAvailable()) {
       const response = await fetch(`${LOCAL_SERVICE_URL}/queue`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item),
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...LOCAL_SERVICE_HEADERS() }, body: JSON.stringify(item),
       });
       if (response.ok) return { ...(await response.json()), local_service: true };
     }
@@ -58,7 +69,7 @@ export async function enqueueRequest({ url, method, body, headers, operation_id 
 export async function listQueue() {
   try {
     if (await localServiceAvailable()) {
-      const response = await fetch(`${LOCAL_SERVICE_URL}/queue`, { signal: AbortSignal.timeout(1200) });
+      const response = await fetch(`${LOCAL_SERVICE_URL}/queue`, { headers: LOCAL_SERVICE_HEADERS(), signal: AbortSignal.timeout(1200) });
       if (response.ok) {
         const rows = (await response.json()).operations || [];
         return rows.filter((row) => ['pending', 'failed', 'syncing'].includes(row.state));
@@ -92,9 +103,9 @@ export async function flushQueue() {
   flushInFlight = (async () => {
   if (await localServiceAvailable()) {
     try {
-      const auth = typeof localStorage !== 'undefined' ? localStorage.getItem('mm_token') : null;
+      const auth = getAccessToken();
       const headers = auth ? { Authorization: `Bearer ${auth}` } : {};
-      const response = await fetch(`${LOCAL_SERVICE_URL}/sync`, { method: 'POST', headers, signal: AbortSignal.timeout(30000) });
+      const response = await fetch(`${LOCAL_SERVICE_URL}/sync`, { method: 'POST', headers: { ...headers, ...LOCAL_SERVICE_HEADERS() }, signal: AbortSignal.timeout(30000) });
       if (response.ok) {
         const rows = (await response.json()).operations || [];
         return { success: rows.filter(x => x.state === 'synced').length, failed: rows.filter(x => x.state === 'failed').length, source: 'local-service' };
@@ -108,7 +119,7 @@ export async function flushQueue() {
   for (const item of items) {
     try {
       const headers = { ...(item.headers || {}), 'Content-Type': 'application/json' };
-      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mm_token') : null;
+      const token = getAccessToken();
       if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch(item.url, { method: item.method, headers, body: typeof item.body === 'string' ? item.body : JSON.stringify(item.body) });
       if (res.ok) { await removeFromQueue(item.id); success += 1; }

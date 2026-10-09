@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api, { formatApiError } from '../lib/api';
+import { clearSession, getAccessToken, setSession } from '../lib/session';
 
 const AuthContext = createContext();
 
@@ -14,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('mm_token');
+    const token = getAccessToken();
     if (!token) {
       setLoading(false);
       return;
@@ -25,16 +26,9 @@ export const AuthProvider = ({ children }) => {
         const status = err?.response?.status;
         if (status === 401 || status === 403) {
           // Server explicitly rejected the token — clear auth state
-          localStorage.removeItem('mm_token');
-          localStorage.removeItem('mm_user');
+          clearSession();
         } else {
-          // Network / server error (5xx, timeout, no response) — keep the
-          // stored token and restore the user object from localStorage so the
-          // session survives transient backend unavailability.
-          const stored = localStorage.getItem('mm_user');
-          if (stored) {
-            try { setUser(JSON.parse(stored)); } catch (_) { /* ignore */ }
-          }
+          // Access tokens are memory-only; a network failure must not create a disk backup.
         }
       })
       .finally(() => setLoading(false));
@@ -46,10 +40,9 @@ export const AuthProvider = ({ children }) => {
         email_or_username: identifier,
         password,
       });
-      localStorage.setItem('mm_token', data.access_token);
-      localStorage.setItem('mm_user', JSON.stringify(data.user));
+      setSession(data.access_token, data.user);
       setUser(data.user);
-      return { success: true };
+      return { success: true, user: data.user };
     } catch (err) {
       return { success: false, message: formatApiError(err) };
     }
@@ -57,8 +50,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try { await api.post('/auth/logout'); } catch (_) { /* ignore */ }
-    localStorage.removeItem('mm_token');
-    localStorage.removeItem('mm_user');
+    clearSession();
     setUser(null);
   };
 

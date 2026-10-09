@@ -3,6 +3,7 @@ const { spawn } = require('node:child_process');
 const { existsSync, readFileSync } = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
+const { randomUUID } = require('node:crypto');
 
 const APP_URL = process.env.MMF_DESKTOP_URL || 'http://127.0.0.1:5173/login';
 const children = [];
@@ -16,6 +17,17 @@ function loadProductionEnv() {
     const match = line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
     if (match && !process.env[match[1]]) process.env[match[1]] = match[2];
   }
+}
+
+function loadLocalServiceToken() {
+  const file = process.env.MMF_LOCAL_TOKEN_FILE || (process.platform === 'win32'
+    ? path.join(process.env.ProgramData || 'C:\\ProgramData', 'MMF', 'offline', 'local-service.token')
+    : path.join(require('node:os').homedir(), '.mmf', 'local-service.token'));
+  try {
+    const value = readFileSync(file, 'utf8').trim();
+    if (value) return value;
+  } catch (_) { /* development mode may not have an installed service */ }
+  return randomUUID();
 }
 
 function resource(...parts) {
@@ -56,7 +68,12 @@ function createWindow() {
     width: 1440, height: 900, minWidth: 1024, minHeight: 700,
     title: 'ميني ماركت الفنية',
     autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      preload: resource('desktop/preload.cjs'),
+    },
   });
   win.loadURL(APP_URL);
   return win;
@@ -64,6 +81,7 @@ function createWindow() {
 
 async function boot() {
   loadProductionEnv();
+  process.env.MMF_LOCAL_AUTH_TOKEN = loadLocalServiceToken();
   if (!app.requestSingleInstanceLock()) return app.quit();
   app.on('second-instance', () => { const win = BrowserWindow.getAllWindows()[0]; if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   // Runtime binaries are produced by packaging/windows/build-runtime.ps1; no terminal is shown.

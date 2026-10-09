@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../hooks/use-toast';
 import api from '../lib/api';
+import { clearSession } from '../lib/session';
 
 const SystemModeCard = ({ mode, onChanged }) => {
   const [saving, setSaving] = useState(false);
@@ -208,8 +209,7 @@ const ActivateProductionCard = ({ mode, onActivated }) => {
       setOpen(false);
       // Force re-login since credentials changed
       setTimeout(() => {
-        localStorage.removeItem('mm_token');
-        localStorage.removeItem('mm_user');
+        clearSession();
         window.location.href = '/';
       }, 1800);
     } catch (e) {

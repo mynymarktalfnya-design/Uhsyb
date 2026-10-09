@@ -1,7 +1,8 @@
-// Centralized axios client. Reads REACT_APP_BACKEND_URL, attaches JWT from localStorage,
+// Centralized axios client. Reads REACT_APP_BACKEND_URL, attaches the memory-only JWT,
 // auto-logs out on 401. Offline-aware: queues mutations when network is down.
 import axios from 'axios';
 import { enqueueRequest } from './offline';
+import { clearSession, getAccessToken } from './session';
 
 // `?? ''` so that when REACT_APP_BACKEND_URL is unset (e.g., reverse-proxy
 // deployments where the API is same-origin), axios issues relative /api/...
@@ -15,7 +16,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('mm_token');
+  const token = getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   const method = (config.method || 'get').toUpperCase();
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
@@ -30,8 +31,7 @@ api.interceptors.response.use(
   (r) => r,
   async (err) => {
     if (err?.response?.status === 401) {
-      localStorage.removeItem('mm_token');
-      localStorage.removeItem('mm_user');
+      clearSession();
       if (window.location.pathname !== '/login') window.location.href = '/login';
     }
     // Network error → queue mutation for later, return synthetic offline response
