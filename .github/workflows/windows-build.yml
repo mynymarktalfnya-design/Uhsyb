@@ -60,14 +60,7 @@ jobs:
           if ($installers.Count -eq 0) { throw 'No real MiniMarketAlfnya-Setup-*.exe was produced.' }
           $installers | ForEach-Object { Write-Host ("Installer: {0} ({1} bytes)" -f $_.FullName, $_.Length) }
 
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: MiniMarketAlfnya-Windows-x64-${{ inputs.version }}
-          if-no-files-found: error
-          path: release/MiniMarketAlfnya-Setup-*.exe
-
-      - name: Upload build metadata
+      - name: Write build metadata
         shell: pwsh
         run: |
           @(
@@ -76,4 +69,14 @@ jobs:
             "Installer is an unsigned CI artifact.",
             "GitHub Release must not be created until real Windows installation, restart, offline/sync, POS, Telegram, and uninstall/reinstall tests are completed."
           ) | Set-Content release/BUILD-STATUS.txt
+          if (-not (Test-Path release/BUILD-STATUS.txt)) { throw 'BUILD-STATUS.txt was not created.' }
           Get-Content release/BUILD-STATUS.txt
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiniMarketAlfnya-Windows-x64-${{ inputs.version }}
+          if-no-files-found: error
+          path: |
+            release/MiniMarketAlfnya-Setup-*.exe
+            release/BUILD-STATUS.txt
