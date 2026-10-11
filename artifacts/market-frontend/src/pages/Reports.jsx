@@ -5,6 +5,7 @@ import { FileText, AlertTriangle, Truck, Calendar, Crown, FileDown, RefreshCw, T
 import api from '../lib/api';
 import { exportDailyReportPDF, exportVoucherPDF } from '../lib/pdfExport';
 import { formatStatementDate, formatPurchaseQuantity } from '../lib/statementUtils';
+import { toast } from '../hooks/use-toast';
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(n || 0);
 const money = (n) => `${fmt(n)} ر.ي`;
@@ -98,8 +99,28 @@ const Reports = () => {
   ];
 
   const printMonthlyFinancial = (month) => {
+    const daily = Array.isArray(month?.daily) ? month.daily : [];
+    if (!daily.length) {
+      toast({
+        title: 'لا توجد عمليات لهذا الشهر',
+        description: 'اختر شهرًا يحتوي على مبيعات أو مشتريات أو مصروفات قبل الطباعة.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const monthLabel = `${MONTH_NAMES_AR[month.month - 1]} ${month.year}`;
-    const rows = (month.daily || []).map((day) => [
+    const sumDaily = (key) => daily.reduce((sum, day) => sum + Number(day?.[key] || 0), 0);
+    // Prefer the API totals, but recover from daily rows if an older backend
+    // omitted a monthly aggregate while still returning the operations.
+    const total = (key) => Number(month?.[key]) || sumDaily(key);
+    const salesTotal = total('sales_total');
+    const returnsTotal = total('returns_total');
+    const netSalesTotal = Number(month?.net_sales_total) || (salesTotal - returnsTotal);
+    const purchasesTotal = total('purchases_total');
+    const expensesTotal = total('expenses_total');
+    const profitTotal = Number(month?.profit_total) || sumDaily('profit_total');
+    const profitRemaining = Number(month?.profit_remaining) || sumDaily('profit_remaining');
+    const rows = daily.map((day) => [
       day.date,
       money(day.sales),
       day.returns > 0 ? `- ${money(day.returns)}` : '—',
@@ -113,16 +134,16 @@ const Reports = () => {
       title: `كشف مالي تفصيلي — ${monthLabel}`,
       dateLabel: monthLabel,
       kpis: [
-        { label: 'إجمالي المبيعات', value: money(month.sales_total), color: 'green' },
-        { label: 'صافي المبيعات', value: money(month.net_sales_total), color: 'blue' },
-        { label: 'إجمالي المشتريات', value: money(month.purchases_total), color: 'purple' },
-        { label: 'إجمالي المصروفات', value: money(month.expenses_total), color: 'rose' },
-        { label: 'إجمالي الأرباح', value: money(month.profit_total), color: month.profit_total >= 0 ? 'green' : 'rose' },
-        { label: 'المتبقي من الأرباح', value: money(month.profit_remaining), color: month.profit_remaining >= 0 ? 'green' : 'rose' },
+        { label: 'إجمالي المبيعات', value: money(salesTotal), color: 'green' },
+        { label: 'صافي المبيعات', value: money(netSalesTotal), color: 'blue' },
+        { label: 'إجمالي المشتريات', value: money(purchasesTotal), color: 'purple' },
+        { label: 'إجمالي المصروفات', value: money(expensesTotal), color: 'rose' },
+        { label: 'إجمالي الأرباح', value: money(profitTotal), color: profitTotal >= 0 ? 'green' : 'rose' },
+        { label: 'المتبقي من الأرباح', value: money(profitRemaining), color: profitRemaining >= 0 ? 'green' : 'rose' },
       ],
       columns: ['اليوم', 'المبيعات', 'المرتجعات', 'صافي المبيعات', 'المشتريات', 'المصروفات', 'إجمالي الأرباح', 'المتبقي من الأرباح'],
       rows,
-      grandRow: ['إجمالي الشهر', money(month.sales_total), month.returns_total > 0 ? `- ${money(month.returns_total)}` : '—', money(month.net_sales_total), money(month.purchases_total), money(month.expenses_total), money(month.profit_total), money(month.profit_remaining)],
+      grandRow: ['إجمالي الشهر', money(salesTotal), returnsTotal > 0 ? `- ${money(returnsTotal)}` : '—', money(netSalesTotal), money(purchasesTotal), money(expensesTotal), money(profitTotal), money(profitRemaining)],
     });
   };
 

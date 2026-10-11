@@ -215,7 +215,7 @@ async function htmlToPdfDownload(el, filename, opts = {}) {
 // ====================== HTML BUILDING BLOCKS ======================
 function brandHeaderHtml({ title, voucherNo, dateLabel }) {
   return `
-    <div style="background:linear-gradient(135deg,${BRAND.dark} 0%,${BRAND.dark} 55%,${BRAND.primaryDark} 100%);color:#fff;padding:18px 24px;border-radius:0 0 14px 14px;">
+    <div dir="rtl" style="background:linear-gradient(135deg,${BRAND.dark} 0%,${BRAND.dark} 55%,${BRAND.primaryDark} 100%);color:#fff;padding:18px 24px;border-radius:0 0 14px 14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;">
         <div style="display:flex;gap:14px;align-items:center;">
           <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#fbbf24,#d97706);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#0f172a;box-shadow:0 4px 14px rgba(245,158,11,.5);">M</div>
@@ -773,7 +773,7 @@ export async function exportDailyReportPDF(opts) {
   ` : '';
 
   const html = `
-    <div style="padding:0 0 18px;background:#fff;">
+    <div dir="rtl" style="padding:0 0 18px;background:#fff;">
       ${brandHeaderHtml({ title: opts.title, voucherNo: opts.dateLabel })}
 
       <div style="padding:18px 24px;display:flex;gap:14px;align-items:flex-start;">
@@ -782,7 +782,7 @@ export async function exportDailyReportPDF(opts) {
       </div>
 
       <div style="margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
-        <table style="width:100%;border-collapse:collapse;">
+        <table dir="rtl" style="width:100%;border-collapse:collapse;">
           <thead><tr style="background:${BRAND.dark};color:#fff;font-size:12px;">${colsHtml}</tr></thead>
           <tbody>${rowsHtml || `<tr><td colspan="${(opts.columns || []).length}" style="padding:30px;text-align:center;color:#94a3b8;">لا توجد بيانات</td></tr>`}</tbody>
           ${grandHtml}
