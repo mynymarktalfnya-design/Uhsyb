@@ -394,9 +394,9 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
                           <p className="line-clamp-3 text-xs font-bold leading-4 text-white">{p.name}</p>
                         </div>
                         <p className="mt-1 text-sm font-extrabold text-amber-400">{fmt(p.sale_price)} ر.ي</p>
-                        <p className={`mt-0.5 text-[10px] font-semibold ${outOfStock ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {outOfStock ? 'نفد المخزون' : `${fmt(p.current_stock)} متوفر`}
-                        </p>
+                        {outOfStock && (
+                          <p className="mt-0.5 text-[10px] font-semibold text-rose-400">نفد المخزون</p>
+                        )}
                         <span className="mt-auto flex items-center justify-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 py-1.5 text-xs font-extrabold text-amber-300">
                           <Plus className="h-3.5 w-3.5" /> إضافة
                         </span>
@@ -540,9 +540,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
                     </div>
                     <div className="text-left flex-shrink-0 mr-3">
                       <p className="text-sm font-extrabold text-amber-400 tabular-nums">{fmt(p.sale_price)}</p>
-                      <p className={`text-[10px] font-semibold ${oos ? 'text-rose-400' : Number(p.current_stock) <= 3 ? 'text-amber-400' : 'text-slate-500'}`}>
-                        {oos ? 'نفد' : `${fmt(p.current_stock)} متاح`}
-                      </p>
+                      {oos && <p className="text-[10px] font-semibold text-rose-400">نفد المخزون</p>}
                     </div>
                   </button>
                 );
