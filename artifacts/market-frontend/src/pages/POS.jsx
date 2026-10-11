@@ -183,7 +183,11 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
     const stockPerUnit = cartonMode ? piecesPerCarton : 1;
     const stock = Number(p.current_stock ?? 0);
     if (stock <= 0) {
-      toast({ title: '⛔ نفد المخزون', description: `"${p.name}" غير متوفر`, variant: 'destructive' }); return;
+      toast({
+        title: '⛔ نفد المخزون',
+        description: `المنتج "${p.name}" غير متوفر حاليًا. تمت إعادة المسح دون إضافته إلى السلة.`,
+        variant: 'destructive',
+      }); return;
     }
     const existQ = cart.find((x) => x.product_id === p.id)?.quantity || 0;
     if ((existQ + 1) * stockPerUnit > stock) {
@@ -240,11 +244,14 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       barcodeTimerRef.current = setTimeout(async () => {
         try {
           const { data } = await api.get(`/products/by-barcode/${encodeURIComponent(barcode)}`);
-          lastBarcodeRef.current = barcode;
           addToCart(data);
           setQuery('');
           setShowProducts(false);
         } catch { /* not a barcode, show search results */ }
+        finally {
+          // Allow the scanner to report the same out-of-stock barcode again.
+          lastBarcodeRef.current = '';
+        }
       }, 120);
     }
   };
