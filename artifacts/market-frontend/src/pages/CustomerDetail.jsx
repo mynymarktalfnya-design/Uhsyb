@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../components/ui/select';
 import { toast } from '../hooks/use-toast';
 import api, { formatApiError } from '../lib/api';
-import { exportStatementPDF } from '../lib/pdfExport';
+import { exportStatementPDF, exportCustomerSummaryPDF } from '../lib/pdfExport';
 import { formatStatementDate, formatStatementTime } from '../lib/statementUtils';
 import { STORE } from '../config/store';
 
@@ -194,6 +194,26 @@ const CustomerDetail = () => {
           <Button onClick={() => setPayOpen(true)}
             className="bg-emerald-600 hover:bg-emerald-700 text-white" data-testid="record-payment-btn">
             <Wallet className="w-4 h-4 ml-1" /> تسجيل سداد
+          </Button>
+          <Button onClick={() => {
+            const entries = (statement?.entries || []).map(e => ({ ...e, balance: e.running_balance ?? e.balance }));
+            exportCustomerSummaryPDF({
+              title: 'كشف حساب عميل مختصر',
+              name: detail.full_name,
+              phone: detail.phone,
+              balance: detail.balance,
+              opening: statement?.opening_balance || 0,
+              closing: statement?.closing_balance || detail.balance,
+              entries,
+              dateFrom: statement?.period?.from,
+              dateTo: statement?.period?.to,
+              totalInvoices: Number(detail.total_credit_purchases || 0),
+              totalPaid: Number(detail.total_paid || 0),
+              totalReturns: Number(detail.total_returns || 0),
+            }).catch((err) => console.error('Customer summary PDF failed:', err));
+          }}
+            className="bg-sky-600 hover:bg-sky-700 text-white" data-testid="export-summary-pdf-btn">
+            <FileDown className="w-4 h-4 ml-1" /> كشف مختصر PDF
           </Button>
           <Button onClick={() => {
             const entries = (statement?.entries || []).map(e => ({ ...e, balance: e.running_balance ?? e.balance }));

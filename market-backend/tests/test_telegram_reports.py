@@ -4,9 +4,9 @@ from pathlib import Path
 SOURCE = (Path(__file__).parents[1] / "routes" / "telegram.py").read_text()
 
 
-def test_sales_buttons_request_pdf_reports():
-    assert '_send_requested_report(chat_id, "sales", "today", as_pdf=True)' in SOURCE
-    assert '_send_requested_report(chat_id, "sales", "month", as_pdf=True)' in SOURCE
+def test_sales_buttons_are_text_and_other_reports_are_pdf():
+    assert '_send_requested_report(chat_id, "sales", "today", as_pdf=False)' in SOURCE
+    assert '_send_requested_report(chat_id, "sales", "month", as_pdf=False)' in SOURCE
     assert '_send_requested_report(chat_id, "purchases", "month", as_pdf=True)' in SOURCE
     assert '_send_requested_report(chat_id, "expenses", "month", as_pdf=True)' in SOURCE
 

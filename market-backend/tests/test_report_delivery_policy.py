@@ -36,6 +36,7 @@ def test_customer_and_supplier_pages_keep_system_pdf_exports():
     supplier = SUPPLIER_PAGE.read_text(encoding="utf-8")
     supplier_summary = SUPPLIER_SUMMARY_PAGE.read_text(encoding="utf-8")
     assert "exportStatementPDF" in customer
+    assert "exportCustomerSummaryPDF" in customer
     assert "exportStatementPDF" in supplier
     assert "window.print()" in supplier_summary
     assert "طباعة" in supplier_summary
@@ -43,6 +44,7 @@ def test_customer_and_supplier_pages_keep_system_pdf_exports():
     for field in ("supplier", "summary", "movements: data.movements || []", "period: data.period", "reportNo: data.report_no", "issuedAt: data.issued_at"):
         assert field in supplier_summary
     pdf_export = PDF_EXPORT.read_text(encoding="utf-8")
+    assert "export async function exportCustomerSummaryPDF" in pdf_export
     assert "export async function exportSupplierSummaryPDF" in pdf_export
     for column in ("تاريخ الحركة", "نوع الحركة", "رقم الفاتورة", "رقم الدفعة", "المبلغ", "الرصيد"):
         assert column in pdf_export

@@ -638,6 +638,58 @@ export async function exportStatementPDF(opts) {
   }
 }
 
+// ====================== CUSTOMER SUMMARY STATEMENT PDF ======================
+/**
+ * Customer summary statement PDF matching the customer account summary UI.
+ * The detailed statement remains available through exportStatementPDF.
+ */
+export async function exportCustomerSummaryPDF(opts) {
+  const entries = opts.entries || [];
+  const closing = opts.closing ?? opts.balance ?? 0;
+  const opening = opts.opening ?? 0;
+  const rowsHtml = entries.length ? entries.map((e, index) => `
+    <tr style="background:${index % 2 ? '#fafafa' : '#ffffff'};">
+      <td style="padding:8px;text-align:center;">${arabicDate(e.date)}</td>
+      <td style="padding:8px;text-align:center;font-family:monospace;">${e.op_no || '—'}</td>
+      <td style="padding:8px;text-align:right;font-weight:700;">${e.description || e.type || '—'}</td>
+      <td style="padding:8px;text-align:center;color:${Number(e.debit) > 0 ? BRAND.red : '#94a3b8'};">${Number(e.debit) > 0 ? money(e.debit) : '—'}</td>
+      <td style="padding:8px;text-align:center;color:${Number(e.credit) > 0 ? BRAND.green : '#94a3b8'};">${Number(e.credit) > 0 ? money(e.credit) : '—'}</td>
+      <td style="padding:8px;text-align:center;font-weight:800;">${money(e.balance)}</td>
+    </tr>`).join('') : `<tr><td colspan="6" style="padding:30px;text-align:center;color:#94a3b8;">لا توجد عمليات في هذه الفترة</td></tr>`;
+  const cards = [
+    ['الرصيد الافتتاحي', opening, '#2563eb'],
+    ['إجمالي الفواتير', opts.totalInvoices, BRAND.red],
+    ['إجمالي المسدد', opts.totalPaid, BRAND.green],
+    ['إجمالي المرتجعات', opts.totalReturns, BRAND.amber],
+    ['الرصيد الحالي', closing, Number(closing) > 0 ? BRAND.red : BRAND.green],
+  ].filter(([, value]) => value != null).map(([label, value, color]) => `
+    <div style="flex:1;background:linear-gradient(135deg,${color},${BRAND.dark});color:#fff;padding:12px;border-radius:10px;text-align:center;">
+      <div style="font-size:10px;opacity:.85;">${label}</div><div style="font-size:18px;font-weight:900;margin-top:3px;">${money(value)} <span style="font-size:11px;">ر.ي</span></div>
+    </div>`).join('');
+  const periodLabel = opts.dateFrom && opts.dateTo ? `${arabicDate(opts.dateFrom)} → ${arabicDate(opts.dateTo)}` : 'كل المعاملات';
+  const html = `
+    <div style="background:#fff;padding-bottom:18px;direction:rtl;">
+      ${brandHeaderHtml({ title: opts.title || 'كشف حساب عميل مختصر', voucherNo: opts.name || '', dateLabel: periodLabel })}
+      <div style="padding:18px 24px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        ${infoRow('اسم العميل', opts.name || '—')}${infoRow('رقم الجوال', opts.phone || '—')}
+        ${infoRow('الفترة', periodLabel)}${infoRow('الرصيد الختامي', `${money(closing)} ر.ي`)}
+      </div>
+      <div style="padding:0 24px 14px;display:flex;gap:8px;">${cards}</div>
+      <div style="margin:0 24px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead><tr style="background:${BRAND.dark};color:#fff;"><th style="padding:9px;">التاريخ</th><th style="padding:9px;">رقم العملية</th><th style="padding:9px;text-align:right;">البيان</th><th style="padding:9px;">مدين</th><th style="padding:9px;">دائن</th><th style="padding:9px;">الرصيد</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      ${footerHtml()}
+    </div>`;
+  const el = mountOffscreen(html, 297);
+  try {
+    await htmlToPdfDownload(el, `customer_summary_${(opts.name || 'customer').replace(/\s+/g, '_')}.pdf`, { orientation: 'l', format: 'a4' });
+  } finally {
+    document.body.removeChild(el);
+  }
+}
 // ====================== SUPPLIER SUMMARY STATEMENT PDF ======================
 export async function exportSupplierSummaryPDF(opts) {
   const supplier = opts.supplier || {};
