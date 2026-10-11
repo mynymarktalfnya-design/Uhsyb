@@ -33,15 +33,24 @@ export default function ManagerDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailView, setDetailView] = useState(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let alive = true;
     const load = () => {
+      setError('');
       api.get('/dashboard/manager')
         .then(r => alive && setData(r.data))
         .catch(e => {
-          if (e?.response?.status === 403) {
+          if (!alive) return;
+          const status = e?.response?.status;
+          if (status === 403) {
+            setError('حسابك لا يملك صلاحية لوحة المدير.');
             toast({ title: 'ليس لديك صلاحية', description: 'لوحة المدير متاحة للمدير فقط', variant: 'destructive' });
+          } else if (status === 401) {
+            setError('انتهت جلسة الدخول. سجّل الدخول من جديد.');
+          } else {
+            setError('تعذر تحميل بيانات لوحة المدير. تحقق من اتصال الخادم ثم أعد المحاولة.');
           }
         })
         .finally(() => alive && setLoading(false));
@@ -63,9 +72,13 @@ export default function ManagerDashboard() {
   }
   if (!data) {
     return (
-      <div className="p-8 text-center">
+      <div className="p-8 text-center" dir="rtl">
         <ShieldAlert className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-rose-700">لا توجد بيانات</h2>
+        <h2 className="text-xl font-bold text-rose-700">تعذر تحميل لوحة المدير</h2>
+        <p className="text-slate-500 mt-2 mb-5">{error || 'لم تصل بيانات اللوحة بعد.'}</p>
+        <Button onClick={() => window.location.reload()} className="bg-amber-500 hover:bg-amber-600 text-white">
+          <RefreshCw className="w-4 h-4 ml-2" /> إعادة المحاولة
+        </Button>
       </div>
     );
   }

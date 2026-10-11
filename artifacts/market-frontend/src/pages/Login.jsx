@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -8,8 +7,8 @@ import { Label } from '../components/ui/label';
 import { Eye, EyeOff, Store, ShieldCheck, Phone } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { STORE } from '../config/store';
+import api from '../lib/api';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 const Login = () => {
   const navigate = useNavigate();
@@ -24,7 +23,7 @@ const Login = () => {
   // Fetch public system info to decide whether to show demo buttons.
   useEffect(() => {
     let alive = true;
-    axios.get(`${API}/api/system/info`)
+    api.get('/system/info')
       .then((r) => {
         if (!alive) return;
         setMode(r.data?.mode || 'test');

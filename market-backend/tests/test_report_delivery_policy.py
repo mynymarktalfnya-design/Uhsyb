@@ -54,3 +54,14 @@ def test_customer_and_supplier_pages_keep_system_pdf_exports():
     assert "exportStatementPDF({" in supplier
     assert "kind: 'customer'" in customer
     assert "kind: 'supplier'" in supplier
+
+
+def test_login_uses_same_origin_api_for_system_info_and_manager_has_retry_diagnostics():
+    login = CUSTOMER_PAGE.parent / 'Login.jsx'
+    manager = CUSTOMER_PAGE.parent / 'ManagerDashboard.jsx'
+    login_source = login.read_text(encoding='utf-8')
+    manager_source = manager.read_text(encoding='utf-8')
+    assert "api.get('/system/info')" in login_source
+    assert 'process.env.REACT_APP_BACKEND_URL' not in login_source
+    assert 'تعذر تحميل لوحة المدير' in manager_source
+    assert 'إعادة المحاولة' in manager_source
