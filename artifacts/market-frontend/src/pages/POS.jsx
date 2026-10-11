@@ -21,6 +21,36 @@ import { STORE } from '../config/store';
 
 const fmt = (n) => new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(n || 0);
 
+// Short two-tone alert that works without shipping an audio asset. It is
+// triggered by the barcode input event, so it remains local to the cashier's
+// device and does not require any server request.
+function playOutOfStockAlert() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const start = context.currentTime;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.connect(context.destination);
+
+    [880, 660].forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      const time = start + index * 0.13;
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(frequency, time);
+      oscillator.connect(gain);
+      oscillator.start(time);
+      oscillator.stop(time + 0.1);
+    });
+    gain.gain.exponentialRampToValueAtTime(0.18, start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
+    window.setTimeout(() => context.close().catch(() => {}), 450);
+  } catch (_) {
+    // Audio is an enhancement; the visible destructive toast remains primary.
+  }
+}
+
 /* ─── Payment methods (same wallets as before, no mixed) ───────────────── */
 const PAYMENT_METHODS = [
   { v: 'cash',          l: 'نقد',     icon: Banknote,       grad: 'from-emerald-600 to-green-500',    ring: 'ring-emerald-400',  light: '#22c55e' },
@@ -183,6 +213,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
     const stockPerUnit = cartonMode ? piecesPerCarton : 1;
     const stock = Number(p.current_stock ?? 0);
     if (stock <= 0) {
+      playOutOfStockAlert();
       toast({
         title: '⛔ نفد المخزون',
         description: `المنتج "${p.name}" غير متوفر حاليًا. تمت إعادة المسح دون إضافته إلى السلة.`,

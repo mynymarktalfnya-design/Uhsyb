@@ -9,6 +9,9 @@ def test_pos_hides_available_stock_but_keeps_out_of_stock_barcode_alert():
     assert "غير متوفر حاليًا" in source
     assert "variant: 'destructive'" in source
     assert "lastBarcodeRef.current = ''" in source
+    assert "function playOutOfStockAlert()" in source
+    assert "playOutOfStockAlert();" in source
+    assert "AudioContext" in source
     assert "${fmt(p.current_stock)} متوفر" not in source
     assert "${fmt(p.current_stock)} متاح" not in source
     assert "current_stock <= 3" not in source
