@@ -1,6 +1,6 @@
 import unittest
 
-from routes.dashboard import _invoice_product_lines, _invoice_product_names
+from routes.dashboard import _invoice_product_lines, _invoice_product_names, _sales_unit_summary
 
 
 class _Collection:
@@ -64,6 +64,19 @@ class CashierReportProductNamesTest(unittest.TestCase):
             {"name": "مياه", "sale_unit": "carton", "quantity": 2, "pieces_per_carton": 24},
             {"name": "خبز", "sale_unit": "piece", "quantity": 3, "pieces_per_carton": 1},
         ])
+
+    def test_summarizes_realized_value_and_quantity_by_unit(self):
+        db = _Db()
+        db.collections["sale_items"] = _Collection([
+            {"sale_id": "sale-4", "quantity": 2, "sale_unit": "carton", "total": 100, "net_total": 95},
+            {"sale_id": "sale-4", "quantity": 3, "sale_unit": "piece", "total": 30},
+            {"sale_id": "sale-5", "quantity": 1, "sale_unit": "carton", "total": 50},
+        ])
+
+        self.assertEqual(_sales_unit_summary(db, ["sale-4", "sale-5"]), {
+            "carton": {"quantity": 3.0, "total": 145.0},
+            "piece": {"quantity": 3.0, "total": 30.0},
+        })
 
 
 if __name__ == "__main__":

@@ -43,6 +43,30 @@ def _invoice_product_names(db, sale_id):
     return [line["name"] for line in _invoice_product_lines(db, sale_id)]
 
 
+def _sales_unit_summary(db, sale_ids):
+    """Summarize realized revenue and sold quantities by piece/carton."""
+    summary = {
+        "carton": {"quantity": 0.0, "total": 0.0},
+        "piece": {"quantity": 0.0, "total": 0.0},
+    }
+    if not sale_ids:
+        return summary
+    for item in db[C.sale_items].find({"sale_id": {"$in": sale_ids}}):
+        unit = item.get("sale_unit") if item.get("sale_unit") in summary else "piece"
+        summary[unit]["quantity"] += float(item.get("quantity", 0) or 0)
+        realized_total = item.get("net_total")
+        if realized_total is None:
+            realized_total = item.get("total", 0)
+        summary[unit]["total"] += float(realized_total or 0)
+    return {
+        unit: {
+            "quantity": round(values["quantity"], 2),
+            "total": round(values["total"], 2),
+        }
+        for unit, values in summary.items()
+    }
+
+
 def _month_range():
     today = business_today()
     return month_range_utc(today.year, today.month)
@@ -440,6 +464,7 @@ def cashier_daily_report(
         "net_sales": round(
             sum(float(s.get("total", 0) or 0) for s in sales) - returns_total, 2
         ),
+        "unit_summary": _sales_unit_summary(db, sale_ids),
         "invoices": [{
             "id": s["_id"],
             "invoice_no": s.get("invoice_no"),

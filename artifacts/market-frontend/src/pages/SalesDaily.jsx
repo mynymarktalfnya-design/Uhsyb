@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import {
   Banknote, Building2, Calendar, CreditCard, Receipt, RefreshCw,
-  Smartphone, TrendingUp,
+  Smartphone, TrendingUp, Boxes, Package,
 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -52,6 +52,7 @@ const SalesDaily = () => {
   const returns = report?.returns || {};
   const invoices = report?.invoices || [];
   const returnRows = report?.return_rows || [];
+  const unitSummary = report?.unit_summary || {};
   const cards = useMemo(() => [
     { label: 'إجمالي المبيعات اليومية', value: sales.total, count: sales.invoice_count, icon: Receipt, color: 'from-emerald-500 to-teal-600', testId: 'cashier-total-sales' },
     { label: 'المبيعات النقدية', value: sales.cash, count: sales.cash_invoices, icon: Banknote, color: 'from-blue-500 to-indigo-600', testId: 'cashier-cash-sales' },
@@ -108,6 +109,46 @@ const SalesDaily = () => {
                 <div className="flex justify-between"><span>إجمالي المبيعات قبل المرتجعات</span><strong className="text-emerald-700">{money(sales.total)}</strong></div>
                 <div className="flex justify-between"><span>إجمالي المرتجعات المعتمدة</span><strong className="text-rose-600">− {money(returns.total)}</strong></div>
                 <div className="flex justify-between border-t pt-2 text-base"><strong>صافي المبيعات بعد المرتجعات</strong><strong className="text-green-700">{money(report?.net_sales)}</strong></div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border-2 border-amber-200 bg-gradient-to-l from-amber-50 via-white to-sky-50">
+            <CardContent className="p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">ملخص سريع حسب نوع البيع</h2>
+                  <p className="mt-1 text-xs text-slate-500">إجمالي قيمة وكمية المنتجات المباعة في هذا اليوم</p>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-500 shadow-sm">كرتون / قطعة</span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  { key: 'carton', label: 'مبيعات الكراتين', quantityLabel: 'عدد الكراتين', icon: Boxes, tone: 'amber' },
+                  { key: 'piece', label: 'مبيعات القطع', quantityLabel: 'عدد القطع', icon: Package, tone: 'sky' },
+                ].map(({ key, label, quantityLabel, icon: Icon, tone }) => {
+                  const unit = unitSummary[key] || {};
+                  return (
+                    <div key={key} className={`rounded-xl border p-4 ${tone === 'amber' ? 'border-amber-200 bg-amber-100/70' : 'border-sky-200 bg-sky-100/70'}`}>
+                      <div className="flex items-center gap-2">
+                        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone === 'amber' ? 'bg-amber-500 text-white' : 'bg-sky-500 text-white'}`}>
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <span className="font-bold text-slate-800">{label}</span>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div className="rounded-lg bg-white/80 p-3">
+                          <p className="text-xs text-slate-500">قيمة المبيعات</p>
+                          <p className="mt-1 text-lg font-extrabold text-emerald-700">{money(unit.total)}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/80 p-3">
+                          <p className="text-xs text-slate-500">{quantityLabel}</p>
+                          <p className="mt-1 text-lg font-extrabold text-slate-800">{fmt(unit.quantity)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
