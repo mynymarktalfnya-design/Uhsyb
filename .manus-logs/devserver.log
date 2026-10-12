@@ -1945,3 +1945,45 @@
 [2026-10-09T17:53:01.980Z] at runPnpmCli (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:276906:5)
 [2026-10-09T17:53:01.980Z] at runDepsStatusCheck (file:///home/ubuntu/.nvm/versions/node/v22.13.0/lib/node_modules/pnpm/dist/pnpm.mjs:278122:7)
 [2026-10-09T17:53:02.008Z] Dev server exited with code 1
+[2026-10-09T18:03:06.242Z] INFO:     10.88.218.1:56920 - "GET /api/health HTTP/1.1" 200 OK
+[2026-10-09T19:01:35.029Z] 2026-10-09 19:01:35,024 - apscheduler.executors.default - INFO - Running job "_auto_backup_job (trigger: interval[1:00:00], next run at: 2026-10-09 19:01:35 UTC)" (scheduled at 2026-10-09 19:01:35.022257+00:00)
+[2026-10-09T19:01:35.045Z] 2026-10-09 19:01:35,044 - routes.backups - ERROR - Auto backup (auto) failed: connection already closed
+[2026-10-09T19:01:35.045Z] 2026-10-09 19:01:35,045 - apscheduler.executors.default - INFO - Job "_auto_backup_job (trigger: interval[1:00:00], next run at: 2026-10-09 20:01:35 UTC)" executed successfully
+[2026-10-12T17:18:52.312Z] WARNING:  StatReload detected changes in 'market-backend/routes/dashboard.py'. Reloading...
+[2026-10-12T17:18:52.338Z] INFO:     Shutting down
+[2026-10-12T17:18:52.438Z] INFO:     Waiting for application shutdown.
+[2026-10-12T17:18:52.439Z] 2026-10-12 17:18:52,438 - apscheduler.scheduler - INFO - Scheduler has been shut down
+[2026-10-12T17:18:52.439Z] 2026-10-12 17:18:52,439 - routes.backups - INFO - Backup scheduler stopped
+[2026-10-12T17:18:52.439Z] INFO:     Application shutdown complete.
+[2026-10-12T17:18:52.440Z] INFO:     Finished server process [4127]
+[2026-10-12T17:18:56.098Z] INFO:     Started server process [7974]
+[2026-10-12T17:18:56.098Z] INFO:     Waiting for application startup.
+[2026-10-12T17:18:56.224Z] 2026-10-12 17:18:56,224 - server - INFO - Seeding complete (mode=test)
+[2026-10-12T17:18:56.225Z] 2026-10-12 17:18:56,225 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-10-12T17:18:56.225Z] 2026-10-12 17:18:56,225 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-10-12T17:18:56.225Z] 2026-10-12 17:18:56,225 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-10-12T17:18:56.226Z] 2026-10-12 17:18:56,225 - apscheduler.scheduler - INFO - Added job "_auto_backup_job" to job store "default"
+[2026-10-12T17:18:56.226Z] 2026-10-12 17:18:56,226 - apscheduler.scheduler - INFO - Added job "_auto_backup_job" to job store "default"
+[2026-10-12T17:18:56.226Z] 2026-10-12 17:18:56,226 - apscheduler.scheduler - INFO - Added job "_drive_sync_job" to job store "default"
+[2026-10-12T17:18:56.226Z] 2026-10-12 17:18:56,226 - apscheduler.scheduler - INFO - Scheduler started
+[2026-10-12T17:18:56.226Z] 2026-10-12 17:18:56,226 - routes.backups - INFO - Backup scheduler started — interval=1h midnight=True
+[2026-10-12T17:18:56.226Z] INFO:     Application startup complete.
+[2026-10-12T17:19:10.502Z] WARNING:  StatReload detected changes in 'market-backend/tests/test_cashier_report_product_names.py'. Reloading...
+[2026-10-12T17:19:10.576Z] INFO:     Shutting down
+[2026-10-12T17:19:10.677Z] INFO:     Waiting for application shutdown.
+[2026-10-12T17:19:10.677Z] 2026-10-12 17:19:10,677 - apscheduler.scheduler - INFO - Scheduler has been shut down
+[2026-10-12T17:19:10.678Z] 2026-10-12 17:19:10,677 - routes.backups - INFO - Backup scheduler stopped
+[2026-10-12T17:19:10.678Z] INFO:     Application shutdown complete.
+[2026-10-12T17:19:10.678Z] INFO:     Finished server process [7974]
+[2026-10-12T17:19:12.501Z] INFO:     Started server process [8013]
+[2026-10-12T17:19:12.501Z] INFO:     Waiting for application startup.
+[2026-10-12T17:19:12.603Z] 2026-10-12 17:19:12,603 - server - INFO - Seeding complete (mode=test)
+[2026-10-12T17:19:12.604Z] 2026-10-12 17:19:12,604 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-10-12T17:19:12.604Z] 2026-10-12 17:19:12,604 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-10-12T17:19:12.604Z] 2026-10-12 17:19:12,604 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2026-10-12T17:19:12.605Z] 2026-10-12 17:19:12,605 - apscheduler.scheduler - INFO - Added job "_auto_backup_job" to job store "default"
+[2026-10-12T17:19:12.605Z] 2026-10-12 17:19:12,605 - apscheduler.scheduler - INFO - Added job "_auto_backup_job" to job store "default"
+[2026-10-12T17:19:12.605Z] 2026-10-12 17:19:12,605 - apscheduler.scheduler - INFO - Added job "_drive_sync_job" to job store "default"
+[2026-10-12T17:19:12.605Z] 2026-10-12 17:19:12,605 - apscheduler.scheduler - INFO - Scheduler started
+[2026-10-12T17:19:12.605Z] 2026-10-12 17:19:12,605 - routes.backups - INFO - Backup scheduler started — interval=1h midnight=True
+[2026-10-12T17:19:12.605Z] INFO:     Application startup complete.

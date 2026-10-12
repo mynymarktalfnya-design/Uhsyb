@@ -18,9 +18,9 @@ def _today_range():
     return day_range_utc(business_today())
 
 
-def _invoice_product_names(db, sale_id):
-    """Return product names for one invoice, preserving item order."""
-    names = []
+def _invoice_product_lines(db, sale_id):
+    """Return product and sale-unit details for one invoice, preserving order."""
+    lines = []
     for item in db[C.sale_items].find({"sale_id": sale_id}):
         product_id = item.get("product_id")
         product = (
@@ -28,8 +28,19 @@ def _invoice_product_names(db, sale_id):
             if product_id
             else None
         )
-        names.append((product or {}).get("name") or item.get("product_name") or "—")
-    return names
+        sale_unit = item.get("sale_unit") or "piece"
+        lines.append({
+            "name": (product or {}).get("name") or item.get("product_name") or "—",
+            "sale_unit": sale_unit if sale_unit in {"piece", "carton"} else "piece",
+            "quantity": float(item.get("quantity", 0) or 0),
+            "pieces_per_carton": int(item.get("pieces_per_carton", 1) or 1),
+        })
+    return lines
+
+
+def _invoice_product_names(db, sale_id):
+    """Return legacy product-name-only representation for existing consumers."""
+    return [line["name"] for line in _invoice_product_lines(db, sale_id)]
 
 
 def _month_range():
@@ -433,6 +444,7 @@ def cashier_daily_report(
             "id": s["_id"],
             "invoice_no": s.get("invoice_no"),
             "product_names": _invoice_product_names(db, s["_id"]),
+            "product_lines": _invoice_product_lines(db, s["_id"]),
             "total": float(s.get("total", 0) or 0),
             "payment_method": s.get("payment_method") or "cash",
             "created_at": s.get("created_at"),

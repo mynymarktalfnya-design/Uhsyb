@@ -117,12 +117,29 @@ const SalesDaily = () => {
               <div className="border-b bg-slate-50 p-4"><h2 className="font-bold">المنتجات المباعة ({fmt(sales.invoice_count)} فاتورة)</h2></div>
               <div className="max-h-96 overflow-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-right text-xs text-slate-500"><tr><th className="p-3">المنتج المباع</th><th className="p-3">رقم الفاتورة</th><th className="p-3">طريقة الدفع</th><th className="p-3">الإجمالي</th></tr></thead>
+                  <thead className="bg-slate-50 text-right text-xs text-slate-500"><tr><th className="p-3">المنتج ونوع البيع</th><th className="p-3">رقم الفاتورة</th><th className="p-3">طريقة الدفع</th><th className="p-3">الإجمالي</th></tr></thead>
                   <tbody>
                     {invoices.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-slate-400">لا توجد فواتير في هذا اليوم</td></tr>}
                     {invoices.map((invoice) => (
                       <tr key={invoice.id} className="border-t">
-                        <td className="p-3 font-semibold text-slate-800">{invoice.product_names?.filter(Boolean).join('، ') || '—'}</td>
+                        <td className="p-3">
+                          {invoice.product_lines?.length ? (
+                            <div className="space-y-1.5">
+                              {invoice.product_lines.map((line, index) => {
+                                const isCarton = line.sale_unit === 'carton';
+                                return (
+                                  <div key={`${line.name}-${index}`} className="flex flex-wrap items-center gap-2">
+                                    <span className="font-semibold text-slate-800">{line.name}</span>
+                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${isCarton ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}`}>
+                                      {isCarton ? 'كرتون' : 'قطعة'} · {fmt(line.quantity)}
+                                      {isCarton && Number(line.pieces_per_carton) > 1 ? ` (${fmt(line.pieces_per_carton)} قطعة)` : ''}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : invoice.product_names?.filter(Boolean).join('، ') || '—'}
+                        </td>
                         <td className="p-3 font-mono text-amber-700">{invoice.invoice_no}</td>
                         <td className="p-3 text-slate-600">{PAYMENT_LABELS[invoice.payment_method] || invoice.payment_method}</td>
                         <td className="p-3 font-bold text-emerald-700">{money(invoice.total)}</td>
