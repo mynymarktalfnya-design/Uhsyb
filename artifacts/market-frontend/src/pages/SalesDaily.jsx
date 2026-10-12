@@ -128,15 +128,22 @@ const SalesDaily = () => {
                   { key: 'piece', label: 'مبيعات القطع', quantityLabel: 'عدد القطع', icon: Package, tone: 'sky' },
                 ].map(({ key, label, quantityLabel, icon: Icon, tone }) => {
                   const unit = unitSummary[key] || {};
+                  const isCarton = tone === 'amber';
                   return (
-                    <div key={key} className={`rounded-xl border p-4 ${tone === 'amber' ? 'border-amber-200 bg-amber-100/70' : 'border-sky-200 bg-sky-100/70'}`}>
-                      <div className="flex items-center gap-2">
-                        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone === 'amber' ? 'bg-amber-500 text-white' : 'bg-sky-500 text-white'}`}>
-                          <Icon className="h-5 w-5" />
+                    <div key={key} className={`relative overflow-hidden rounded-2xl border p-4 shadow-sm ${isCarton ? 'border-amber-300 bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100' : 'border-sky-300 bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100'}`}>
+                      <div className={`absolute -left-8 -top-8 h-24 w-24 rounded-full opacity-30 ${isCarton ? 'bg-orange-400' : 'bg-indigo-400'}`} />
+                      <div className="relative flex items-center gap-3">
+                        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-md ${isCarton ? 'bg-gradient-to-br from-amber-500 to-orange-600' : 'bg-gradient-to-br from-sky-500 to-indigo-600'}`}>
+                          <Icon className="h-7 w-7" strokeWidth={2.4} />
                         </div>
-                        <span className="font-bold text-slate-800">{label}</span>
+                        <div>
+                          <span className="block text-base font-extrabold text-slate-900">{label}</span>
+                          <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${isCarton ? 'bg-amber-200 text-amber-900' : 'bg-sky-200 text-sky-900'}`}>
+                            {isCarton ? 'وحدة بيع بالكرتون' : 'وحدة بيع بالقطعة'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="relative mt-4 grid grid-cols-2 gap-3">
                         <div className="rounded-lg bg-white/80 p-3">
                           <p className="text-xs text-slate-500">قيمة المبيعات</p>
                           <p className="mt-1 text-lg font-extrabold text-emerald-700">{money(unit.total)}</p>
