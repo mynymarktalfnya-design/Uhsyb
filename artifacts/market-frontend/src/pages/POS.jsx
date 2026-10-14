@@ -783,9 +783,9 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
               {cartonMode && <span className="text-[10px] bg-white/20 rounded-md px-1.5 py-0.5">{cartonDiscountPercent}% خصم</span>}
             </button>
           </div>
-          {/* Row 1: 4 methods */}
-          <div className="grid grid-cols-4 gap-2 mb-2">
-            {PAYMENT_METHODS.slice(0, 4).map((pm) => {
+          {/* Desktop: one compact row keeps the cart/product list visible. Mobile: two rows remain comfortable to tap. */}
+          <div className="grid grid-cols-4 md:grid-cols-7 gap-1.5">
+            {PAYMENT_METHODS.map((pm) => {
               const Icon = pm.icon;
               const active = payMethod === pm.v;
               return (
@@ -793,42 +793,17 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
                   key={pm.v}
                   onClick={() => onPaySelect(pm.v)}
                   data-testid={`pos-payment-${pm.v}`}
-                  className={`relative flex flex-col items-center gap-2 py-3 rounded-2xl transition-all active:scale-95 border ${
+                  className={`relative flex flex-col items-center gap-1 py-2 md:py-1.5 rounded-xl transition-all active:scale-95 border ${
                     active
                       ? `bg-gradient-to-br ${pm.grad} border-transparent shadow-xl`
                       : 'bg-slate-800/80 border-slate-700/50 hover:border-slate-500 hover:bg-slate-800'
                   }`}
                 >
                   {active && <span className="absolute inset-0 rounded-2xl ring-2 ring-white/20 pointer-events-none" />}
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${active ? 'bg-white/20' : 'bg-slate-700/60'}`}>
-                    <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-300'}`} />
+                  <div className={`w-7 h-7 md:w-6 md:h-6 rounded-lg flex items-center justify-center ${active ? 'bg-white/20' : 'bg-slate-700/60'}`}>
+                    <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-slate-300'}`} />
                   </div>
-                  <span className={`text-xs font-extrabold leading-none ${active ? 'text-white' : 'text-slate-400'}`}>{pm.l}</span>
-                </button>
-              );
-            })}
-          </div>
-          {/* Row 2: 3 methods */}
-          <div className="grid grid-cols-3 gap-2">
-            {PAYMENT_METHODS.slice(4).map((pm) => {
-              const Icon = pm.icon;
-              const active = payMethod === pm.v;
-              return (
-                <button
-                  key={pm.v}
-                  onClick={() => onPaySelect(pm.v)}
-                  data-testid={`pos-payment-${pm.v}`}
-                  className={`relative flex flex-col items-center gap-2 py-3 rounded-2xl transition-all active:scale-95 border ${
-                    active
-                      ? `bg-gradient-to-br ${pm.grad} border-transparent shadow-xl`
-                      : 'bg-slate-800/80 border-slate-700/50 hover:border-slate-500 hover:bg-slate-800'
-                  }`}
-                >
-                  {active && <span className="absolute inset-0 rounded-2xl ring-2 ring-white/20 pointer-events-none" />}
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${active ? 'bg-white/20' : 'bg-slate-700/60'}`}>
-                    <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-300'}`} />
-                  </div>
-                  <span className={`text-xs font-extrabold leading-none ${active ? 'text-white' : 'text-slate-400'}`}>{pm.l}</span>
+                  <span className={`text-[10px] md:text-[11px] font-extrabold leading-none ${active ? 'text-white' : 'text-slate-400'}`}>{pm.l}</span>
                 </button>
               );
             })}
