@@ -145,6 +145,7 @@ class C:
     notifications = "notifications"
     devices = "devices"
     sync_queue = "sync_queue"
+    idempotency_keys = "idempotency_keys"
     product_change_requests = "product_change_requests"
     day_closes = "day_closes"
 
@@ -173,5 +174,10 @@ def init_indexes():
         db[C.audit_logs].create_index([("created_at", DESCENDING)])
         db[C.notifications].create_index([("user_id", ASCENDING), ("read", ASCENDING)])
         db[C.day_closes].create_index([("close_date", ASCENDING)], unique=True)
+        db[C.idempotency_keys].create_index([("user_id", ASCENDING), ("key", ASCENDING)], unique=True)
+        db[C.idempotency_keys].create_index([("created_at", DESCENDING)])
+        db[C.stock_audits].create_index([("audit_no", ASCENDING)], unique=True)
+        db[C.stock_audits].create_index([("created_at", DESCENDING)])
+        db[C.stock_audit_items].create_index([("audit_id", ASCENDING)])
     except Exception as e:
         logger.warning(f"Index creation skipped: {e}")

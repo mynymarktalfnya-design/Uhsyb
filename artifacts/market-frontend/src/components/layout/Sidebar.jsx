@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingCart, Package, Users, TrendingUp,
   Wallet, FileText, Settings, UserCircle, LogOut, Store,
-  ShieldCheck, Bell, RefreshCw, ScrollText, Lock, Database, AlertTriangle, PieChart,
+  ShieldCheck, Bell, RefreshCw, ScrollText, Lock, Database, AlertTriangle, PieChart, ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../lib/api';
@@ -23,6 +23,7 @@ const menuItems = [
   { path: '/dashboard/customers',    label: 'العملاء',        icon: Users,           roles: ['admin', 'manager', 'cashier'] },
   { path: '/dashboard/products',      label: 'المنتجات',         icon: Package,         roles: ['admin'] },
   { path: '/dashboard/stock-alerts', label: 'تنبيهات المخزون', icon: AlertTriangle,   roles: ['manager', 'cashier'] },
+  { path: '/dashboard/inventory-audits', label: 'جرد المخزون', icon: ClipboardList, roles: ['admin', 'manager'] },
   { path: '/dashboard/purchases',    label: 'حسابات التجار',   icon: Store,           roles: ['admin', 'manager'] },
   { path: '/dashboard/expenses',     label: 'المصروفات',     icon: Wallet,          roles: ['admin', 'manager', 'cashier'] },
   { path: '/dashboard/returns',      label: 'المرتجعات',      icon: RefreshCw,       roles: ['admin', 'manager', 'cashier'] },

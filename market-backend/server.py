@@ -52,6 +52,7 @@ from routes.audit import router as audit_router
 from routes.day_close import router as day_close_router
 from routes.system import router as system_router
 from routes.dashboard import router as dashboard_router
+from routes.inventory_audits import router as inventory_audits_router
 from routes.telegram import router as telegram_router, scheduled_router as telegram_scheduled_router
 
 app.include_router(auth_router)
@@ -71,6 +72,7 @@ app.include_router(audit_router)
 app.include_router(day_close_router)
 app.include_router(system_router)
 app.include_router(dashboard_router)
+app.include_router(inventory_audits_router)
 app.include_router(telegram_router)
 app.include_router(telegram_scheduled_router)
 

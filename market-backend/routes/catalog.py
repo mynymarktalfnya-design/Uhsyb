@@ -115,6 +115,15 @@ def list_products(q: Optional[str] = None, category_id: Optional[str] = None,
     return [ProductOut.model_validate(_product_out(p, db, current.role)) for p in rows]
 
 
+@router.get("/inventory/products", response_model=List[ProductOut])
+def list_inventory_products(limit: int = Query(1000, le=2000),
+                            db = Depends(get_db), current = Depends(require_manager)):
+    """Active products used by the manager inventory-audit screen."""
+    rows = list(db[C.products].find({"deleted_at": None, "is_active": True})
+                .sort("name", 1).limit(limit))
+    return [ProductOut.model_validate(_product_out(p, db, current.role)) for p in rows]
+
+
 @router.get("/pos/products", response_model=List[ProductOut])
 def list_products_for_pos(q: Optional[str] = None,
                           featured_only: bool = Query(False),
