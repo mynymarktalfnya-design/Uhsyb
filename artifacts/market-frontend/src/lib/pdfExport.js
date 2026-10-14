@@ -525,7 +525,7 @@ export async function exportStatementPDF(opts) {
       <tr style="background:#f8fafc;">
          <td colspan="8" style="padding:5px 12px 7px;">
           <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:3px;">تفاصيل الأصناف</div>
-          <table style="width:100%;border-collapse:collapse;font-size:10.5px;color:#475569;">
+          <table dir="rtl" style="width:100%;border-collapse:collapse;font-size:10.5px;color:#475569;direction:rtl;text-align:right;">
             <thead><tr style="color:#64748b;border-bottom:1px solid #e2e8f0;">
               <th style="padding:3px 6px;text-align:right;width:24px;">#</th>
               <th style="padding:3px 6px;text-align:right;">الصنف</th>
@@ -572,7 +572,7 @@ export async function exportStatementPDF(opts) {
   `).join('');
 
   const html = `
-    <div style="position:relative;padding:0 0 18px;background:#fff;">
+    <div dir="rtl" style="position:relative;padding:0 0 18px;background:#fff;direction:rtl;text-align:right;">
       ${brandHeaderHtml({
         title: opts.title || 'كشف حساب',
         voucherNo: opts.name,
@@ -583,7 +583,7 @@ export async function exportStatementPDF(opts) {
 
       ${stampHtml(status)}
 
-      <div style="padding:18px 24px;display:flex;gap:16px;">
+      <div dir="rtl" style="padding:18px 24px;display:flex;gap:16px;direction:rtl;text-align:right;">
         <div style="flex:1;">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
             ${infoRow('الاسم', opts.name)}
@@ -600,7 +600,7 @@ export async function exportStatementPDF(opts) {
       <div style="padding:0 24px;display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">${kpisHtml}</div>
 
       <div style="margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
-        <table style="width:100%;border-collapse:collapse;">
+        <table dir="rtl" style="width:100%;border-collapse:collapse;direction:rtl;text-align:right;">
           <thead>
             <tr style="background:${BRAND.dark};color:#fff;font-size:12px;">
               <th style="padding:9px;text-align:center;">التاريخ</th>

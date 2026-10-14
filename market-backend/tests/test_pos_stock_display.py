@@ -12,6 +12,8 @@ def test_pos_hides_available_stock_but_keeps_out_of_stock_barcode_alert():
     assert "function playOutOfStockAlert()" in source
     assert "playOutOfStockAlert();" in source
     assert "AudioContext" in source
+    assert "context.resume().then(schedule)" in source
+    assert "context.state === 'suspended'" in source
     assert "${fmt(p.current_stock)} متوفر" not in source
     assert "${fmt(p.current_stock)} متاح" not in source
     assert "current_stock <= 3" not in source

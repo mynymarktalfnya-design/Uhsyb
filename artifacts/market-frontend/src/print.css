@@ -8,8 +8,8 @@
   .print-only-block { position: absolute; left: 0; top: 0; width: 100%; }
   .no-print { display: none !important; }
   body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .statement-print { width: 100% !important; box-shadow: none !important; border: 0 !important; }
-  .statement-ledger { width: 100% !important; table-layout: fixed; border-collapse: collapse !important; }
+  .statement-print { width: 100% !important; box-shadow: none !important; border: 0 !important; direction: rtl !important; text-align: right !important; }
+  .statement-ledger { width: 100% !important; table-layout: fixed; border-collapse: collapse !important; direction: rtl !important; }
   .statement-ledger th,
   .statement-ledger td { border: 1px solid #94a3b8 !important; }
   .statement-ledger tr { break-inside: avoid; page-break-inside: avoid; }

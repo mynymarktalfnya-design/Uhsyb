@@ -29,23 +29,30 @@ function playOutOfStockAlert() {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;
     const context = new AudioContextClass();
-    const start = context.currentTime;
-    const gain = context.createGain();
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.connect(context.destination);
+    const schedule = () => {
+      const start = context.currentTime;
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.connect(context.destination);
 
-    [880, 660].forEach((frequency, index) => {
-      const oscillator = context.createOscillator();
-      const time = start + index * 0.13;
-      oscillator.type = 'square';
-      oscillator.frequency.setValueAtTime(frequency, time);
-      oscillator.connect(gain);
-      oscillator.start(time);
-      oscillator.stop(time + 0.1);
-    });
-    gain.gain.exponentialRampToValueAtTime(0.18, start + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
-    window.setTimeout(() => context.close().catch(() => {}), 450);
+      [880, 660].forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        const time = start + index * 0.13;
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(frequency, time);
+        oscillator.connect(gain);
+        oscillator.start(time);
+        oscillator.stop(time + 0.1);
+      });
+      gain.gain.exponentialRampToValueAtTime(0.18, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
+      window.setTimeout(() => context.close().catch(() => {}), 450);
+    };
+    if (context.state === 'suspended' && typeof context.resume === 'function') {
+      context.resume().then(schedule).catch(() => {});
+    } else {
+      schedule();
+    }
   } catch (_) {
     // Audio is an enhancement; the visible destructive toast remains primary.
   }
