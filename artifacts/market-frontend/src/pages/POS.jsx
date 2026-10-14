@@ -646,10 +646,24 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       </div>
 
       {/* ══════ CART TABLE ═══════════════════════════════════════════ */}
-      {/* Table header */}
-      <div className="flex-shrink-0 flex items-center gap-0 px-3 py-1.5 bg-slate-900/80 border-y border-slate-800/80 text-[10px] font-bold text-slate-500">
+      {/* Sticky table header + clear-cart action */}
+      <div className="sticky top-0 z-20 flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-y border-slate-800/80 text-[10px] font-bold text-slate-500 shadow-[0_2px_8px_rgba(0,0,0,.25)]">
+        <div className="flex-1 flex items-center gap-2 min-w-0">
+          <span className="text-amber-300 font-extrabold">المنتجات المضافة</span>
+          <span className="text-slate-600">({cart.length})</span>
+          <button
+            type="button"
+            onClick={clearCart}
+            disabled={!cart.length}
+            data-testid="pos-clear-cart-btn"
+            className="flex-shrink-0 flex items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[10px] font-extrabold text-rose-300 transition-all hover:bg-rose-500/20 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-35"
+            title="مسح السلة"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            مسح السلة
+          </button>
+        </div>
         <div className="w-8 flex-shrink-0" />
-        <div className="flex-1 text-right">الصنف</div>
         <div className="w-28 text-center flex-shrink-0">الكمية</div>
         <div className="w-20 text-center flex-shrink-0">سعر البيع</div>
         <div className="w-20 text-center flex-shrink-0">الإجمالي</div>
