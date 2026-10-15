@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from database import get_db, C
 from models import new_id
-from utils.deps import get_current_user, require_manager
+from utils.deps import require_admin
 from utils.audit import log_action
 from inventory_audit_report import build_inventory_snapshot, render_inventory_pdf
 
@@ -36,16 +36,16 @@ def _out(a):
     return {"id": a["_id"], "audit_no": a["audit_no"], "created_at": a["created_at"], "branch": a.get("branch"), "actor_name": a.get("actor_name"), "notes": a.get("notes", ""), "items": a.get("items", []), "total_items": len(a.get("items", [])), "total_actual": sum(float(x.get("actual_quantity", 0)) for x in a.get("items", [])), "total_system": sum(float(x.get("system_quantity", 0)) for x in a.get("items", []))}
 
 @router.get("")
-def list_audits(db=Depends(get_db), _u=Depends(require_manager)):
+def list_audits(db=Depends(get_db), _u=Depends(require_admin)):
     return [_out(a) for a in db[C.stock_audits].find({}).sort("created_at", -1).limit(100)]
 
 @router.get("/current")
-def current_audit(db=Depends(get_db), current=Depends(require_manager)):
+def current_audit(db=Depends(get_db), current=Depends(require_admin)):
     snap = build_inventory_snapshot(db, audit_no=_next_no(db), actor_name=current.get("full_name") or current.get("username") or "—")
     return snap
 
 @router.post("", status_code=201)
-def create_audit(payload: AuditCreate, request: Request, db=Depends(get_db), current=Depends(require_manager), idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key")):
+def create_audit(payload: AuditCreate, request: Request, db=Depends(get_db), current=Depends(require_admin), idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key")):
     key = (idempotency_key or new_id()).strip()
     if len(key) > 200: raise HTTPException(400, "Invalid Idempotency-Key")
     reservation = {"user_id": current["_id"], "key": key}
@@ -78,18 +78,18 @@ def create_audit(payload: AuditCreate, request: Request, db=Depends(get_db), cur
     return _out(doc)
 
 @router.get("/current/pdf")
-def current_audit_pdf(db=Depends(get_db), current=Depends(require_manager)):
+def current_audit_pdf(db=Depends(get_db), current=Depends(require_admin)):
     snap = build_inventory_snapshot(db, audit_no=_next_no(db), actor_name=current.get("full_name") or current.get("username") or "—")
     return Response(render_inventory_pdf(snap), media_type="application/pdf", headers={"Content-Disposition": 'inline; filename="inventory-audit-current.pdf"'})
 
 @router.get("/{audit_id}")
-def get_audit(audit_id: str, db=Depends(get_db), _u=Depends(require_manager)):
+def get_audit(audit_id: str, db=Depends(get_db), _u=Depends(require_admin)):
     audit = db[C.stock_audits].find_one({"_id": audit_id})
     if not audit: raise HTTPException(404, "الجرد غير موجود")
     return _out(audit)
 
 @router.get("/{audit_id}/pdf")
-def audit_pdf(audit_id: str, db=Depends(get_db), _u=Depends(require_manager)):
+def audit_pdf(audit_id: str, db=Depends(get_db), _u=Depends(require_admin)):
     audit = db[C.stock_audits].find_one({"_id": audit_id})
     if not audit: raise HTTPException(404, "الجرد غير موجود")
     snap = {"audit_no": audit["audit_no"], "created_at": audit["created_at"], "branch": audit.get("branch", "—"), "actor_name": audit.get("actor_name", "—"), "notes": audit.get("notes", ""), "rows": audit.get("items", []), "total_items": len(audit.get("items", [])), "total_actual": sum(float(x.get("actual_quantity", 0)) for x in audit.get("items", [])), "total_system": sum(float(x.get("system_quantity", 0)) for x in audit.get("items", []))}

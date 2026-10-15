@@ -117,7 +117,7 @@ def list_products(q: Optional[str] = None, category_id: Optional[str] = None,
 
 @router.get("/inventory/products", response_model=List[ProductOut])
 def list_inventory_products(limit: int = Query(1000, le=2000),
-                            db = Depends(get_db), current = Depends(require_manager)):
+                            db = Depends(get_db), current = Depends(require_admin)):
     """Active products used by the manager inventory-audit screen."""
     rows = list(db[C.products].find({"deleted_at": None, "is_active": True})
                 .sort("name", 1).limit(limit))
