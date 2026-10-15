@@ -1,0 +1,41 @@
+appId: com.mmf.desktop
+productName: MMF Desktop
+artifactName: MiniMarketAlfnya-Setup-${version}.${ext}
+directories:
+  output: release
+  buildResources: desktop/resources
+files:
+  - desktop/main.cjs
+  - artifacts/market-frontend/dist/public/**/*
+  - packaging/windows/**/*
+  - local-service/**/*
+  - scripts/windows/**/*
+  - runtime/**/*
+  - config/production.env.example
+extraResources:
+  - from: artifacts/market-frontend/dist/public
+    to: frontend
+    filter:
+      - '**/*'
+  - from: runtime
+    to: runtime
+    filter:
+      - '**/*'
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  requestedExecutionLevel: asInvoker
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: ميني ماركت الفنية
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  installerLanguages:
+    - ar
+    - en
