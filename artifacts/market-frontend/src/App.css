@@ -25,10 +25,138 @@
 }
 
 @keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* POS wide light workspace — isolated to the point-of-sale screen. */
+.pos-modern {
+    background:
+      radial-gradient(circle at 10% 0%, rgba(96, 165, 250, .18), transparent 32%),
+      radial-gradient(circle at 92% 8%, rgba(244, 114, 182, .16), transparent 28%),
+      linear-gradient(135deg, #eef5ff 0%, #ffffff 48%, #fff8fd 100%) !important;
+    color: #172033 !important;
+    padding: 10px;
+    gap: 10px;
+}
+
+.pos-modern > aside,
+.pos-modern > section {
+    border: 1px solid rgba(148, 163, 184, .38);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .9) !important;
+    box-shadow: 0 12px 30px rgba(55, 74, 120, .12);
+}
+
+.pos-modern > aside {
+    order: 2;
+    width: min(100%, 390px) !important;
+    padding: 10px !important;
+    border-color: rgba(99, 102, 241, .22) !important;
+}
+
+.pos-modern > aside > div {
+    border: 0 !important;
+    border-radius: 14px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 2px !important;
+}
+
+.pos-modern > aside h2,
+.pos-modern > aside p,
+.pos-modern > aside span,
+.pos-modern > section p,
+.pos-modern > section span,
+.pos-modern > section label {
+    color: #172033;
+}
+
+.pos-modern > aside [class*="bg-slate-900"],
+.pos-modern > aside [class*="bg-slate-950"],
+.pos-modern > aside [class*="bg-slate-800"] {
+    background: #f8fbff !important;
+}
+
+.pos-modern > section {
+    min-height: 0;
+    overflow: hidden;
+}
+
+@media (min-width: 901px) {
+    .pos-modern {
+        flex-direction: column !important;
+        overflow-y: auto !important;
     }
-    to {
-        transform: rotate(360deg);
+    .pos-modern > section {
+        flex: 0 0 650px;
+        min-height: 650px;
+        overflow: visible;
     }
+    .pos-modern > aside {
+        flex: 0 0 auto;
+        width: 100% !important;
+        max-height: none;
+    }
+    .pos-modern > aside > div > div:last-child {
+        overflow: visible !important;
+    }
+    .pos-modern > aside [class*="grid-cols-2"] {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .pos-modern > aside button {
+        min-height: 118px !important;
+    }
+}
+
+.pos-modern > section [class*="bg-slate-800"],
+.pos-modern > section [class*="bg-slate-900"],
+.pos-modern > section [class*="bg-[#0d0d1a]"] {
+    background-color: #f8fbff !important;
+    color: #172033 !important;
+}
+
+.pos-modern > section [class*="text-white"] { color: #172033 !important; }
+.pos-modern > section [class*="text-slate-300"],
+.pos-modern > section [class*="text-slate-400"],
+.pos-modern > section [class*="text-slate-500"],
+.pos-modern > section [class*="text-slate-600"],
+.pos-modern > section [class*="text-slate-700"] { color: #64748b !important; }
+.pos-modern > section [class*="border-slate-700"],
+.pos-modern > section [class*="border-slate-800"] { border-color: #dbe4f0 !important; }
+
+.pos-modern > section input {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #172033 !important;
+    box-shadow: 0 3px 10px rgba(59, 130, 246, .06);
+}
+
+.pos-modern > section input::placeholder { color: #94a3b8 !important; }
+
+.pos-modern > section [class*="grid-cols-3"] button,
+.pos-modern > section [class*="grid-cols-4"] button,
+.pos-modern > section [class*="grid-cols-7"] button {
+    border-color: #d5dfec !important;
+    box-shadow: 0 5px 12px rgba(37, 99, 235, .08);
+}
+
+.pos-modern > section [class*="grid-cols-3"] button:hover,
+.pos-modern > section [class*="grid-cols-4"] button:hover,
+.pos-modern > section [class*="grid-cols-7"] button:hover {
+    transform: translateY(-1px);
+}
+
+.pos-modern > section [class*="sticky"] {
+    background: #ffffff !important;
+    border-color: #dbe4f0 !important;
+    color: #475569 !important;
+}
+
+.pos-modern > section [data-testid="pos-total"] { color: #1261c9 !important; }
+
+@media (max-width: 900px) {
+    .pos-modern { padding: 6px; gap: 6px; }
+    .pos-modern > aside { width: 100% !important; max-height: 42vh; }
+    .pos-modern > section { min-height: 58vh; }
 }

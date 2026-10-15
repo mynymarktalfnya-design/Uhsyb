@@ -381,10 +381,10 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
     <div
       dir="rtl"
       data-testid="pos-page"
-      className="flex flex-col md:flex-row min-h-0 overflow-hidden bg-[#0d0d1a] text-white"
+      className="pos-modern flex flex-col md:flex-row min-h-0 overflow-hidden bg-[#0d0d1a] text-white"
       style={{ height: 'calc(100vh - 60px)' }}
     >
-      {!sidebarOpen && (
+      {
         <aside
           className="order-2 md:order-none w-full md:w-[360px] lg:w-[390px] flex-shrink-0 border-t md:border-t-0 md:border-l border-amber-500/30 bg-[#101426] p-3"
           data-testid="featured-products-panel"
@@ -453,7 +453,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
             </div>
           </div>
         </aside>
-      )}
+      }
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden">
 
       {/* ══════ INFO CHIPS ════════════════════════════════════════════ */}

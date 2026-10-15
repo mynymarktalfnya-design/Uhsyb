@@ -1,5 +1,6 @@
 """Inventory audit snapshots. Audits never change product stock."""
 from datetime import datetime, timezone
+from threading import Lock
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from pymongo.errors import DuplicateKeyError
 from fastapi.responses import Response
@@ -13,6 +14,7 @@ from utils.audit import log_action
 from inventory_audit_report import build_inventory_snapshot, render_inventory_pdf
 
 router = APIRouter(prefix="/api/admin/inventory-audits", tags=["inventory-audits"])
+_audit_reservation_lock = Lock()
 
 class AuditLine(BaseModel):
     product_id: str
@@ -47,14 +49,21 @@ def create_audit(payload: AuditCreate, request: Request, db=Depends(get_db), cur
     key = (idempotency_key or new_id()).strip()
     if len(key) > 200: raise HTTPException(400, "Invalid Idempotency-Key")
     reservation = {"user_id": current["_id"], "key": key}
-    try:
-        db[C.idempotency_keys].insert_one({"_id": new_id(), **reservation, "operation": "inventory_audit", "status": "processing", "created_at": datetime.now(timezone.utc)})
-    except DuplicateKeyError:
+    with _audit_reservation_lock:
         prior = db[C.idempotency_keys].find_one(reservation)
         if prior and prior.get("audit_id"):
             existing = db[C.stock_audits].find_one({"_id": prior["audit_id"]})
             if existing: return _out(existing)
-        raise HTTPException(409, "عملية الجرد نفسها قيد التنفيذ، أعد المحاولة لاحقاً")
+        if prior:
+            raise HTTPException(409, "عملية الجرد نفسها قيد التنفيذ، أعد المحاولة لاحقاً")
+        try:
+            db[C.idempotency_keys].insert_one({"_id": new_id(), **reservation, "operation": "inventory_audit", "status": "processing", "created_at": datetime.now(timezone.utc)})
+        except DuplicateKeyError:
+            prior = db[C.idempotency_keys].find_one(reservation)
+            if prior and prior.get("audit_id"):
+                existing = db[C.stock_audits].find_one({"_id": prior["audit_id"]})
+                if existing: return _out(existing)
+            raise HTTPException(409, "عملية الجرد نفسها قيد التنفيذ، أعد المحاولة لاحقاً")
     now = datetime.now(timezone.utc)
     audit_no = _next_no(db)
     actual_by_product = {line.product_id: line.actual_quantity for line in payload.items}
