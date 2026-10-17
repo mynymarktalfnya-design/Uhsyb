@@ -158,5 +158,29 @@
 @media (max-width: 900px) {
     .pos-modern { padding: 6px; gap: 6px; }
     .pos-modern > aside { width: 100% !important; max-height: 42vh; }
-    .pos-modern > section { min-height: 58vh; }
+    .pos-modern > section { min-height: 0; flex: 0 0 auto; overflow: visible; }
+    .pos-modern .pos-info-strip { padding-top: 4px; padding-bottom: 4px; }
+    .pos-modern .pos-info-strip > div { padding-top: 5px; padding-bottom: 5px; }
+    .pos-modern .pos-info-strip > div:nth-child(1) { display: none; }
+    .pos-modern .pos-search-strip { padding-top: 5px; padding-bottom: 5px; }
+    .pos-modern .pos-search-strip input,
+    .pos-modern .pos-search-strip button { height: 40px; }
+    .pos-modern .pos-category-strip { display: none; }
+    .pos-modern .pos-cart-header { position: static; min-height: 40px; }
+    .pos-modern .pos-cart-list { height: clamp(260px, 42vh, 520px); flex: none; overflow-y: auto; background: #ffffff; }
+    .pos-modern .pos-cart-list-empty { height: 150px; }
+    .pos-modern .pos-cart-list-has-items > div { min-height: 76px; padding-top: 10px; padding-bottom: 10px; }
+    .pos-modern .pos-checkout-panel { border-top: 1px solid #cbd5e1; }
+    .pos-modern .pos-checkout-panel > div:first-child { padding-top: 5px; padding-bottom: 5px; }
+    .pos-modern .pos-checkout-panel [class*="grid-cols-4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+    .pos-modern .pos-checkout-panel [class*="grid-cols-4"] button { min-height: 42px; padding-top: 4px; padding-bottom: 4px; }
+    .pos-modern .pos-checkout-panel [class*="grid-cols-4"] button > div { width: 24px; height: 24px; }
+    .pos-modern .pos-checkout-panel [class*="grid-cols-4"] button svg { width: 14px; height: 14px; }
+    .pos-modern .pos-checkout-panel [class*="grid-cols-3"] { gap: 4px; }
+    .pos-modern .pos-checkout-panel [class*="grid-cols-3"] button { min-height: 44px; padding-top: 5px; padding-bottom: 5px; }
+    .pos-modern .pos-checkout-panel [class*="grid-cols-3"] button > div { width: 25px; height: 25px; }
+    .pos-modern .pos-checkout-panel [class*="grid-cols-3"] button svg { width: 15px; height: 15px; }
+    .pos-modern .pos-checkout-panel > div:last-child { padding-bottom: 6px; }
+    .pos-modern > aside { margin-top: 0; }
+    .pos-modern > aside > div > div:first-child { margin-bottom: 6px; padding-bottom: 6px; }
 }

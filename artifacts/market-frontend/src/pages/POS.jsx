@@ -457,7 +457,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       <section className="min-w-0 flex-1 flex flex-col overflow-hidden">
 
       {/* ══════ INFO CHIPS ════════════════════════════════════════════ */}
-      <div className="flex-shrink-0 flex gap-2 px-3 py-2 border-b border-slate-800/60">
+      <div className="pos-info-strip flex-shrink-0 flex gap-2 px-3 py-2 border-b border-slate-800/60">
         {/* Invoice # */}
         <div className="flex items-center gap-2 bg-slate-800/70 rounded-xl px-3 py-1.5 flex-1 min-w-0">
           <Receipt className="w-4 h-4 text-amber-400 flex-shrink-0" />
@@ -489,7 +489,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       </div>
 
       {/* ══════ SEARCH ═══════════════════════════════════════════════ */}
-      <div className="flex-shrink-0 px-3 py-2 relative">
+      <div className="pos-search-strip flex-shrink-0 px-3 py-2 relative">
         <div className="flex gap-2" dir="ltr">
           <button
             type="button"
@@ -596,7 +596,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       </div>
 
       {/* ══════ CATEGORY TABS ════════════════════════════════════════ */}
-      <div className="flex-shrink-0 px-3 pb-2">
+      <div className="pos-category-strip flex-shrink-0 px-3 pb-2">
         <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <button
             onClick={() => { setSelectedCat(null); setShowProducts(false); setQuery(''); }}
@@ -647,7 +647,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
 
       {/* ══════ CART TABLE ═══════════════════════════════════════════ */}
       {/* Sticky table header + clear-cart action */}
-      <div className="sticky top-0 z-20 flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-y border-slate-800/80 text-[10px] font-bold text-slate-500 shadow-[0_2px_8px_rgba(0,0,0,.25)]">
+      <div className="pos-cart-header sticky top-0 z-20 flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-y border-slate-800/80 text-[10px] font-bold text-slate-500 shadow-[0_2px_8px_rgba(0,0,0,.25)]">
         <div className="flex-1 flex items-center gap-2 min-w-0">
           <span className="text-amber-300 font-extrabold">المنتجات المضافة</span>
           <span className="text-slate-600">({cart.length})</span>
@@ -670,7 +670,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       </div>
 
       {/* Scrollable cart rows */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className={`pos-cart-list flex-1 overflow-y-auto min-h-0 ${cart.length ? 'pos-cart-list-has-items' : 'pos-cart-list-empty'}`}>
         {cart.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-700 py-8">
             <ShoppingCart className="w-16 h-16 mb-3 opacity-10" />
@@ -744,7 +744,7 @@ export default function POS({ sidebarOpen = true, onToggleSidebar }) {
       </div>
 
       {/* ══════ BOTTOM FIXED SECTION ═════════════════════════════════ */}
-      <div className="flex-shrink-0 border-t border-slate-800 bg-[#0d0d1a]">
+      <div className="pos-checkout-panel flex-shrink-0 border-t border-slate-800 bg-[#0d0d1a]">
 
         {/* ── Summary stats ─────────────────────────────────────────── */}
         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-800/60">
